@@ -8,7 +8,7 @@ function mapTherapist(t: {
   city: string; bio: string | null; homeVisit: boolean; specializations: string;
   languages: string; certifications: string; reviewStatus: string;
   createdAt: Date; updatedAt: Date;
-  links?: Array<{ id: string; status: string; practice: { id: string; name: string; city: string; address: string | null; phone: string | null; lat: number; lng: number; reviewStatus: string; createdAt: Date; updatedAt: Date } }>;
+  links?: Array<{ id: string; status: string; practice: { id: string; name: string; city: string; address: string | null; phone: string | null; hours: string | null; lat: number; lng: number; reviewStatus: string; createdAt: Date; updatedAt: Date } }>;
 }) {
   return {
     id: t.id, email: t.email, fullName: t.fullName,
@@ -25,13 +25,14 @@ function mapTherapist(t: {
 
 function mapPractice(p: {
   id: string; name: string; city: string; address: string | null;
-  phone: string | null; lat: number; lng: number; reviewStatus: string;
+  phone: string | null; hours: string | null; lat: number; lng: number; reviewStatus: string;
   createdAt: Date; updatedAt: Date;
   links?: Array<{ id: string; status: string; therapist: { id: string; fullName: string; professionalTitle: string } }>;
 }) {
   return {
     id: p.id, name: p.name, city: p.city,
     address: p.address ?? undefined, phone: p.phone ?? undefined,
+    hours: p.hours ?? undefined,
     lat: p.lat, lng: p.lng, reviewStatus: p.reviewStatus,
     createdAt: p.createdAt.toISOString(),
     links: p.links?.map((l) => ({

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Revio",
-    "slug": "revio",
+    "slug": "revo",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,6 +22,12 @@
     },
     "web": {
       "bundler": "metro"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "453d86fe-08c1-4852-ae2a-a9991f64c845"
+      }
+    },
+    "owner": "vucenovic"
   }
 }

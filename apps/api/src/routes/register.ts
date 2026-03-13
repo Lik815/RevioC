@@ -18,7 +18,7 @@ const registerSchema = z.object({
     city: z.string().min(1),
     address: z.string().optional(),
     phone: z.string().optional(),
-  }),
+  }).optional(),
 });
 
 export const registerRoutes: FastifyPluginAsync = async (fastify) => {
@@ -42,15 +42,17 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
     const reviewStatus = isDev ? 'APPROVED' : 'PENDING_REVIEW';
     const linkStatus = isDev ? 'CONFIRMED' : 'PROPOSED';
 
-    const practice = await fastify.prisma.practice.create({
-      data: {
-        name: data.practice.name,
-        city: data.practice.city,
-        address: data.practice.address,
-        phone: data.practice.phone,
-        reviewStatus,
-      },
-    });
+    const practice = data.practice
+      ? await fastify.prisma.practice.create({
+          data: {
+            name: data.practice.name,
+            city: data.practice.city,
+            address: data.practice.address,
+            phone: data.practice.phone,
+            reviewStatus,
+          },
+        })
+      : null;
 
     const passwordHash = data.password ? await hashPassword(data.password) : undefined;
 
@@ -67,12 +69,14 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
         certifications: data.certifications.join(', '),
         passwordHash,
         reviewStatus,
-        links: {
-          create: {
-            practiceId: practice.id,
-            status: linkStatus,
+        ...(practice ? {
+          links: {
+            create: {
+              practiceId: practice.id,
+              status: linkStatus,
+            },
           },
-        },
+        } : {}),
       },
     });
 

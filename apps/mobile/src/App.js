@@ -53,23 +53,24 @@ const palette = {
 // ─── Autocomplete suggestions ─────────────────────────────────────────────────
 
 const allSuggestions = [
-  'Rückenschmerzen', 'Knieschmerzen', 'Sportverletzung', 'Schulter',
-  'Nacken', 'Hüfte', 'Fuß', 'Arm', 'Hand', 'Neurologisch',
-  'Wirbelsäule', 'Bandscheibe', 'Manualtherapie', 'Sportreha',
-  'Orthopädie', 'Post-OP-Reha', 'Schlaganfall-Reha', 'Neurologie',
-  'Parkinson', 'MS', 'Kinder-Physio', 'Schwangerschaft', 'Beckenboden',
-  'Ergonomie', 'Laufen', 'Fußball', 'Haltung', 'Entwicklung',
-  'Bobath', 'PNF', 'MLD', 'KGG', 'Lymphdrainage'
+  'Rückenschmerzen', 'Kniereha', 'Sportphysiotherapie', 'Schulterrehabilitation',
+  'Nackenschmerzen', 'Hüftreha', 'Fußtherapie', 'Handtherapie',
+  'Manualtherapie', 'Orthopädische Rehabilitation', 'Neurologische Rehabilitation',
+  'Postoperative Reha', 'Lymphdrainage', 'Vojta-Therapie', 'Bobath-Therapie',
+  'Kinesiotaping', 'Osteopathie', 'Dry Needling', 'Beckenbodentherapie',
+  'Atemtherapie', 'Entspannungstherapie', 'Pädiatrische Physiotherapie',
+  'Wirbelsäulentherapie', 'Triggerpunkt-Therapie', 'Geriatrische Rehabilitation',
+  'Aquatherapie', 'Krankengymnastik', 'Rückentherapie', 'Physiotherapie'
 ];
 
 // ─── Quick-chip labels ────────────────────────────────────────────────────────
 
 const quickChips = [
-  { label: 'Rückenschmerzen', keywords: ['rücken', 'rückenschmerzen', 'wirbelsäule', 'bandscheibe', 'haltung'] },
-  { label: 'Knieschmerzen',   keywords: ['knie', 'knieschmerzen', 'laufen', 'lauf'] },
-  { label: 'Sportverletzung', keywords: ['sport', 'sportverletzung', 'sportreha', 'fußball', 'muskeln'] },
-  { label: 'Neurologisch',    keywords: ['neurologie', 'neurologisch', 'schlaganfall', 'ms', 'parkinson', 'bobath', 'pnf'] },
-  { label: 'Schulter',        keywords: ['schulter', 'nacken', 'arm', 'hand'] }
+  { label: 'Rückenschmerzen', keywords: ['rücken', 'rückenschmerzen', 'rückentherapie', 'wirbelsäule', 'wirbelsäulentherapie', 'haltung'] },
+  { label: 'Kniereha',        keywords: ['knie', 'kniereha', 'knieschmerzen'] },
+  { label: 'Sportphysiotherapie', keywords: ['sport', 'sportphysiotherapie', 'sportverletzung', 'sportreha'] },
+  { label: 'Neurologische Rehabilitation', keywords: ['neurologie', 'neurologisch', 'neurologische rehabilitation', 'bobath', 'vojta', 'bobath-therapie', 'vojta-therapie'] },
+  { label: 'Schulterrehabilitation', keywords: ['schulter', 'schulterrehabilitation', 'nackenschmerzen', 'nacken'] }
 ];
 
 // ─── Nav tabs ─────────────────────────────────────────────────────────────────
@@ -98,13 +99,16 @@ const fortbildungOptions = [
 ];
 
 const regSpecOptions = [
-  'Rückenschmerzen', 'Knieschmerzen', 'Schulter', 'Nacken', 'Hüfte', 'Fuß',
-  'Sportverletzung', 'Sportreha', 'Orthopädie', 'Neurologie', 'Manualtherapie',
-  'Post-OP-Reha', 'Kinder-Physio', 'Schwangerschaft', 'Beckenboden',
-  'Wirbelsäule', 'Bandscheibe', 'Ergonomie', 'Schlaganfall-Reha'
+  'Rückenschmerzen', 'Kniereha', 'Schulterrehabilitation', 'Nackenschmerzen', 'Hüftreha', 'Fußtherapie',
+  'Sportphysiotherapie', 'Orthopädische Rehabilitation', 'Neurologische Rehabilitation',
+  'Manualtherapie', 'Postoperative Reha', 'Lymphdrainage', 'Beckenbodentherapie',
+  'Wirbelsäulentherapie', 'Handtherapie', 'Pädiatrische Physiotherapie',
+  'Geriatrische Rehabilitation', 'Atemtherapie', 'Krankengymnastik',
+  'Osteopathie', 'Kinesiotaping', 'Dry Needling', 'Triggerpunkt-Therapie',
+  'Vojta-Therapie', 'Bobath-Therapie', 'Aquatherapie', 'Entspannungstherapie'
 ];
 const languageOptions = ['DE', 'EN', 'TR', 'AR', 'FR', 'ES', 'IT', 'PL', 'RU'];
-const REG_STEPS = 6;
+const REG_STEPS = 5;
 
 // ─── Demo data ────────────────────────────────────────────────────────────────
 
@@ -122,16 +126,16 @@ const practices = [
 ];
 
 const demoResults = [
-  { id: 't1',  fullName: 'Anna Becker',       professionalTitle: 'Physiotherapeutin', specializations: ['Rückenschmerzen', 'Sport'],         languages: ['DE', 'EN'], homeVisit: true,  kassenart: 'gesetzlich',   fortbildungen: ['MT', 'KGG'],     photo: 'https://i.pravatar.cc/96?img=1',  practices: [practices[0]], verifiziert: true,  bio: 'Ich helfe Menschen, ihren Rücken dauerhaft zu entlasten – mit gezielter Therapie und bewegungsbasierter Prävention.', behandlungsbereiche: ['Orthopädie', 'Sportphysio'],          verfügbareZeiten: 'Mo–Fr 8–17 Uhr',          website: '' },
-  { id: 't2',  fullName: 'Markus Stein',      professionalTitle: 'Physiotherapeut',   specializations: ['Neurologie', 'Orthopädie'],         languages: ['DE'],       homeVisit: false, kassenart: 'privat',       fortbildungen: ['Bobath', 'MT'],  photo: 'https://i.pravatar.cc/96?img=3',  practices: [practices[0]], verifiziert: true,  bio: 'Mein Schwerpunkt liegt in der neurologischen Rehabilitation – von Schlaganfall bis MS.',                              behandlungsbereiche: ['Neurologie', 'Orthopädie'],           verfügbareZeiten: 'Mo–Do 9–18 Uhr',          website: 'www.markusstein-physio.de' },
-  { id: 't3',  fullName: 'Julia Hoffmann',    professionalTitle: 'Physiotherapeutin', specializations: ['Knieschmerzen', 'Sportreha'],       languages: ['DE', 'EN'], homeVisit: true,  kassenart: 'gesetzlich',   fortbildungen: ['KGG'],           photo: 'https://i.pravatar.cc/96?img=5',  practices: [practices[1]], verifiziert: true,  bio: 'Spezialisiert auf Knie- und Sportverletzungen – ich begleite dich von der Diagnose bis zurück in den Sport.',         behandlungsbereiche: ['Sportphysio', 'Orthopädie'],          verfügbareZeiten: 'Mo–Fr 7–16 Uhr',          website: '' },
-  { id: 't4',  fullName: 'Thomas Müller',     professionalTitle: 'Physiotherapeut',   specializations: ['Wirbelsäule', 'Manualtherapie'],    languages: ['DE'],       homeVisit: false, kassenart: 'gesetzlich',   fortbildungen: ['MT', 'MLD'],     photo: 'https://i.pravatar.cc/96?img=7',  practices: [practices[1]], verifiziert: true,  bio: 'Manuelle Therapie ist meine Leidenschaft – ich behandle komplexe Wirbelsäulenbeschwerden mit Präzision.',             behandlungsbereiche: ['Orthopädie', 'Manuelle Therapie'],    verfügbareZeiten: 'Di–Sa 8–18 Uhr',          website: '' },
-  { id: 't5',  fullName: 'Sarah Schneider',   professionalTitle: 'Physiotherapeutin', specializations: ['Schulter', 'Nacken'],               languages: ['DE', 'TR'], homeVisit: false, kassenart: 'selbstzahler', fortbildungen: ['MT'],            photo: 'https://i.pravatar.cc/96?img=9',  practices: [practices[2]], verifiziert: true,  bio: 'Schulter- und Nackenbeschwerden sind mein Spezialgebiet – auch für Patienten, die bisher keine Besserung erfahren haben.', behandlungsbereiche: ['Orthopädie'],                         verfügbareZeiten: 'Mo–Fr 10–19 Uhr',         website: '' },
-  { id: 't6',  fullName: 'Felix Wagner',      professionalTitle: 'Physiotherapeut',   specializations: ['Sportverletzung', 'Hüfte'],         languages: ['DE', 'EN'], homeVisit: true,  kassenart: 'gesetzlich',   fortbildungen: ['KGG', 'MT'],     photo: 'https://i.pravatar.cc/96?img=11', practices: [practices[2]], verifiziert: true,  bio: 'Als ehemaliger Leistungssportler kenne ich Sportverletzungen aus erster Hand und behandle sie mit Verständnis.',       behandlungsbereiche: ['Sportphysio', 'Orthopädie'],          verfügbareZeiten: 'Mo–Sa 7–20 Uhr',          website: 'www.felix-sportphysio.de' },
-  { id: 't7',  fullName: 'Laura Fischer',     professionalTitle: 'Physiotherapeutin', specializations: ['Neurologie', 'Schlaganfall-Reha'], languages: ['DE'],       homeVisit: true,  kassenart: 'privat',       fortbildungen: ['Bobath', 'MLD'], photo: 'https://i.pravatar.cc/96?img=13', practices: [practices[3]], verifiziert: true,  bio: 'Ich begleite Schlaganfall-Patienten und Menschen mit neurologischen Erkrankungen auf dem Weg zu mehr Selbstständigkeit.', behandlungsbereiche: ['Neurologie'],                         verfügbareZeiten: 'Mo–Fr 8–16 Uhr',          website: '' },
-  { id: 't8',  fullName: 'David Weber',       professionalTitle: 'Physiotherapeut',   specializations: ['Rückenschmerzen', 'Beckenboden'],   languages: ['DE', 'FR'], homeVisit: false, kassenart: 'gesetzlich',   fortbildungen: ['MLD', 'KGG'],    photo: 'https://i.pravatar.cc/96?img=15', practices: [practices[3]], verifiziert: true,  bio: 'Rücken- und Beckenbodentherapie – ich behandle ganzheitlich und erkläre dir, was in deinem Körper passiert.',          behandlungsbereiche: ['Orthopädie', 'Beckengesundheit'],     verfügbareZeiten: 'Mo–Do 8–18 Uhr',          website: '' },
-  { id: 't9',  fullName: 'Nina Schäfer',      professionalTitle: 'Physiotherapeutin', specializations: ['Kinder-Physio', 'Entwicklung'],     languages: ['DE', 'EN'], homeVisit: true,  kassenart: 'gesetzlich',   fortbildungen: ['Bobath'],        photo: 'https://i.pravatar.cc/96?img=17', practices: [practices[4]], verifiziert: true,  bio: 'Kinder brauchen eine andere Therapie als Erwachsene – ich bin auf pädiatrische Physiotherapie spezialisiert.',         behandlungsbereiche: ['Pädiatrie', 'Neurologie'],            verfügbareZeiten: 'Mo–Fr 8–15 Uhr',          website: '' },
-  { id: 't10', fullName: 'Leon Meyer',        professionalTitle: 'Physiotherapeut',   specializations: ['Orthopädie', 'Post-OP-Reha'],       languages: ['DE'],       homeVisit: false, kassenart: 'selbstzahler', fortbildungen: ['MT', 'KGG'],     photo: 'https://i.pravatar.cc/96?img=19', practices: [practices[4]], verifiziert: true,  bio: 'Postoperative Rehabilitation ist mein Schwerpunkt – ich begleite dich sicher zurück in deinen Alltag.',               behandlungsbereiche: ['Orthopädie', 'Post-OP-Reha'],         verfügbareZeiten: 'Di–Sa 9–18 Uhr',          website: 'www.leon-physio.de' },
+  { id: 't1',  fullName: 'Anna Becker',       professionalTitle: 'Physiotherapeutin', specializations: ['Rückenschmerzen', 'Sportphysiotherapie'], languages: ['DE', 'EN'], homeVisit: true,  kassenart: 'gesetzlich',   fortbildungen: ['MT', 'KGG'],     photo: 'https://i.pravatar.cc/96?img=1',  practices: [practices[0]], verifiziert: true,  bio: 'Ich helfe Menschen, ihren Rücken dauerhaft zu entlasten – mit gezielter Therapie und bewegungsbasierter Prävention.', behandlungsbereiche: ['Orthopädische Rehabilitation', 'Sportphysiotherapie'], verfügbareZeiten: 'Mo–Fr 8–17 Uhr',          website: '' },
+  { id: 't2',  fullName: 'Markus Stein',      professionalTitle: 'Physiotherapeut',   specializations: ['Neurologische Rehabilitation', 'Orthopädische Rehabilitation'], languages: ['DE'], homeVisit: false, kassenart: 'privat', fortbildungen: ['Bobath', 'MT'],  photo: 'https://i.pravatar.cc/96?img=3',  practices: [practices[0]], verifiziert: true,  bio: 'Mein Schwerpunkt liegt in der neurologischen Rehabilitation – von Schlaganfall bis MS.',                              behandlungsbereiche: ['Neurologische Rehabilitation', 'Orthopädische Rehabilitation'], verfügbareZeiten: 'Mo–Do 9–18 Uhr', website: 'www.markusstein-physio.de' },
+  { id: 't3',  fullName: 'Julia Hoffmann',    professionalTitle: 'Physiotherapeutin', specializations: ['Kniereha', 'Sportphysiotherapie'],  languages: ['DE', 'EN'], homeVisit: true,  kassenart: 'gesetzlich',   fortbildungen: ['KGG'],           photo: 'https://i.pravatar.cc/96?img=5',  practices: [practices[1]], verifiziert: true,  bio: 'Spezialisiert auf Knie- und Sportverletzungen – ich begleite dich von der Diagnose bis zurück in den Sport.',         behandlungsbereiche: ['Sportphysiotherapie', 'Orthopädische Rehabilitation'], verfügbareZeiten: 'Mo–Fr 7–16 Uhr', website: '' },
+  { id: 't4',  fullName: 'Thomas Müller',     professionalTitle: 'Physiotherapeut',   specializations: ['Wirbelsäulentherapie', 'Manualtherapie'], languages: ['DE'],  homeVisit: false, kassenart: 'gesetzlich',   fortbildungen: ['MT', 'MLD'],     photo: 'https://i.pravatar.cc/96?img=7',  practices: [practices[1]], verifiziert: true,  bio: 'Manuelle Therapie ist meine Leidenschaft – ich behandle komplexe Wirbelsäulenbeschwerden mit Präzision.',             behandlungsbereiche: ['Orthopädische Rehabilitation', 'Manualtherapie'], verfügbareZeiten: 'Di–Sa 8–18 Uhr', website: '' },
+  { id: 't5',  fullName: 'Sarah Schneider',   professionalTitle: 'Physiotherapeutin', specializations: ['Schulterrehabilitation', 'Nackenschmerzen'], languages: ['DE', 'TR'], homeVisit: false, kassenart: 'selbstzahler', fortbildungen: ['MT'], photo: 'https://i.pravatar.cc/96?img=9',  practices: [practices[2]], verifiziert: true,  bio: 'Schulter- und Nackenbeschwerden sind mein Spezialgebiet – auch für Patienten, die bisher keine Besserung erfahren haben.', behandlungsbereiche: ['Orthopädische Rehabilitation'], verfügbareZeiten: 'Mo–Fr 10–19 Uhr', website: '' },
+  { id: 't6',  fullName: 'Felix Wagner',      professionalTitle: 'Physiotherapeut',   specializations: ['Sportphysiotherapie', 'Hüftreha'],  languages: ['DE', 'EN'], homeVisit: true,  kassenart: 'gesetzlich',   fortbildungen: ['KGG', 'MT'],     photo: 'https://i.pravatar.cc/96?img=11', practices: [practices[2]], verifiziert: true,  bio: 'Als ehemaliger Leistungssportler kenne ich Sportverletzungen aus erster Hand und behandle sie mit Verständnis.',       behandlungsbereiche: ['Sportphysiotherapie', 'Orthopädische Rehabilitation'], verfügbareZeiten: 'Mo–Sa 7–20 Uhr', website: 'www.felix-sportphysio.de' },
+  { id: 't7',  fullName: 'Laura Fischer',     professionalTitle: 'Physiotherapeutin', specializations: ['Neurologische Rehabilitation', 'Bobath-Therapie'], languages: ['DE'], homeVisit: true, kassenart: 'privat', fortbildungen: ['Bobath', 'MLD'], photo: 'https://i.pravatar.cc/96?img=13', practices: [practices[3]], verifiziert: true,  bio: 'Ich begleite Schlaganfall-Patienten und Menschen mit neurologischen Erkrankungen auf dem Weg zu mehr Selbstständigkeit.', behandlungsbereiche: ['Neurologische Rehabilitation'], verfügbareZeiten: 'Mo–Fr 8–16 Uhr', website: '' },
+  { id: 't8',  fullName: 'David Weber',       professionalTitle: 'Physiotherapeut',   specializations: ['Rückenschmerzen', 'Beckenbodentherapie'], languages: ['DE', 'FR'], homeVisit: false, kassenart: 'gesetzlich', fortbildungen: ['MLD', 'KGG'], photo: 'https://i.pravatar.cc/96?img=15', practices: [practices[3]], verifiziert: true,  bio: 'Rücken- und Beckenbodentherapie – ich behandle ganzheitlich und erkläre dir, was in deinem Körper passiert.',          behandlungsbereiche: ['Orthopädische Rehabilitation', 'Beckenbodentherapie'], verfügbareZeiten: 'Mo–Do 8–18 Uhr', website: '' },
+  { id: 't9',  fullName: 'Nina Schäfer',      professionalTitle: 'Physiotherapeutin', specializations: ['Pädiatrische Physiotherapie', 'Vojta-Therapie'], languages: ['DE', 'EN'], homeVisit: true, kassenart: 'gesetzlich', fortbildungen: ['Bobath'], photo: 'https://i.pravatar.cc/96?img=17', practices: [practices[4]], verifiziert: true,  bio: 'Kinder brauchen eine andere Therapie als Erwachsene – ich bin auf pädiatrische Physiotherapie spezialisiert.',         behandlungsbereiche: ['Pädiatrische Physiotherapie', 'Neurologische Rehabilitation'], verfügbareZeiten: 'Mo–Fr 8–15 Uhr', website: '' },
+  { id: 't10', fullName: 'Leon Meyer',        professionalTitle: 'Physiotherapeut',   specializations: ['Orthopädische Rehabilitation', 'Postoperative Reha'], languages: ['DE'], homeVisit: false, kassenart: 'selbstzahler', fortbildungen: ['MT', 'KGG'], photo: 'https://i.pravatar.cc/96?img=19', practices: [practices[4]], verifiziert: true,  bio: 'Postoperative Rehabilitation ist mein Schwerpunkt – ich begleite dich sicher zurück in deinen Alltag.',               behandlungsbereiche: ['Orthopädische Rehabilitation', 'Postoperative Reha'], verfügbareZeiten: 'Di–Sa 9–18 Uhr', website: 'www.leon-physio.de' },
   { id: 't11', fullName: 'Lena Braun',        professionalTitle: 'Physiotherapeutin', specializations: ['Wirbelsäule', 'Haltung'],           languages: ['DE', 'EN'], homeVisit: false, kassenart: 'gesetzlich',   fortbildungen: ['MT'],            photo: 'https://i.pravatar.cc/96?img=21', practices: [practices[5]], verifiziert: true,  bio: 'Haltungsanalyse und Wirbelsäulentherapie – ich helfe dir, die Ursachen chronischer Beschwerden zu verstehen.',        behandlungsbereiche: ['Orthopädie', 'Prävention'],           verfügbareZeiten: 'Mo–Fr 9–18 Uhr',          website: '' },
   { id: 't12', fullName: 'Jonas Richter',     professionalTitle: 'Physiotherapeut',   specializations: ['Knie', 'Laufen'],                   languages: ['DE'],       homeVisit: true,  kassenart: 'gesetzlich',   fortbildungen: ['KGG', 'MT'],     photo: 'https://i.pravatar.cc/96?img=23', practices: [practices[5]], verifiziert: true,  bio: 'Laufsportler und Kniepatienten sind meine Kernzielgruppe – ich bringe dich wieder auf die Strecke.',                  behandlungsbereiche: ['Sportphysio', 'Orthopädie'],          verfügbareZeiten: 'Mo–Sa 7–19 Uhr',          website: '' },
   { id: 't13', fullName: 'Marie König',       professionalTitle: 'Physiotherapeutin', specializations: ['Schulter', 'Arm', 'Hand'],          languages: ['DE', 'EN'], homeVisit: false, kassenart: 'privat',       fortbildungen: ['MT', 'MLD'],     photo: 'https://i.pravatar.cc/96?img=25', practices: [practices[6]], verifiziert: true,  bio: 'Schulter, Arm und Hand – ich bin auf die obere Extremität spezialisiert und behandle auch komplexe Fälle.',            behandlungsbereiche: ['Orthopädie', 'Manuelle Therapie'],    verfügbareZeiten: 'Mo–Fr 8–17 Uhr',          website: '' },
@@ -144,7 +148,7 @@ const demoResults = [
   { id: 't20', fullName: 'Lukas Neumann',     professionalTitle: 'Physiotherapeut',   specializations: ['Wirbelsäule', 'Bandscheibe'],       languages: ['DE'],       homeVisit: false, kassenart: 'privat',       fortbildungen: ['MT', 'MLD'],     photo: 'https://i.pravatar.cc/96?img=39', practices: [practices[9]], verifiziert: true,  bio: 'Bandscheibenvorfälle und Wirbelkanalverengungen – ich behandle auch komplexe Wirbelsäulendiagnosen konservativ.',      behandlungsbereiche: ['Orthopädie', 'Manuelle Therapie'],    verfügbareZeiten: 'Mo–Fr 8–18 Uhr',          website: '' }
 ];
 
-const BASE_URL = 'http://localhost:4000';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000';
 const getBaseUrl = () => BASE_URL;
 
 // ─── Map API therapist → UI format ────────────────────────────────────────────
@@ -355,8 +359,14 @@ export default function App() {
         });
         if (profileRes.ok) setLoggedInTherapist(await profileRes.json());
         setEditMode(false);
+        Alert.alert('Gespeichert', 'Dein Profil wurde erfolgreich aktualisiert.');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        Alert.alert('Fehler', err.message ?? 'Profil konnte nicht gespeichert werden.');
       }
-    } catch {}
+    } catch {
+      Alert.alert('Verbindungsfehler', 'Bitte prüfe deine Internetverbindung.');
+    }
     setProfileSaving(false);
   };
 
@@ -372,25 +382,38 @@ export default function App() {
     });
     if (result.canceled || !result.assets?.[0]?.base64) return;
     const photo = `data:image/jpeg;base64,${result.assets[0].base64}`;
-    await fetch(`${getBaseUrl()}/auth/me`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-      body: JSON.stringify({ photo }),
-    });
-    setLoggedInTherapist(prev => ({ ...prev, photo }));
+    try {
+      const res = await fetch(`${getBaseUrl()}/auth/me`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ photo }),
+      });
+      if (res.ok) {
+        setLoggedInTherapist(prev => ({ ...prev, photo }));
+      } else {
+        Alert.alert('Fehler', 'Foto konnte nicht hochgeladen werden.');
+      }
+    } catch {
+      Alert.alert('Verbindungsfehler', 'Bitte prüfe deine Internetverbindung.');
+    }
   };
 
-  // GPS: auto-fill address on mount
-  useEffect(() => {
-    (async () => {
+  // GPS: request on demand only
+  const handleGetLocation = async () => {
+    try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
+      if (status !== 'granted') {
+        Alert.alert('Standort nicht verfügbar', 'Bitte erlaube den Standortzugriff in den Einstellungen.');
+        return;
+      }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const [geo] = await Location.reverseGeocodeAsync(loc.coords);
       if (geo?.city) setCity(geo.city);
       setUserCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-    })();
-  }, []);
+    } catch {
+      Alert.alert('Fehler', 'Standort konnte nicht ermittelt werden.');
+    }
+  };
 
   // Search state
   const [query, setQuery] = useState('');
@@ -495,10 +518,10 @@ export default function App() {
     >
       {/* Logo-Zeile */}
       <View style={styles.header}>
-        <View style={[styles.logoMark, { backgroundColor: c.primary }]}>
-          <Text style={styles.logoText}>R</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
+          <Text style={[styles.brandName, { color: c.text }]}>evio</Text>
         </View>
-        <Text style={[styles.headerTitle, { color: c.text }]}>Revio</Text>
       </View>
 
       {/* Hero — nur vor erster Suche */}
@@ -608,13 +631,21 @@ export default function App() {
 
       {/* City input — shown once user starts typing */}
       {(query.length > 0 || searched) && (
-        <TextInput
-          value={city}
-          onChangeText={(text) => { setCity(text); setUserCoords(null); }}
-          placeholder="Adresse oder Ort"
-          placeholderTextColor={c.muted}
-          style={[styles.cityInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]}
-        />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TextInput
+            value={city}
+            onChangeText={(text) => { setCity(text); setUserCoords(null); }}
+            placeholder="Adresse oder Ort"
+            placeholderTextColor={c.muted}
+            style={[styles.cityInput, { flex: 1, backgroundColor: c.card, borderColor: c.border, color: c.text }]}
+          />
+          <Pressable
+            onPress={handleGetLocation}
+            style={[styles.filterIconBtn, { backgroundColor: userCoords ? c.successBg : c.card, borderColor: userCoords ? c.success : c.border }]}
+          >
+            <Text style={{ fontSize: 18 }}>📍</Text>
+          </Pressable>
+        </View>
       )}
 
       {/* Expanded filter panel */}
@@ -776,7 +807,7 @@ export default function App() {
               callPhone(t.practices?.[0]?.phone);
             }}
           >
-            <Text style={styles.ctaBtnText}>📞 Therapeut kontaktieren</Text>
+            <Text style={styles.ctaBtnText}>📞 Praxis anrufen</Text>
           </Pressable>
         </View>
       ))}
@@ -825,10 +856,10 @@ export default function App() {
         </View>
 
         {[
-          { icon: '📍', label: practice.address, onPress: () => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(practice.address)}`) },
-          { icon: '📞', label: practice.phone, onPress: () => Linking.openURL(`tel:${practice.phone}`) },
-          { icon: '🕐', label: practice.hours, onPress: null }
-        ].map((row) => (
+          practice.address && { icon: '📍', label: practice.address, onPress: () => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(practice.address)}`) },
+          practice.phone && { icon: '📞', label: practice.phone, onPress: () => Linking.openURL(`tel:${practice.phone}`) },
+          practice.hours && { icon: '🕐', label: practice.hours, onPress: null }
+        ].filter(Boolean).map((row) => (
           <Pressable key={row.label} onPress={row.onPress ?? undefined} style={[styles.detailRow, { backgroundColor: c.card, borderColor: c.border }]}>
             <Text style={styles.detailIcon}>{row.icon}</Text>
             <Text style={[styles.detailText, { color: row.onPress ? c.primary : c.text }]}>{row.label}</Text>
@@ -1035,9 +1066,7 @@ export default function App() {
         <Text style={[styles.backBtnText, { color: c.primary }]}>‹ Zurück</Text>
       </Pressable>
       <View style={styles.header}>
-        <View style={[styles.logoMark, { backgroundColor: c.primary }]}>
-          <Text style={styles.logoText}>R</Text>
-        </View>
+        <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: c.text }]}>Anmelden</Text>
           <Text style={[styles.headerSub, { color: c.muted }]}>Therapeuten-Login</Text>
@@ -1223,9 +1252,7 @@ export default function App() {
   const renderTherapist = () => (
     <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}>
       <View style={styles.header}>
-        <View style={[styles.logoMark, { backgroundColor: c.primary }]}>
-          <Text style={styles.logoText}>R</Text>
-        </View>
+        <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: c.text }]}>Für Therapeuten</Text>
           <Text style={[styles.headerSub, { color: c.muted }]}>Dein Profil auf Revio</Text>
@@ -1253,7 +1280,7 @@ export default function App() {
       {[
         { num: '1', title: 'Registrieren', body: 'Konto mit E-Mail anlegen' },
         { num: '2', title: 'Profil ausfüllen', body: 'Spezialisierungen, Ausbildung, Sprachen, Praxis' },
-        { num: '3', title: 'Zur Prüfung einreichen', body: 'Manuell geprüft — in der Regel innerhalb von 48 h' },
+        { num: '3', title: 'Zur Prüfung einreichen', body: __DEV__ ? 'Entwicklungsmodus: sofort freigegeben' : 'Manuell geprüft — in der Regel innerhalb von 48 h' },
         { num: '4', title: 'Öffentlich sichtbar', body: 'Dein Profil erscheint in den Suchergebnissen' }
       ].map((step) => (
         <View key={step.num} style={[styles.stepRow, { borderColor: c.border }]}>
@@ -1282,9 +1309,7 @@ export default function App() {
   const renderOptions = () => (
     <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}>
       <View style={styles.header}>
-        <View style={[styles.logoMark, { backgroundColor: c.primary }]}>
-          <Text style={styles.logoText}>R</Text>
-        </View>
+        <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: c.text }]}>Optionen</Text>
           <Text style={[styles.headerSub, { color: c.muted }]}>Einstellungen & Informationen</Text>
@@ -1293,8 +1318,8 @@ export default function App() {
 
       {[
         { label: 'Sprache', value: 'Deutsch' },
-        { label: 'Datenschutz', value: '' },
-        { label: 'Impressum', value: '' },
+        { label: 'Datenschutz', value: 'Bald verfügbar' },
+        { label: 'Impressum', value: 'Bald verfügbar' },
         { label: 'App-Version', value: '0.1.0 MVP' }
       ].map((item) => (
         <Pressable key={item.label} style={[styles.optionRow, { backgroundColor: c.card, borderColor: c.border }]}>
@@ -1308,8 +1333,9 @@ export default function App() {
         <Text style={[styles.optionLabel, { color: c.text }]}>Erscheinungsbild</Text>
         <View style={styles.themeToggleRow}>
           {[
-            { key: 'light', label: 'Hell' },
-            { key: 'dark',  label: 'Dunkel' }
+            { key: 'light',  label: 'Hell' },
+            { key: 'dark',   label: 'Dunkel' },
+            { key: 'system', label: 'System' }
           ].map(({ key, label }) => (
             <Pressable
               key={key}
@@ -1355,9 +1381,7 @@ export default function App() {
   const renderFavorites = () => (
     <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <View style={[styles.logoMark, { backgroundColor: c.primary }]}>
-          <Text style={styles.logoText}>R</Text>
-        </View>
+        <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
         <Text style={[styles.headerTitle, { color: c.text }]}>Favoriten</Text>
       </View>
 
@@ -1409,12 +1433,9 @@ export default function App() {
             )}
             <Pressable
               style={[styles.ctaBtn, { backgroundColor: c.accent }]}
-              onPress={() => {
-                const phone = t.practices?.[0]?.phone;
-                if (phone) Linking.openURL(`tel:${phone}`);
-              }}
+              onPress={() => callPhone(t.practices?.[0]?.phone)}
             >
-              <Text style={styles.ctaBtnText}>📞 Therapeut kontaktieren</Text>
+              <Text style={styles.ctaBtnText}>📞 Praxis anrufen</Text>
             </Pressable>
           </View>
         ))
@@ -1432,7 +1453,9 @@ export default function App() {
             <Text style={{ fontSize: 48, marginBottom: 16 }}>🎉</Text>
             <Text style={[styles.infoTitle, { color: c.text, textAlign: 'center' }]}>Eingereicht!</Text>
             <Text style={[styles.infoBody, { color: c.muted, textAlign: 'center', marginTop: 8 }]}>
-              Dein Profil wird innerhalb von 48 Stunden manuell geprüft. Du erhältst eine E-Mail, sobald dein Profil freigeschaltet ist.
+              {__DEV__
+                ? 'Entwicklungsmodus: Dein Profil wurde automatisch freigegeben und ist sofort in der Suche sichtbar.'
+                : 'Dein Profil wird innerhalb von 48 Stunden manuell geprüft. Du erhältst eine E-Mail, sobald dein Profil freigeschaltet ist.'}
             </Text>
             <Pressable
               style={[styles.registerBtn, { backgroundColor: c.primary, marginTop: 24, paddingHorizontal: 32 }]}
@@ -1479,22 +1502,6 @@ export default function App() {
         case 2:
           return (
             <>
-              <Text style={[styles.regStepTitle, { color: c.text }]}>E-Mail bestätigen</Text>
-              <Text style={[styles.regStepSub, { color: c.muted }]}>Wir haben eine Bestätigungs-E-Mail gesendet.</Text>
-              <View style={[styles.noticeBox, { backgroundColor: c.successBg, borderColor: c.success }]}>
-                <Text style={styles.noticeIcon}>📧</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.noticeTitle, { color: c.text }]}>E-Mail prüfen</Text>
-                  <Text style={[styles.noticeBody, { color: c.muted }]}>
-                    Wir haben einen Link an {regEmail} geschickt. Klicke darauf, dann kannst du hier weitermachen.
-                  </Text>
-                </View>
-              </View>
-            </>
-          );
-        case 3:
-          return (
-            <>
               <Text style={[styles.regStepTitle, { color: c.text }]}>Persönliche Angaben</Text>
               <Text style={[styles.regStepSub, { color: c.muted }]}>Erzähl uns etwas über dich</Text>
               <TextInput value={regFirstName} onChangeText={setRegFirstName} placeholder="Vorname" placeholderTextColor={c.muted} style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
@@ -1503,7 +1510,7 @@ export default function App() {
               <TextInput value={regBio} onChangeText={setRegBio} placeholder="Kurze Vorstellung…" placeholderTextColor={c.muted} multiline numberOfLines={4} style={[styles.regInput, styles.regTextarea, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
             </>
           );
-        case 4:
+        case 3:
           return (
             <>
               <Text style={[styles.regStepTitle, { color: c.text }]}>Fachliches Profil</Text>
@@ -1577,7 +1584,7 @@ export default function App() {
               </View>
             </>
           );
-        case 5:
+        case 4:
           return (
             <>
               <Text style={[styles.regStepTitle, { color: c.text }]}>Praxis verbinden</Text>
@@ -1630,7 +1637,7 @@ export default function App() {
               )}
             </>
           );
-        case 6:
+        case 5:
           return (
             <>
               <Text style={[styles.regStepTitle, { color: c.text }]}>Vorschau & Einreichen</Text>
@@ -1712,15 +1719,14 @@ export default function App() {
                     specializations: regSpecializations.length > 0 ? regSpecializations : ['Physiotherapie'],
                     languages: regLanguages.length > 0 ? regLanguages.map(l => l.toLowerCase()) : ['de'],
                     certifications: regFortbildungen,
-                    practice: regPracticeMode === 'new' ? {
-                      name: regPracticeName || 'Eigene Praxis',
-                      city: regPracticeCity || regCity,
-                      address: regPracticeAddress || undefined,
-                      phone: regPracticePhone || undefined,
-                    } : {
-                      name: regPracticeMode === 'existing' ? (regExistingPracticeName || 'Unbekannte Praxis') : 'Ohne Praxis',
-                      city: regCity,
-                    },
+                    ...(regPracticeMode === 'new' ? {
+                      practice: {
+                        name: regPracticeName || 'Eigene Praxis',
+                        city: regPracticeCity || regCity,
+                        address: regPracticeAddress || undefined,
+                        phone: regPracticePhone || undefined,
+                      },
+                    } : {}),
                   }),
                 });
                 if (!res.ok) {
@@ -1825,6 +1831,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 4 },
   logoMark: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   logoText: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
+  brandName: { fontSize: 24, fontWeight: '700', letterSpacing: 3, marginLeft: 4 },
+  logoContainer: { backgroundColor: '#506d7a', padding: 10, borderRadius: 12 },
+  logoImage: { width: 80, height: 80, resizeMode: 'contain' },
   headerTitle: { fontSize: 20, fontWeight: '700' },
   headerSub: { fontSize: 13, marginTop: 1 },
 

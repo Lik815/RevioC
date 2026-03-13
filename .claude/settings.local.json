@@ -8,7 +8,12 @@
       "Read(//Users/vucenovic/Library/pnpm/**)",
       "Read(//Users/vucenovic/**)",
       "Bash(npx --yes tsc --noEmit -p tsconfig.json)",
-      "Bash(lsof -ti:8081)"
+      "Bash(lsof -ti:8081)",
+      "Bash(npx vitest:*)",
+      "Bash(DATABASE_URL=\"file:./prisma/test.db\" npx prisma migrate deploy)",
+      "Bash(DATABASE_URL=\"file:./prisma/dev.db\" npx prisma migrate dev --schema=prisma/schema.prisma)",
+      "Bash(DATABASE_URL=\"file:./prisma/test.db\" npx prisma migrate reset --force)",
+      "Bash(cat /Users/vucenovic/Desktop/Revio/apps/api/prisma/migrations/*/migration.sql)"
     ]
   }
 }

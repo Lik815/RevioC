@@ -49,6 +49,7 @@ model Practice {
   city         String
   address      String?
   phone        String?
+  hours        String?
   lat          Float        @default(0)
   lng          Float        @default(0)
   reviewStatus ReviewStatus @default(PENDING_REVIEW)
