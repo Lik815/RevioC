@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { getEnv } from '../env.js';
 
 const splitList = (value: string) =>
   value.split(',').map((s) => s.trim()).filter(Boolean);
@@ -44,6 +45,8 @@ function mapPractice(p: {
 }
 
 export const adminRoutes: FastifyPluginAsync = async (fastify) => {
+  const env = getEnv();
+
   const loginSchema = z.object({
     email: z.string().email(),
     password: z.string().min(1),
@@ -53,17 +56,14 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) return reply.badRequest('Ungültige Eingabedaten');
 
-    const envEmail = process.env.REVIO_ADMIN_EMAIL ?? 'admin@revio.de';
-    const envPassword = process.env.REVIO_ADMIN_PASSWORD ?? 'admin123';
-
-    if (parsed.data.email !== envEmail || parsed.data.password !== envPassword) {
+    if (parsed.data.email !== env.REVIO_ADMIN_EMAIL || parsed.data.password !== env.REVIO_ADMIN_PASSWORD) {
       return reply.unauthorized('Ungültige Zugangsdaten');
     }
 
     return {
-      token: process.env.REVIO_ADMIN_TOKEN,
+      token: env.REVIO_ADMIN_TOKEN,
       admin: {
-        email: envEmail,
+        email: env.REVIO_ADMIN_EMAIL,
         name: 'Revio Admin',
         role: 'Super Admin',
       },
@@ -71,7 +71,8 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.addHook('onRequest', async (request, reply) => {
-    if (request.url === '/login' || request.url.startsWith('/login?')) return;
+    const pathname = request.url.split('?')[0];
+    if (pathname === '/login' || pathname === '/admin/login') return;
     return fastify.verifyAdmin(request, reply);
   });
 

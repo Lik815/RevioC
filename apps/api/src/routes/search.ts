@@ -1,6 +1,87 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import type { SearchInput, SearchTherapist, SearchPractice } from '@revio/shared';
+import { normalizeText, bestScore, scoreMatch } from '../utils/search-utils.js';
+
+// ── Constants ──────────────────────────────────────────────────────────────
+
+const GENERIC_QUERIES = new Set([
+  'physiotherapie', 'physio', 'therapeut', 'physiotherapeut', 'krankengymnastik',
+]);
+
+const splitList = (value: string) =>
+  value.split(',').map((s) => s.trim()).filter(Boolean);
+
+// ── Relevance scoring ──────────────────────────────────────────────────────
+
+/**
+ * Score a therapist against a normalized query string.
+ *
+ * Priority (highest → lowest):
+ *  10  exact therapist name match
+ *   9  prefix match on therapist name
+ *   8  exact practice name match
+ *   7  prefix match on practice name
+ *   6  exact specialization match
+ *   5  partial specialization match
+ *   4  word-level specialization match
+ *   3  certification match
+ *   2  bio / name contains query
+ *   1  generic query (all therapists)
+ * 0.5  base score for approved therapists
+ */
+function scoreTherapist(
+  t: {
+    specializations: string;
+    certifications: string;
+    bio: string | null;
+    fullName: string;
+  },
+  query: string,
+  practiceNames: string[],
+): number {
+  const q = normalizeText(query);
+  const name = normalizeText(t.fullName);
+  const specs = splitList(t.specializations).map(normalizeText);
+  const certs = splitList(t.certifications).map(normalizeText);
+  const bio = normalizeText(t.bio ?? '');
+  const practices = practiceNames.map(normalizeText);
+
+  // Therapist name
+  const nameScore = scoreMatch(name, q);
+  if (nameScore >= 9) return 10;   // exact
+  if (nameScore >= 6) return 9;    // prefix word
+  if (nameScore >= 4) return 8.5;  // substring
+
+  // Practice name
+  const practiceScore = bestScore(practices, q);
+  if (practiceScore >= 9) return 8;
+  if (practiceScore >= 6) return 7;
+  if (practiceScore >= 4) return 6.5;
+
+  // Exact specialization match
+  if (specs.some((s) => s === q)) return 6;
+
+  // Partial specialization (e.g., "rücken" ↔ "rückenschmerzen")
+  if (specs.some((s) => s.includes(q) || q.includes(s))) return 5;
+
+  // Word-level specialization (compound terms)
+  const wordsQ = q.split(/\s+/);
+  if (specs.some((s) => wordsQ.some((w) => s.includes(w) || w.includes(s)))) return 4;
+
+  // Certification match
+  if (certs.some((c) => c.includes(q) || q.includes(c))) return 3;
+
+  // Bio or name contains query
+  if (bio.includes(q) || name.includes(q)) return 2;
+
+  // Generic query → everyone qualifies
+  if (GENERIC_QUERIES.has(q)) return 1;
+
+  return 0.5;
+}
+
+// ── Routes ─────────────────────────────────────────────────────────────────
 
 const searchBodySchema = z.object({
   query: z.string().min(1),
@@ -10,63 +91,17 @@ const searchBodySchema = z.object({
   specialization: z.string().optional(),
 });
 
-const splitList = (value: string) =>
-  value.split(',').map((s) => s.trim()).filter(Boolean);
-
-const norm = (s: string) => s.toLowerCase().trim();
-
-const GENERIC_QUERIES = new Set(['physiotherapie', 'physio', 'therapeut', 'physiotherapeut', 'krankengymnastik']);
-
-// Word-level match helper: splits compound terms and checks overlap
-const wordsMatch = (a: string, b: string): boolean => {
-  const wordsA = a.replace(/[-–]/g, ' ').split(/\s+/).filter(w => w.length > 2);
-  const wordsB = b.replace(/[-–]/g, ' ').split(/\s+/).filter(w => w.length > 2);
-  return wordsA.some(wa => wordsB.some(wb => wa.includes(wb) || wb.includes(wa)));
-};
-
-// Returns relevance score for ranking
-const scoreTherapist = (
-  t: { specializations: string; certifications: string; bio: string | null; fullName: string },
-  query: string,
-): number => {
-  const q = norm(query);
-  const specs = splitList(t.specializations).map(norm);
-  const certs = splitList(t.certifications).map(norm);
-  const bio = norm(t.bio ?? '');
-  const name = norm(t.fullName);
-
-  // Perfect match in specializations
-  if (specs.some((s) => s === q)) return 5;
-  
-  // Partial match in specializations (e.g., "rücken" matches "rückenschmerzen")
-  if (specs.some((s) => s.includes(q) || q.includes(s))) return 4;
-  
-  // Word-level match (e.g., "schulter" matches "schulterrehabilitation")
-  if (specs.some((s) => wordsMatch(s, q))) return 3.5;
-  
-  // Match in certifications
-  if (certs.some((c) => c.includes(q) || q.includes(c))) return 3;
-  
-  // Match in bio or name
-  if (bio.includes(q) || name.includes(q)) return 2;
-  
-  // Generic match for broad queries - everyone gets some relevance
-  if (GENERIC_QUERIES.has(q)) return 1;
-  
-  // Even for specific queries, give a base score for approved therapists
-  return 0.5;
-};
-
 export const searchRoutes: FastifyPluginAsync = async (fastify) => {
+
+  // ── POST /search ─────────────────────────────────────────────────────────
+
   fastify.post('/search', async (request, reply) => {
     const parsed = searchBodySchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.badRequest(parsed.error.flatten().toString());
-    }
+    if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
 
     const input: SearchInput = parsed.data;
-    const isGenericQuery = GENERIC_QUERIES.has(norm(input.query));
 
+    // Load all approved therapists with their confirmed/approved practices
     const therapists = await fastify.prisma.therapist.findMany({
       where: { reviewStatus: 'APPROVED' },
       include: {
@@ -82,6 +117,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
 
     const results: SearchTherapist[] = therapists
       .filter((t) => {
+        // City: case-insensitive exact match (required — therapists are local)
         if (t.city.toLowerCase() !== input.city.toLowerCase()) return false;
 
         const languages = splitList(t.languages).map((l) => l.toLowerCase());
@@ -91,12 +127,12 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
         if (typeof input.homeVisit === 'boolean' && t.homeVisit !== input.homeVisit) return false;
         if (input.specialization && !specializations.includes(input.specialization.toLowerCase())) return false;
 
-        // Now we include all therapists and let relevance do the ranking
         return true;
       })
       .map((t) => {
+        const practiceNames = t.links.map((l) => l.practice.name);
+        const relevance = scoreTherapist(t, input.query, practiceNames);
         const specializations = splitList(t.specializations);
-        const relevance = scoreTherapist(t, input.query);
 
         const practices: SearchPractice[] = t.links.map((link) => {
           let photos: string[] | undefined;
@@ -110,6 +146,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
             address: link.practice.address ?? undefined,
             phone: link.practice.phone ?? undefined,
             hours: link.practice.hours ?? undefined,
+            description: link.practice.description ?? undefined,
             lat: link.practice.lat,
             lng: link.practice.lng,
             logo: link.practice.logo ?? undefined,
@@ -139,7 +176,46 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       therapists: results,
       practices: Array.from(practiceMap.values()),
-      meta: { note: 'MVP ranking: approved-only, deterministic relevance.' },
     };
+  });
+
+  // ── GET /suggest ──────────────────────────────────────────────────────────
+  // Returns autosuggest grouped by type. Requires at least 3 characters.
+
+  fastify.get('/suggest', async (request) => {
+    const { q = '' } = request.query as { q?: string };
+    const nq = normalizeText(q);
+
+    if (nq.length < 3) return { suggestions: [] };
+
+    const db = fastify.prisma as any;
+    const rows: Array<{ id: string; text: string; normalized: string; type: string; entityId: string | null; weight: number }> =
+      await db.searchSuggestion.findMany({
+        where: { normalized: { contains: nq } },
+        orderBy: { weight: 'desc' },
+        take: 50,
+      });
+
+    // Score and rank
+    const scored = rows
+      .map((r) => ({ ...r, score: scoreMatch(r.normalized, nq) * r.weight }))
+      .filter((r) => r.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    // Group: max 3 per type, 10 total
+    type SuggestionGroup = { type: string; items: { text: string; entityId: string | null }[] };
+    const groups = new Map<string, SuggestionGroup>();
+    let total = 0;
+
+    for (const row of scored) {
+      if (total >= 10) break;
+      if (!groups.has(row.type)) groups.set(row.type, { type: row.type, items: [] });
+      const g = groups.get(row.type)!;
+      if (g.items.length >= 3) continue;
+      g.items.push({ text: row.text, entityId: row.entityId });
+      total++;
+    }
+
+    return { suggestions: Array.from(groups.values()) };
   });
 };

@@ -5,6 +5,23 @@ import { promisify } from 'util';
 const scryptAsync = promisify(scrypt);
 const prisma = new PrismaClient();
 
+// Inline normalization (avoids ESM import issues in seed context)
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[äÄ]/g, 'ae').replace(/[öÖ]/g, 'oe').replace(/[üÜ]/g, 'ue').replace(/ß/g, 'ss')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+type SuggestionRow = {
+  text: string;
+  normalized: string;
+  type: 'THERAPIST_NAME' | 'PRACTICE_NAME' | 'SPECIALTY' | 'CITY';
+  entityId?: string;
+  weight: number;
+};
+
 async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString('hex');
   const derived = (await scryptAsync(password, salt, 64)) as Buffer;
@@ -256,6 +273,45 @@ async function main() {
     },
   });
 
+  // ── SearchSuggestions ─────────────────────────────────────────────────────
+  await (prisma as any).searchSuggestion.deleteMany();
+
+  const suggestions: SuggestionRow[] = [];
+
+  // Cities (weight 3)
+  for (const city of CITY_NAMES) {
+    suggestions.push({ text: city, normalized: normalizeText(city), type: 'CITY', weight: 3 });
+  }
+
+  // Specialties (weight 3)
+  for (const spec of Array.from(new Set(ALL_SPECS))) {
+    suggestions.push({ text: spec, normalized: normalizeText(spec), type: 'SPECIALTY', weight: 3 });
+  }
+
+  // Approved therapist names (weight 5)
+  const approvedTherapists = await prisma.therapist.findMany({
+    where: { reviewStatus: 'APPROVED' },
+    select: { id: true, fullName: true },
+  });
+  for (const t of approvedTherapists) {
+    suggestions.push({ text: t.fullName, normalized: normalizeText(t.fullName), type: 'THERAPIST_NAME', entityId: t.id, weight: 5 });
+  }
+
+  // Approved practice names (weight 4)
+  const approvedPractices = await prisma.practice.findMany({
+    where: { reviewStatus: 'APPROVED' },
+    select: { id: true, name: true },
+  });
+  for (const p of approvedPractices) {
+    suggestions.push({ text: p.name, normalized: normalizeText(p.name), type: 'PRACTICE_NAME', entityId: p.id, weight: 4 });
+  }
+
+  // Bulk insert in batches of 50
+  for (let i = 0; i < suggestions.length; i += 50) {
+    await (prisma as any).searchSuggestion.createMany({ data: suggestions.slice(i, i + 50) });
+  }
+
+  console.log(`  ${suggestions.length} SearchSuggestions indexed`);
   console.log('Seed complete.');
   console.log('  30 Praxen (APPROVED) mit Admin-Login');
   console.log('  100 Therapeuten (APPROVED) über 10 Städte verteilt');

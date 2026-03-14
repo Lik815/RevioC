@@ -23,6 +23,13 @@ enum LinkStatus {
   REJECTED
 }
 
+enum SuggestionType {
+  THERAPIST_NAME
+  PRACTICE_NAME
+  SPECIALTY
+  CITY
+}
+
 model Therapist {
   id                String       @id @default(cuid())
   email             String       @unique
@@ -59,6 +66,8 @@ model Practice {
   adminSessionToken String?      @unique
   adminTherapistId  String?      @unique
   adminTherapist    Therapist?   @relation("PracticeAdmin", fields: [adminTherapistId], references: [id])
+  description       String?
+  inviteToken       String?      @unique
   logo              String?
   photos            String?
   createdAt         DateTime     @default(now())
@@ -66,11 +75,23 @@ model Practice {
   links             TherapistPracticeLink[]
 }
 
+model SearchSuggestion {
+  id         String         @id @default(cuid())
+  text       String
+  normalized String
+  type       SuggestionType
+  entityId   String?
+  weight     Int            @default(1)
+
+  @@index([normalized])
+}
+
 model TherapistPracticeLink {
   id           String     @id @default(cuid())
   therapistId  String
   practiceId   String
   status       LinkStatus @default(PROPOSED)
+  initiatedBy  String     @default("THERAPIST") // "ADMIN" | "THERAPIST"
   createdAt    DateTime   @default(now())
   therapist    Therapist  @relation(fields: [therapistId], references: [id], onDelete: Cascade)
   practice     Practice   @relation(fields: [practiceId], references: [id], onDelete: Cascade)

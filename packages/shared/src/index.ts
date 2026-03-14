@@ -64,6 +64,7 @@ export interface SearchPractice {
   address?: string;
   phone?: string;
   hours?: string;
+  description?: string;
   lat: number;
   lng: number;
   logo?: string;

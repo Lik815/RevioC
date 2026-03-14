@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import * as Sharing from 'expo-sharing';
 import {
   Alert,
   Image,
   Linking,
+  Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Switch,
   Text,
@@ -176,6 +181,7 @@ const mapApiTherapist = (t) => ({
     address: p.address ?? '',
     phone: p.phone ?? '',
     hours: p.hours ?? '',
+    description: p.description ?? '',
     lat: p.lat,
     lng: p.lng,
     logo: p.logo ?? null,
@@ -240,6 +246,23 @@ export default function App() {
   };
   const isFavorite = (id) => favorites.some(f => f.id === id);
 
+  // Practice favorites — stored locally
+  const [favoritePractices, setFavoritePractices] = useState([]);
+  useEffect(() => {
+    AsyncStorage.getItem('revio_fav_practices').then(val => {
+      if (val) setFavoritePractices(JSON.parse(val));
+    });
+  }, []);
+  const toggleFavoritePractice = (practice) => {
+    setFavoritePractices(prev => {
+      const exists = prev.some(f => f.id === practice.id);
+      const next = exists ? prev.filter(f => f.id !== practice.id) : [...prev, practice];
+      AsyncStorage.setItem('revio_fav_practices', JSON.stringify(next));
+      return next;
+    });
+  };
+  const isPracticeFavorite = (id) => favoritePractices.some(f => f.id === id);
+
   // Registration state
   const [showRegister, setShowRegister] = useState(false);
   const [regStep, setRegStep] = useState(1);
@@ -286,6 +309,21 @@ export default function App() {
   const [showCreatePractice, setShowCreatePractice] = useState(false);
   const [showPracticeSearch, setShowPracticeSearch] = useState(false);
   const [showPracticeAdmin, setShowPracticeAdmin] = useState(false);
+  const [scrollToInvite, setScrollToInvite] = useState(false);
+  const practiceAdminScrollRef = React.useRef(null);
+  const inviteSectionY = React.useRef(0);
+  const [showInvitePage, setShowInvitePage] = useState(false);
+  const [inviteTab, setInviteTab] = useState('search'); // 'search' | 'link'
+  const [inviteSearchQuery, setInviteSearchQuery] = useState('');
+  const [inviteSearchResults, setInviteSearchResults] = useState([]);
+  const [inviteSearchLoading, setInviteSearchLoading] = useState(false);
+  const [inviteToken, setInviteToken] = useState(null);
+  const [inviteTokenLoading, setInviteTokenLoading] = useState(false);
+  // therapistId → linkId for pending (PROPOSED) invites
+  const [pendingInvites, setPendingInvites] = useState({});
+  // Full therapist data for displaying the pending list
+  const [pendingTherapistsList, setPendingTherapistsList] = useState([]);
+  const inviteSearchDebounce = React.useRef(null);
   const [adminPracticeDetail, setAdminPracticeDetail] = useState(null);
   const [createPracticeName, setCreatePracticeName] = useState('');
   const [createPracticeCity, setCreatePracticeCity] = useState('');
@@ -302,6 +340,7 @@ export default function App() {
   const [editPracticeAddress, setEditPracticeAddress] = useState('');
   const [editPracticePhone, setEditPracticePhone] = useState('');
   const [editPracticeHours, setEditPracticeHours] = useState('');
+  const [editPracticeDescription, setEditPracticeDescription] = useState('');
   const [practiceEditSaving, setPracticeEditSaving] = useState(false);
   const [editPracticeLogo, setEditPracticeLogo] = useState(null);
   const [editPracticePhotos, setEditPracticePhotos] = useState([]);
@@ -322,6 +361,26 @@ export default function App() {
       } catch {}
     });
   }, []);
+
+  // Poll notifications every 30s when logged in
+  useEffect(() => {
+    if (notificationPollRef.current) clearInterval(notificationPollRef.current);
+    if (!authToken) { setNotifications([]); return; }
+    const fetchNotifications = async () => {
+      try {
+        const res = await fetch(`${getBaseUrl()}/notifications`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data.notifications ?? []);
+        }
+      } catch {}
+    };
+    fetchNotifications();
+    notificationPollRef.current = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(notificationPollRef.current);
+  }, [authToken]);
 
   const handleLogin = async () => {
     setLoginError('');
@@ -544,6 +603,104 @@ export default function App() {
     }
   };
 
+  // Invite page: search therapists
+  const handleInviteSearch = (text) => {
+    setInviteSearchQuery(text);
+    setInviteSearchResults([]);
+    if (inviteSearchDebounce.current) clearTimeout(inviteSearchDebounce.current);
+    if (text.length < 2) return;
+    inviteSearchDebounce.current = setTimeout(async () => {
+      setInviteSearchLoading(true);
+      try {
+        const res = await fetch(`${getBaseUrl()}/therapists/search?q=${encodeURIComponent(text)}`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const data = await res.json();
+        setInviteSearchResults(data.therapists ?? []);
+      } catch {}
+      setInviteSearchLoading(false);
+    }, 350);
+  };
+
+  const handleInviteBySearch = async (therapist) => {
+    try {
+      const res = await fetch(`${getBaseUrl()}/my/practice/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ email: therapist.email }),
+      });
+      if (res.ok || res.status === 409) {
+        const data = res.ok ? await res.json() : {};
+        const linkId = data.link?.id ?? true;
+        setPendingInvites(prev => ({ ...prev, [therapist.id]: linkId }));
+        setPendingTherapistsList(prev =>
+          prev.find(t => t.id === therapist.id) ? prev : [...prev, { ...therapist, linkId }]
+        );
+      } else {
+        const err = await res.json().catch(() => ({}));
+        Alert.alert('Fehler', err.message ?? 'Einladung fehlgeschlagen.');
+      }
+    } catch {
+      Alert.alert('Verbindungsfehler');
+    }
+  };
+
+  const handleCancelInvite = (therapistId, therapistName) => {
+    const doCancel = async () => {
+      try {
+        const res = await fetch(`${getBaseUrl()}/my/practice/invite/${therapistId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (res.ok) {
+          setPendingInvites(prev => {
+            const next = { ...prev };
+            delete next[therapistId];
+            return next;
+          });
+          setPendingTherapistsList(prev => prev.filter(t => t.id !== therapistId));
+        } else {
+          Alert.alert('Fehler', 'Einladung konnte nicht zurückgezogen werden.');
+        }
+      } catch {
+        Alert.alert('Verbindungsfehler');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Einladung an ${therapistName} zurückziehen?`)) doCancel();
+    } else {
+      Alert.alert(
+        'Einladung zurückziehen',
+        `Möchtest du die Einladung an ${therapistName} zurückziehen?`,
+        [
+          { text: 'Abbrechen', style: 'cancel' },
+          { text: 'Zurückziehen', style: 'destructive', onPress: doCancel },
+        ]
+      );
+    }
+  };
+
+  const handleLoadInviteToken = async () => {
+    setInviteTokenLoading(true);
+    try {
+      const res = await fetch(`${getBaseUrl()}/my/practice/invite-token`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      setInviteToken(data);
+    } catch {}
+    setInviteTokenLoading(false);
+  };
+
+  const handleShareInviteLink = async () => {
+    const link = `https://revio.app/join/${inviteToken.token}`;
+    const message = `Du wurdest eingeladen, der Praxis „${inviteToken.practiceName}" auf Revio beizutreten:\n${link}`;
+    try {
+      await Share.share({ message, url: link, title: 'Revio – Einladung' });
+    } catch {}
+  };
+
   // Practice: save edited practice data
   const handleSavePractice = async () => {
     if (!authToken) return;
@@ -555,6 +712,7 @@ export default function App() {
       if (editPracticeAddress.trim() !== undefined) body.address = editPracticeAddress.trim();
       if (editPracticePhone.trim() !== undefined) body.phone = editPracticePhone.trim();
       if (editPracticeHours.trim() !== undefined) body.hours = editPracticeHours.trim();
+      body.description = editPracticeDescription.trim();
       if (editPracticeLogo !== null) body.logo = editPracticeLogo;
       if (editPracticePhotos.length > 0) body.photos = JSON.stringify(editPracticePhotos);
 
@@ -611,9 +769,16 @@ export default function App() {
         Alert.alert('Standort nicht verfügbar', 'Bitte erlaube den Standortzugriff in den Einstellungen.');
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const [geo] = await Location.reverseGeocodeAsync(loc.coords);
-      if (geo?.city) setCity(geo.city);
+      if (geo?.city) {
+        const streetParts = [geo.street, geo.streetNumber].filter(Boolean).join(' ');
+        const label = streetParts ? `${streetParts}, ${geo.city}` : geo.city;
+        setCity(geo.city);
+        setLocationLabel(label);
+        AsyncStorage.setItem('savedCity', geo.city);
+        AsyncStorage.setItem('savedLocationLabel', label);
+      }
       setUserCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
     } catch {
       Alert.alert('Fehler', 'Standort konnte nicht ermittelt werden.');
@@ -624,7 +789,7 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [activeChip, setActiveChip] = useState(null);
-  const [city, setCity] = useState('Köln');
+  const [city, setCity] = useState('');
   const [userCoords, setUserCoords] = useState(null);
   const [homeVisit, setHomeVisit] = useState(false);
   const [kassenart, setKassenart] = useState(null);
@@ -635,6 +800,16 @@ export default function App() {
   const [allApiTherapists, setAllApiTherapists] = useState([]);
 
   const [searched, setSearched] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationPollRef = React.useRef(null);
+  const [locationLabel, setLocationLabel] = useState(''); // display: "Hauptstraße 5, München"
+  const [showLocationSheet, setShowLocationSheet] = useState(false);
+  const [pendingQuery, setPendingQuery] = useState(null);
+  const [locationSheetCity, setLocationSheetCity] = useState('');
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const locationDebounceRef = React.useRef(null);
 
   // Autocomplete: suggestions matching current input
   const acSuggestions = query.length >= 2
@@ -672,7 +847,14 @@ export default function App() {
       .sort((a, b) => (a.distKm ?? 9999) - (b.distKm ?? 9999));
   };
 
-  const runSearchWith = async (q, coords) => {
+  const runSearchWith = async (q, coords, cityOverride) => {
+    const effectiveCity = cityOverride ?? city;
+    if (!effectiveCity.trim()) {
+      setPendingQuery(q);
+      setLocationSheetCity('');
+      setShowLocationSheet(true);
+      return;
+    }
     setShowAutocomplete(false);
     setSearched(true);
     setSearchLoading(true);
@@ -682,7 +864,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: q || 'physiotherapie',
-          city: city || 'Köln',
+          city: effectiveCity,
           homeVisit: homeVisit || undefined,
         }),
       });
@@ -713,6 +895,106 @@ export default function App() {
 
   const runSearch = () => runSearchWith(query, userCoords);
 
+  const fetchLocationSuggestions = (text) => {
+    setLocationSheetCity(text);
+    setLocationSuggestions([]);
+    if (locationDebounceRef.current) clearTimeout(locationDebounceRef.current);
+    if (text.length < 3) return;
+    locationDebounceRef.current = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&addressdetails=1&limit=6&countrycodes=de,at,ch&accept-language=de`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'RevioApp/1.0' } });
+        const data = await res.json();
+        setLocationSuggestions(data.map(item => ({
+          label: item.display_name.split(',').slice(0, 3).join(',').trim(),
+          city: item.address?.city || item.address?.town || item.address?.village || item.address?.municipality || '',
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+        })).filter(s => s.city));
+      } catch {}
+    }, 350);
+  };
+
+  const selectLocationSuggestion = (suggestion) => {
+    setLocationSuggestions([]);
+    setLocationSheetCity(suggestion.label);
+    confirmLocationAndSearch(suggestion.city, { lat: suggestion.lat, lng: suggestion.lng }, suggestion.label);
+  };
+
+  const confirmLocationAndSearch = (resolvedCity, coords, label) => {
+    setCity(resolvedCity);
+    setLocationLabel(label || resolvedCity);
+    if (coords) setUserCoords(coords);
+    AsyncStorage.setItem('savedCity', resolvedCity);
+    AsyncStorage.setItem('savedLocationLabel', label || resolvedCity);
+    setShowLocationSheet(false);
+    runSearchWith(pendingQuery, coords, resolvedCity);
+    setPendingQuery(null);
+  };
+
+  const handleLocationSheetGPS = async () => {
+    setLocationLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Kein Zugriff', 'Bitte erlaube den Standortzugriff in den Einstellungen.');
+        setLocationLoading(false);
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const [geo] = await Location.reverseGeocodeAsync(loc.coords);
+      const detectedCity = geo?.city || '';
+      if (!detectedCity) {
+        Alert.alert('Fehler', 'Stadt konnte nicht erkannt werden. Bitte manuell eingeben.');
+        setLocationLoading(false);
+        return;
+      }
+      // Build display label: "Straße Hausnr., Stadt"
+      const streetParts = [geo.street, geo.streetNumber].filter(Boolean).join(' ');
+      const label = streetParts ? `${streetParts}, ${detectedCity}` : detectedCity;
+      confirmLocationAndSearch(detectedCity, { lat: loc.coords.latitude, lng: loc.coords.longitude }, label);
+    } catch {
+      Alert.alert('Fehler', 'Standort konnte nicht ermittelt werden.');
+    }
+    setLocationLoading(false);
+  };
+
+  const handleLocationSheetManual = async () => {
+    const input = locationSheetCity.trim();
+    if (!input) return;
+    setLocationLoading(true);
+    try {
+      // Try to geocode the input to get coordinates + normalized city
+      const results = await Location.geocodeAsync(input);
+      if (results.length > 0) {
+        const { latitude, longitude } = results[0];
+        const [geo] = await Location.reverseGeocodeAsync({ latitude, longitude });
+        const resolvedCity = geo?.city || input;
+        const streetParts = [geo?.street, geo?.streetNumber].filter(Boolean).join(' ');
+        const label = streetParts ? `${streetParts}, ${resolvedCity}` : resolvedCity;
+        confirmLocationAndSearch(resolvedCity, { lat: latitude, lng: longitude }, label);
+      } else {
+        // Fallback: use input as-is (last word as city heuristic)
+        confirmLocationAndSearch(input, null, input);
+      }
+    } catch {
+      confirmLocationAndSearch(input, null, input);
+    }
+    setLocationLoading(false);
+  };
+
+  // Load saved city + label from AsyncStorage on mount
+  useEffect(() => {
+    Promise.all([
+      AsyncStorage.getItem('savedCity'),
+      AsyncStorage.getItem('savedLocationLabel'),
+    ]).then(([savedCity, savedLabel]) => {
+      if (savedCity) setCity(savedCity);
+      if (savedLabel) setLocationLabel(savedLabel);
+    });
+  }, []);
+
+
   // ── Discover tab ──────────────────────────────────────────────────────────
 
   const renderDiscover = () => (
@@ -722,18 +1004,27 @@ export default function App() {
       keyboardShouldPersistTaps="handled"
     >
       {/* Logo-Zeile */}
-      <View style={styles.header}>
+      <View style={[styles.header, { justifyContent: 'space-between' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
           <Text style={[styles.brandName, { color: c.text }]}>evio</Text>
         </View>
+        {authToken && (
+          <Pressable onPress={() => setShowNotifications(true)} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'transparent', borderWidth: 2, borderColor: '#A7B6BE', alignItems: 'center', justifyContent: 'center' }}>
+            {notifications.length > 0 && (
+              <Text style={{ color: '#E74C3C', fontSize: 13, fontWeight: '700', lineHeight: 16 }}>
+                {notifications.length > 9 ? '9+' : notifications.length}
+              </Text>
+            )}
+          </Pressable>
+        )}
       </View>
 
       {/* Hero — nur vor erster Suche */}
       {!searched && (
         <View style={styles.hero}>
           <Text style={[styles.heroTitle, { color: c.text }]}>Den richtigen Physio{'\n'}für dein Problem finden.</Text>
-          <Text style={[styles.heroSub, { color: c.muted }]}>Geprüfte Physiotherapeuten in Köln — nach Beschwerde suchen, nicht nach Name.</Text>
+          <Text style={[styles.heroSub, { color: c.muted }]}>Geprüfte Physiotherapeuten in deiner Nähe — nach Beschwerde suchen, nicht nach Name.</Text>
         </View>
       )}
 
@@ -834,24 +1125,20 @@ export default function App() {
         })}
       </ScrollView>
 
-      {/* City input — shown once user starts typing */}
-      {(query.length > 0 || searched) && (
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TextInput
-            value={city}
-            onChangeText={(text) => { setCity(text); setUserCoords(null); }}
-            placeholder="Adresse oder Ort"
-            placeholderTextColor={c.muted}
-            style={[styles.cityInput, { flex: 1, backgroundColor: c.card, borderColor: c.border, color: c.text }]}
-          />
-          <Pressable
-            onPress={handleGetLocation}
-            style={[styles.filterIconBtn, { backgroundColor: userCoords ? c.successBg : c.card, borderColor: userCoords ? c.success : c.border }]}
-          >
-            <Text style={{ fontSize: 18 }}>📍</Text>
-          </Pressable>
-        </View>
-      )}
+      {/* Location pill — always visible, shows current location or prompt */}
+      <Pressable
+        onPress={() => { setLocationSheetCity(locationLabel || city); setShowLocationSheet(true); }}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+          backgroundColor: city ? c.card : c.mutedBg, borderWidth: 1,
+          borderColor: city ? c.accent : c.border, borderRadius: 20,
+          paddingHorizontal: 12, paddingVertical: 6, maxWidth: 280 }}
+      >
+        <Ionicons name="navigate-sharp" size={13} color="#2b6877" />
+        <Text numberOfLines={1} style={{ fontSize: 13, color: city ? c.text : c.muted, fontWeight: city ? '500' : '400', flexShrink: 1 }}>
+          {locationLabel || city || 'Standort wählen'}
+        </Text>
+        <Text style={{ fontSize: 11, color: c.muted }}>▾</Text>
+      </Pressable>
 
       {/* Expanded filter panel */}
       {showFilters && (
@@ -1038,13 +1325,34 @@ export default function App() {
 
   // ── Practice profile ──────────────────────────────────────────────────────
 
+  const sharePractice = async (practice) => {
+    const url = `https://revio.app/p/${practice.id}`;
+    const message = `${practice.name} – ${practice.city}\n${url}`;
+    if (Platform.OS === 'web') {
+      if (navigator.share) { navigator.share({ title: practice.name, url }); }
+      else { navigator.clipboard.writeText(url); alert('Link kopiert!'); }
+    } else {
+      Share.share({ message });
+    }
+  };
+
   const renderPracticeProfile = (practice) => {
     const therapists = allApiTherapists.filter((t) => t.practices.some((p) => p.id === practice.id));
     return (
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}>
-        <Pressable onPress={() => setSelectedPractice(null)} style={styles.backBtn}>
-          <Text style={[styles.backBtnText, { color: c.primary }]}>‹ Zurück</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Pressable onPress={() => setSelectedPractice(null)} style={styles.backBtn}>
+            <Text style={[styles.backBtnText, { color: c.primary }]}>‹ Zurück</Text>
+          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={() => toggleFavoritePractice(practice)} style={{ paddingHorizontal: 10, paddingVertical: 10 }}>
+              <Ionicons name={isPracticeFavorite(practice.id) ? 'heart' : 'heart-outline'} size={22} color={isPracticeFavorite(practice.id) ? '#E05A77' : c.muted} />
+            </Pressable>
+            <Pressable onPress={() => sharePractice(practice)} style={{ paddingHorizontal: 12, paddingVertical: 10 }}>
+              <Ionicons name="share-outline" size={22} color={c.primary} />
+            </Pressable>
+          </View>
+        </View>
 
         <View style={[styles.practiceHeader, { backgroundColor: c.card, borderColor: c.border }]}>
           {practice.logo ? (
@@ -1085,6 +1393,14 @@ export default function App() {
           </ScrollView>
         )}
 
+        {/* Praxisbeschreibung */}
+        {!!practice.description && (
+          <View style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4, padding: 14, backgroundColor: c.card, borderRadius: 10, borderWidth: 1, borderColor: c.border }}>
+            <Text style={{ color: c.muted, fontSize: 12, fontWeight: '600', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Über die Praxis</Text>
+            <Text style={{ color: c.text, fontSize: 14, lineHeight: 21 }}>{practice.description}</Text>
+          </View>
+        )}
+
         <Text style={[styles.sectionLabel, { color: c.text, marginTop: 4 }]}>
           Therapeuten ({therapists.length})
         </Text>
@@ -1123,11 +1439,32 @@ export default function App() {
 
   // ── Therapist profile screen ──────────────────────────────────────────────
 
+  const shareTherapist = async (t) => {
+    const url = `https://revio.app/t/${t.id}`;
+    const message = `${t.fullName} – ${t.professionalTitle}\n${url}`;
+    if (Platform.OS === 'web') {
+      if (navigator.share) { navigator.share({ title: t.fullName, url }); }
+      else { navigator.clipboard.writeText(url); alert('Link kopiert!'); }
+    } else {
+      Share.share({ message });
+    }
+  };
+
   const renderTherapistProfile = (t) => (
     <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}>
-      <Pressable onPress={() => setSelectedTherapist(null)} style={styles.backBtn}>
-        <Text style={[styles.backBtnText, { color: c.primary }]}>‹ Zurück</Text>
-      </Pressable>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Pressable onPress={() => setSelectedTherapist(null)} style={styles.backBtn}>
+          <Text style={[styles.backBtnText, { color: c.primary }]}>‹ Zurück</Text>
+        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable onPress={() => toggleFavorite(t)} style={{ paddingHorizontal: 10, paddingVertical: 10 }}>
+            <Ionicons name={isFavorite(t.id) ? 'heart' : 'heart-outline'} size={22} color={isFavorite(t.id) ? '#E05A77' : c.muted} />
+          </Pressable>
+          <Pressable onPress={() => shareTherapist(t)} style={{ paddingHorizontal: 12, paddingVertical: 10 }}>
+            <Ionicons name="share-outline" size={22} color={c.primary} />
+          </Pressable>
+        </View>
+      </View>
 
       {/* Header */}
       <View style={[styles.practiceHeader, { backgroundColor: c.card, borderColor: c.border }]}>
@@ -1488,12 +1825,39 @@ export default function App() {
                   </View>
                 ))}
                 {t.adminPractice && (
-                  <Pressable
-                    onPress={() => { loadAdminPracticeDetail(); setShowPracticeAdmin(true); }}
-                    style={[styles.kassenartBtn, { backgroundColor: c.primary, borderColor: c.primary, alignSelf: 'flex-start', marginTop: 4 }]}
-                  >
-                    <Text style={[styles.kassenartText, { color: '#fff' }]}>Praxis verwalten</Text>
-                  </Pressable>
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                    <Pressable
+                      onPress={() => { loadAdminPracticeDetail(); setShowPracticeAdmin(true); }}
+                      style={[styles.kassenartBtn, { backgroundColor: c.primary, borderColor: c.primary }]}
+                    >
+                      <Text style={[styles.kassenartText, { color: '#fff' }]}>Praxis verwalten</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={async () => {
+                        setInviteSearchQuery(''); setInviteSearchResults([]); setInviteTab('search'); setShowInvitePage(true);
+                        // Load existing PROPOSED links so Ausstehend state is correct
+                        try {
+                          const res = await fetch(`${getBaseUrl()}/my/practice`, { headers: { Authorization: `Bearer ${authToken}` } });
+                          if (res.ok) {
+                            const data = await res.json();
+                            const proposed = {};
+                            const list = [];
+                            for (const link of (data.practice?.links ?? [])) {
+                              if (link.status === 'PROPOSED') {
+                                proposed[link.therapist.id] = link.id;
+                                list.push({ ...link.therapist, linkId: link.id });
+                              }
+                            }
+                            setPendingInvites(proposed);
+                            setPendingTherapistsList(list);
+                          }
+                        } catch {}
+                      }}
+                      style={[styles.kassenartBtn, { backgroundColor: 'transparent', borderColor: c.primary }]}
+                    >
+                      <Text style={[styles.kassenartText, { color: c.primary }]}>+ Therapeut einladen</Text>
+                    </Pressable>
+                  </View>
                 )}
               </View>
             )}
@@ -1823,6 +2187,141 @@ export default function App() {
 
   // ── Praxis-Admin Dashboard ────────────────────────────────────────────────
 
+  const renderInvitePage = () => (
+    <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
+      <Pressable onPress={() => setShowInvitePage(false)} style={styles.backBtn}>
+        <Text style={[styles.backBtnText, { color: c.primary }]}>‹ Zurück</Text>
+      </Pressable>
+      <Text style={[styles.profileName, { color: c.text, marginBottom: 4 }]}>Therapeuten einladen</Text>
+      <Text style={[styles.infoBody, { color: c.muted, marginBottom: 16 }]}>Suche nach Therapeuten oder teile einen Einladungslink.</Text>
+
+      {/* Tabs */}
+      <View style={{ flexDirection: 'row', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: c.border, marginBottom: 20 }}>
+        {[{ key: 'search', label: 'Suchen' }, { key: 'link', label: 'Einladungslink' }].map(tab => (
+          <Pressable
+            key={tab.key}
+            onPress={() => { setInviteTab(tab.key); if (tab.key === 'link' && !inviteToken) handleLoadInviteToken(); }}
+            style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: inviteTab === tab.key ? c.primary : c.card }}
+          >
+            <Text style={{ color: inviteTab === tab.key ? '#fff' : c.muted, fontWeight: '600', fontSize: 14 }}>{tab.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Tab: Suchen */}
+      {inviteTab === 'search' && (
+        <View style={{ gap: 12 }}>
+
+          {/* Search box always at top */}
+          <View style={[styles.searchBox, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Text style={[styles.searchIcon, { color: c.muted }]}>⌕</Text>
+            <TextInput
+              value={inviteSearchQuery}
+              onChangeText={handleInviteSearch}
+              placeholder="Name oder E-Mail"
+              placeholderTextColor={c.muted}
+              style={[styles.searchInput, { color: c.text }]}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {inviteSearchLoading && <Text style={{ color: c.muted, fontSize: 12, paddingRight: 8 }}>…</Text>}
+          </View>
+
+          {inviteSearchResults.length === 0 && inviteSearchQuery.length >= 2 && !inviteSearchLoading && (
+            <Text style={[styles.infoBody, { color: c.muted, textAlign: 'center' }]}>Keine Therapeuten gefunden.</Text>
+          )}
+
+          {/* Search results — shown only while actively searching */}
+          {/* Persistent pending invites — hidden while search query is active */}
+          {inviteSearchQuery.length === 0 && pendingTherapistsList.length > 0 && (
+            <View style={{ gap: 8 }}>
+              <Text style={[styles.filterSectionTitle, { color: c.muted, marginBottom: 0 }]}>Ausstehende Einladungen</Text>
+              {pendingTherapistsList.map(t => (
+                <View key={t.id} style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+                  <Image source={{ uri: t.photo || `https://i.pravatar.cc/48?u=${t.id}` }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.text, fontWeight: '600', fontSize: 14 }}>{t.fullName}</Text>
+                    <Text style={{ color: c.muted, fontSize: 12 }}>{t.professionalTitle} · {t.city}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => handleCancelInvite(t.id, t.fullName)}
+                    style={{ borderWidth: 1.5, borderColor: c.muted, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 }}
+                  >
+                    <Text style={{ color: c.muted, fontSize: 13, fontWeight: '600' }}>Ausstehend</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Search results — shown only while actively searching */}
+          {inviteSearchResults.map(t => {
+            const isPending = !!pendingInvites[t.id];
+            return (
+              <View key={t.id} style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+                <Image source={{ uri: t.photo || `https://i.pravatar.cc/48?u=${t.id}` }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text, fontWeight: '600', fontSize: 14 }}>{t.fullName}</Text>
+                  <Text style={{ color: c.muted, fontSize: 12 }}>{t.professionalTitle} · {t.city}</Text>
+                </View>
+                <Pressable
+                  onPress={() => isPending ? handleCancelInvite(t.id, t.fullName) : handleInviteBySearch(t)}
+                  style={{
+                    backgroundColor: isPending ? 'transparent' : c.primary,
+                    borderRadius: 8,
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderWidth: isPending ? 1.5 : 0,
+                    borderColor: isPending ? c.muted : undefined,
+                  }}
+                >
+                  <Text style={{ color: isPending ? c.muted : '#fff', fontSize: 13, fontWeight: '600' }}>
+                    {isPending ? 'Ausstehend' : 'Einladen'}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Tab: Einladungslink */}
+      {inviteTab === 'link' && (
+        <View style={{ gap: 16 }}>
+          {inviteTokenLoading ? (
+            <Text style={[styles.infoBody, { color: c.muted, textAlign: 'center' }]}>Link wird erstellt…</Text>
+          ) : inviteToken ? (
+            <>
+              <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border, gap: 8 }]}>
+                <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Einladungslink</Text>
+                <Text selectable style={{ color: c.text, fontSize: 13, fontFamily: 'monospace', backgroundColor: c.mutedBg, padding: 10, borderRadius: 8 }}>
+                  {`https://revio.app/join/${inviteToken.token}`}
+                </Text>
+                <Text style={{ color: c.muted, fontSize: 12 }}>
+                  Teile diesen Link mit Therapeuten. Sie können damit eine Beitrittsanfrage an deine Praxis senden.
+                </Text>
+              </View>
+              <Pressable
+                onPress={handleShareInviteLink}
+                style={{ backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+              >
+                <Ionicons name="share-outline" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Link teilen</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable
+              onPress={handleLoadInviteToken}
+              style={{ backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Link erstellen</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+    </ScrollView>
+  );
+
   const renderPracticeAdmin = () => {
     const p = adminPracticeDetail;
     if (!p) return (
@@ -1840,6 +2339,7 @@ export default function App() {
       setEditPracticeAddress(p.address ?? '');
       setEditPracticePhone(p.phone ?? '');
       setEditPracticeHours(p.hours ?? '');
+      setEditPracticeDescription(p.description ?? '');
       if (p.logo) setEditPracticeLogo(p.logo);
       if (p.photos) {
         try { setEditPracticePhotos(JSON.parse(p.photos)); } catch {}
@@ -1847,7 +2347,18 @@ export default function App() {
     }
 
     return (
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}>
+      <ScrollView
+        ref={practiceAdminScrollRef}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}
+        onLayout={() => {
+          if (scrollToInvite && inviteSectionY.current > 0) {
+            setTimeout(() => {
+              practiceAdminScrollRef.current?.scrollTo({ y: inviteSectionY.current, animated: true });
+              setScrollToInvite(false);
+            }, 300);
+          }
+        }}
+      >
         <Pressable onPress={() => { setShowPracticeAdmin(false); setEditPracticeName(''); setEditPracticeLogo(null); setEditPracticePhotos([]); }} style={styles.backBtn}>
           <Text style={[styles.backBtnText, { color: c.primary }]}>‹ Zurück</Text>
         </Pressable>
@@ -1949,6 +2460,19 @@ export default function App() {
               />
             </View>
           ))}
+
+          {/* Beschreibung (multiline) */}
+          <View>
+            <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Beschreibung</Text>
+            <TextInput
+              style={[styles.inputField, { color: c.text, borderColor: c.border, backgroundColor: c.mutedBg, minHeight: 90, textAlignVertical: 'top' }]}
+              value={editPracticeDescription}
+              onChangeText={setEditPracticeDescription}
+              placeholder="Stellen Sie Ihre Praxis vor …"
+              placeholderTextColor={c.muted}
+              multiline
+            />
+          </View>
           {/* Logo */}
           <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Logo</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -2003,7 +2527,10 @@ export default function App() {
         </View>
 
         {/* Therapeuten einladen */}
-        <Text style={[styles.sectionLabel, { color: c.text }]}>Therapeuten einladen</Text>
+        <Text
+          onLayout={e => { inviteSectionY.current = e.nativeEvent.layout.y; }}
+          style={[styles.sectionLabel, { color: c.text }]}
+        >Therapeuten einladen</Text>
         <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
           <Text style={[styles.filterSectionTitle, { color: c.muted }]}>E-Mail des Therapeuten</Text>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
@@ -2041,53 +2568,97 @@ export default function App() {
         </Text>
       </View>
 
-      {favorites.length === 0 ? (
+      {favorites.length === 0 && favoritePractices.length === 0 ? (
         <View style={[styles.emptyState, { backgroundColor: c.card, borderColor: c.border }]}>
           <Text style={styles.emptyIcon}>♡</Text>
           <Text style={[styles.emptyTitle, { color: c.text }]}>Noch keine Favoriten</Text>
           <Text style={[styles.emptyBody, { color: c.muted }]}>
-            Tippe auf das Herz-Symbol bei einem Therapeuten, um ihn hier zu speichern.
+            Tippe auf das Herz-Symbol bei einem Therapeuten oder einer Praxis, um sie hier zu speichern.
           </Text>
         </View>
-      ) : (
-        favorites.map((t) => (
-          <View key={t.id} style={[styles.resultCard, { backgroundColor: c.card, borderColor: c.border }]}>
-            <View style={styles.cardTop}>
-              <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }} onPress={() => setSelectedTherapist(t)}>
-                <Image source={{ uri: t.photo }} style={styles.avatar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.cardName, { color: c.text }]}>{t.fullName}</Text>
-                  <Text style={[styles.cardTitle, { color: c.muted }]}>{t.professionalTitle}</Text>
-                </View>
-                <Text style={[styles.practiceArrow, { color: c.muted }]}>›</Text>
-              </Pressable>
-              <Pressable onPress={() => toggleFavorite(t)} hitSlop={10}>
-                <Text style={{ fontSize: 22, color: '#E05A77' }}>♥</Text>
+      ) : null}
+
+      {favorites.length > 0 && (
+        <>
+          <Text style={[styles.sectionLabel, { color: c.text }]}>Therapeuten</Text>
+          {favorites.map((t) => (
+            <View key={t.id} style={[styles.resultCard, { backgroundColor: c.card, borderColor: c.border }]}>
+              <View style={styles.cardTop}>
+                <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }} onPress={() => setSelectedTherapist(t)}>
+                  <Image source={{ uri: t.photo }} style={styles.avatar} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cardName, { color: c.text }]}>{t.fullName}</Text>
+                    <Text style={[styles.cardTitle, { color: c.muted }]}>{t.professionalTitle}</Text>
+                  </View>
+                  <Text style={[styles.practiceArrow, { color: c.muted }]}>›</Text>
+                </Pressable>
+                <Pressable onPress={() => toggleFavorite(t)} hitSlop={10}>
+                  <Ionicons name="heart" size={22} color="#E05A77" />
+                </Pressable>
+              </View>
+              {t.practices?.length > 0 && (
+                <Pressable
+                  onPress={() => setSelectedPractice(t.practices[0])}
+                  style={[styles.practiceBtn, { borderColor: c.border, backgroundColor: c.mutedBg }]}
+                >
+                  <View style={[styles.practiceInitial, { backgroundColor: c.border }]}>
+                    <Text style={[styles.practiceInitialText, { color: c.muted }]}>{t.practices[0].name.charAt(0)}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.practiceName, { color: c.text }]}>{t.practices[0].name}</Text>
+                    <Text style={[styles.practiceCity, { color: c.muted }]}>{t.practices[0].city}</Text>
+                  </View>
+                  <Text style={[styles.practiceArrow, { color: c.muted }]}>›</Text>
+                </Pressable>
+              )}
+              <Pressable
+                style={[styles.ctaBtn, { backgroundColor: c.accent }]}
+                onPress={() => callPhone(t.practices?.[0]?.phone)}
+              >
+                <Text style={styles.ctaBtnText}>📞 Praxis anrufen</Text>
               </Pressable>
             </View>
-            {t.practices?.length > 0 && (
-              <Pressable
-                onPress={() => setSelectedPractice(t.practices[0])}
-                style={[styles.practiceBtn, { borderColor: c.border, backgroundColor: c.mutedBg }]}
-              >
-                <View style={[styles.practiceInitial, { backgroundColor: c.border }]}>
-                  <Text style={[styles.practiceInitialText, { color: c.muted }]}>{t.practices[0].name.charAt(0)}</Text>
+          ))}
+        </>
+      )}
+
+      {favoritePractices.length > 0 && (
+        <>
+          <Text style={[styles.sectionLabel, { color: c.text, marginTop: favorites.length > 0 ? 8 : 0 }]}>Praxen</Text>
+          {favoritePractices.map((p) => (
+            <Pressable key={p.id} onPress={() => setSelectedPractice(p)} style={[styles.resultCard, { backgroundColor: c.card, borderColor: c.border }]}>
+              <View style={styles.cardTop}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  {p.logo ? (
+                    <Image source={{ uri: p.logo }} style={[styles.avatar, { borderRadius: 10 }]} />
+                  ) : (
+                    <View style={[styles.avatar, { backgroundColor: c.primary, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }]}>
+                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+                        {p.name.split(' ').filter(w => w.length > 2).map(w => w[0]).join('').toUpperCase().slice(0, 2) || p.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cardName, { color: c.text }]}>{p.name}</Text>
+                    <Text style={[styles.cardTitle, { color: c.muted }]}>{p.city}</Text>
+                  </View>
+                  <Text style={[styles.practiceArrow, { color: c.muted }]}>›</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.practiceName, { color: c.text }]}>{t.practices[0].name}</Text>
-                  <Text style={[styles.practiceCity, { color: c.muted }]}>{t.practices[0].city}</Text>
-                </View>
-                <Text style={[styles.practiceArrow, { color: c.muted }]}>›</Text>
-              </Pressable>
-            )}
-            <Pressable
-              style={[styles.ctaBtn, { backgroundColor: c.accent }]}
-              onPress={() => callPhone(t.practices?.[0]?.phone)}
-            >
-              <Text style={styles.ctaBtnText}>📞 Praxis anrufen</Text>
+                <Pressable onPress={(e) => { e.stopPropagation(); toggleFavoritePractice(p); }} hitSlop={10}>
+                  <Ionicons name="heart" size={22} color="#E05A77" />
+                </Pressable>
+              </View>
+              {p.phone && (
+                <Pressable
+                  style={[styles.ctaBtn, { backgroundColor: c.accent }]}
+                  onPress={(e) => { e.stopPropagation(); callPhone(p.phone); }}
+                >
+                  <Text style={styles.ctaBtnText}>📞 Praxis anrufen</Text>
+                </Pressable>
+              )}
             </Pressable>
-          </View>
-        ))
+          ))}
+        </>
       )}
     </ScrollView>
   );
@@ -2404,6 +2975,7 @@ export default function App() {
   const renderTab = () => {
     if (showCreatePractice) return renderCreatePractice();
     if (showPracticeSearch) return renderPracticeSearch();
+    if (showInvitePage) return renderInvitePage();
     if (showPracticeAdmin) return renderPracticeAdmin();
     if (showRegister) return renderRegister();
     if (selectedTherapist) return renderTherapistProfile(selectedTherapist);
@@ -2421,6 +2993,101 @@ export default function App() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+
+      {/* ── Notification Sheet ──────────────────────────────────────────────── */}
+      <Modal visible={showNotifications} transparent animationType="slide" onRequestClose={() => setShowNotifications(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setShowNotifications(false)} />
+        <View style={{ backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, minHeight: 200 }}>
+          <View style={{ width: 36, height: 4, backgroundColor: c.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 }} />
+          <Text style={{ fontSize: 18, fontWeight: '700', color: c.text, marginBottom: 16 }}>Benachrichtigungen</Text>
+          {notifications.length === 0 ? (
+            <Text style={{ color: c.muted, textAlign: 'center', marginTop: 24 }}>Keine neuen Benachrichtigungen</Text>
+          ) : (
+            notifications.map((n) => (
+              <View key={n.id} style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#E74C3C', marginTop: 5 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text, fontSize: 14, lineHeight: 20 }}>{n.message}</Text>
+                  <Text style={{ color: c.muted, fontSize: 11, marginTop: 3 }}>
+                    {new Date(n.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+      </Modal>
+
+      {/* ── Location Sheet ─────────────────────────────────────────────────── */}
+      <Modal visible={showLocationSheet} transparent animationType="slide" onRequestClose={() => setShowLocationSheet(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setShowLocationSheet(false)} />
+        <View style={{ backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 16 }}>
+          <View style={{ width: 36, height: 4, backgroundColor: c.border, borderRadius: 2, alignSelf: 'center', marginBottom: 4 }} />
+          <Text style={{ fontSize: 20, fontWeight: '700', color: c.text, textAlign: 'center' }}>Wo suchst du?</Text>
+          <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', marginTop: -8 }}>
+            Wir brauchen deinen Standort, um Therapeuten in deiner Nähe zu finden.
+          </Text>
+
+          {/* GPS Button */}
+          <Pressable
+            onPress={handleLocationSheetGPS}
+            disabled={locationLoading}
+            style={{ backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+          >
+            <Ionicons name="navigate-sharp" size={18} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+              {locationLoading ? 'Standort wird ermittelt …' : 'Aktuellen Standort verwenden'}
+            </Text>
+          </Pressable>
+
+          {/* Divider */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
+            <Text style={{ color: c.muted, fontSize: 12 }}>oder Stadt eingeben</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
+          </View>
+
+          {/* Manual input with autocomplete */}
+          <View>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TextInput
+                value={locationSheetCity}
+                onChangeText={fetchLocationSuggestions}
+                placeholder="z.B. Hauptstraße 5, München"
+                placeholderTextColor={c.muted}
+                style={{ flex: 1, backgroundColor: c.card, borderWidth: 1, borderColor: locationSuggestions.length > 0 ? c.primary : c.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: c.text, fontSize: 15 }}
+                onSubmitEditing={handleLocationSheetManual}
+                returnKeyType="search"
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+              <Pressable
+                onPress={handleLocationSheetManual}
+                style={{ backgroundColor: locationSheetCity.trim() ? c.primary : c.mutedBg, borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center' }}
+              >
+                <Text style={{ color: locationSheetCity.trim() ? '#fff' : c.muted, fontSize: 15, fontWeight: '600' }}>Weiter</Text>
+              </Pressable>
+            </View>
+
+            {/* Autocomplete dropdown */}
+            {locationSuggestions.length > 0 && (
+              <View style={{ backgroundColor: c.card, borderWidth: 1, borderColor: c.primary, borderRadius: 10, marginTop: 6, overflow: 'hidden' }}>
+                {locationSuggestions.map((s, i) => (
+                  <Pressable
+                    key={i}
+                    onPress={() => selectLocationSuggestion(s)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12,
+                      borderBottomWidth: i < locationSuggestions.length - 1 ? 1 : 0, borderBottomColor: c.border }}
+                  >
+                    <Ionicons name="navigate-sharp" size={14} color="#2b6877" />
+                    <Text style={{ flex: 1, color: c.text, fontSize: 14 }} numberOfLines={2}>{s.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <View style={styles.appFrame}>
         {renderTab()}
@@ -2440,6 +3107,7 @@ export default function App() {
                 setShowCreatePractice(false);
                 setShowPracticeSearch(false);
                 setShowPracticeAdmin(false);
+                setShowInvitePage(false);
                 if (tab.key === 'discover') {
                   setQuery('');
                   setActiveChip(null);
