@@ -1,0 +1,14 @@
+# Doppler Secrets Management
+# https://docs.doppler.com/docs/cli
+#
+# Setup:  doppler setup
+# Run:    doppler run -- <command>
+#
+# Environments:
+#   dev      → local development
+#   stg      → staging
+#   prd      → production
+
+setup:
+  project: revio
+  config: dev

@@ -20,6 +20,8 @@ afterAll(async () => {
 
 // Clean DB between test suites
 afterEach(async () => {
+  await prisma.practiceManager.deleteMany();
+  await prisma.user.deleteMany();
   await prisma.therapistPracticeLink.deleteMany();
   await prisma.therapist.deleteMany();
   await prisma.practice.deleteMany();
@@ -604,18 +606,13 @@ describe('Invite Flow: practice manager creates therapist profile', () => {
   let practiceAdminToken: string; // adminSessionToken for practice-auth routes
 
   beforeEach(async () => {
-    // Create a practice with its own admin credentials (for /invite/therapist route)
     const practice = await prisma.practice.create({
-      data: {
-        name: 'Einlade-Praxis',
-        city: 'München',
-        reviewStatus: 'APPROVED',
-        adminEmail: 'praxis@test.de',
-        adminPasswordHash: 'hash',
-        adminSessionToken: 'practice-session-token',
-      },
+      data: { name: 'Einlade-Praxis', city: 'München', reviewStatus: 'APPROVED' },
     });
     practiceId = practice.id;
+    await prisma.practiceManager.create({
+      data: { email: 'praxis@test.de', passwordHash: 'hash', sessionToken: 'practice-session-token', practiceId: practice.id },
+    });
     practiceAdminToken = 'practice-session-token';
   });
 
@@ -896,5 +893,202 @@ describe('Invite Flow: practice manager creates therapist profile', () => {
       payload: { token: inviteToken, password: 'pass123' },
     });
     expect(claimRes.statusCode).toBe(400);
+  });
+});
+
+// ─── Manager Auth ─────────────────────────────────────────────────────────────
+
+describe('POST /manager/register', () => {
+  it('creates manager-only account (isTherapist=false)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/manager/register',
+      payload: {
+        email: 'mgr@test.de',
+        password: 'sicher123',
+        practiceName: 'Test Praxis',
+        practiceCity: 'Berlin',
+        isTherapist: false,
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.token).toBeTruthy();
+    expect(body.isTherapist).toBe(false);
+    expect(body.therapistId).toBeNull();
+
+    // No therapist record should exist for this email
+    const therapist = await prisma.therapist.findUnique({ where: { email: 'mgr@test.de' } });
+    expect(therapist).toBeNull();
+
+    // Manager and practice should exist
+    const manager = await prisma.practiceManager.findUnique({ where: { email: 'mgr@test.de' } });
+    expect(manager).not.toBeNull();
+    expect(manager?.practiceId).toBe(body.practiceId);
+  });
+
+  it('creates manager + therapist profile (isTherapist=true)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/manager/register',
+      payload: {
+        email: 'mgr2@test.de',
+        password: 'sicher123',
+        practiceName: 'Test Praxis 2',
+        practiceCity: 'München',
+        isTherapist: true,
+        fullName: 'Dr. Eva Muster',
+        professionalTitle: 'Physiotherapeutin',
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.isTherapist).toBe(true);
+    expect(body.therapistId).toBeTruthy();
+
+    // Therapist profile exists but is unpublished and hidden
+    const therapist = await prisma.therapist.findUnique({ where: { id: body.therapistId } });
+    expect(therapist).not.toBeNull();
+    expect(therapist?.isPublished).toBe(false);
+    expect(therapist?.isVisible).toBe(false);
+
+    // Manager is linked to therapist
+    const manager = await prisma.practiceManager.findUnique({ where: { email: 'mgr2@test.de' } });
+    expect(manager?.therapistId).toBe(body.therapistId);
+  });
+
+  it('returns 400 when isTherapist=true but fullName missing', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/manager/register',
+      payload: {
+        email: 'mgr3@test.de',
+        password: 'sicher123',
+        practiceName: 'Test Praxis 3',
+        practiceCity: 'Hamburg',
+        isTherapist: true,
+        // fullName and professionalTitle missing
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('returns 409 on duplicate email', async () => {
+    const payload = {
+      email: 'dup@test.de',
+      password: 'sicher123',
+      practiceName: 'Praxis A',
+      practiceCity: 'Berlin',
+      isTherapist: false,
+    };
+    await app.inject({ method: 'POST', url: '/manager/register', payload });
+    const res = await app.inject({ method: 'POST', url: '/manager/register', payload: { ...payload, practiceName: 'Praxis B' } });
+    expect(res.statusCode).toBe(409);
+  });
+});
+
+describe('POST /manager/login + GET /manager/me', () => {
+  it('logs in and returns practice data', async () => {
+    // Register first
+    const regRes = await app.inject({
+      method: 'POST',
+      url: '/manager/register',
+      payload: {
+        email: 'login@test.de',
+        password: 'sicher123',
+        practiceName: 'Login Praxis',
+        practiceCity: 'Köln',
+        isTherapist: false,
+      },
+    });
+    expect(regRes.statusCode).toBe(201);
+
+    // Login
+    const loginRes = await app.inject({
+      method: 'POST',
+      url: '/manager/login',
+      payload: { email: 'login@test.de', password: 'sicher123' },
+    });
+    expect(loginRes.statusCode).toBe(200);
+    const { token } = loginRes.json();
+    expect(token).toBeTruthy();
+
+    // GET /manager/me
+    const meRes = await app.inject({
+      method: 'GET',
+      url: '/manager/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(meRes.statusCode).toBe(200);
+    const me = meRes.json();
+    expect(me.email).toBe('login@test.de');
+    expect(me.isTherapist).toBe(false);
+    expect(me.practice.name).toBe('Login Praxis');
+  });
+
+  it('returns 401 on wrong password', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/manager/register',
+      payload: { email: 'wrong@test.de', password: 'sicher123', practiceName: 'P', practiceCity: 'Berlin', isTherapist: false },
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/manager/login',
+      payload: { email: 'wrong@test.de', password: 'falsch' },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+});
+
+describe('Manager visibility in search', () => {
+  it('manager-only account does not appear in therapist search', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/manager/register',
+      payload: {
+        email: 'invisible@test.de',
+        password: 'sicher123',
+        practiceName: 'Unsichtbare Praxis',
+        practiceCity: 'Berlin',
+        isTherapist: false,
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/search',
+      payload: { query: 'Berlin', city: 'Berlin' },
+    });
+    expect(res.statusCode).toBe(200);
+    const { therapists } = res.json();
+    const found = therapists.find((t: any) => t.email === 'invisible@test.de');
+    expect(found).toBeUndefined();
+  });
+
+  it('manager+therapist does not appear in search while isPublished=false', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/manager/register',
+      payload: {
+        email: 'hidden-therapist@test.de',
+        password: 'sicher123',
+        practiceName: 'Versteckte Praxis',
+        practiceCity: 'München',
+        isTherapist: true,
+        fullName: 'Dr. Hidden',
+        professionalTitle: 'Physiotherapeut',
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/search',
+      payload: { query: 'Hidden', city: 'München' },
+    });
+    expect(res.statusCode).toBe(200);
+    const { therapists } = res.json();
+    const found = therapists.find((t: any) => t.fullName === 'Dr. Hidden');
+    expect(found).toBeUndefined();
   });
 });

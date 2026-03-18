@@ -247,6 +247,18 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return { message: 'Link disputed.' };
   });
 
+  // Managers
+  fastify.get('/managers', async () => {
+    const managers = await fastify.prisma.practiceManager.findMany({
+      include: {
+        practice: { select: { id: true, name: true, city: true, reviewStatus: true } },
+        therapist: { select: { id: true, fullName: true, email: true, reviewStatus: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { managers };
+  });
+
   // POST /admin/practices/geocode-all — geocode all practices with lat=0 lng=0
   fastify.post('/practices/geocode-all', async (_request, reply) => {
     const practices = await fastify.prisma.practice.findMany({

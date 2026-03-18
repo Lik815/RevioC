@@ -35,11 +35,9 @@
 
 - ~~**Verifizierungs-Badge**~~ — entschieden: kein Badge; nur APPROVED-Profile sind sichtbar
 - ~~**Admin: Verifizierung manuell setzen**~~ — nicht geplant
-- [ ] **Nachweis-Upload (optional)** — Da es keine einheitliche PT-Kammer gibt, optionales Upload-Feld für Zertifikate/Nachweise (z. B. Ausbildungsabschluss, Fortbildungszertifikat); Admin kann Dokument einsehen; kein Pflichtfeld
 
 ### Mobile App
 
-- [ ] **Kartenansicht** — Google Maps / Apple Maps Integration; Praxen als Pins mit Distanz. Aktuell nur `Linking.openURL` zu Google Maps. Lat/Lng-Daten aus API sind korrekt. Vorheriger Versuch mit `react-native-maps` rückgängig gemacht — funktioniert nicht gut auf Web (localhost). Besser erst in nativer App umsetzen.
 - [ ] **Push-Benachrichtigungen** — Therapeut erhält Benachrichtigung bei Profil-Freigabe/-Ablehnung
 - [x] **Kassenart** — Feld in DB + API + Registrierungsflow + Filter in Suche. _(schema.prisma, search.ts, App.js)_
 - [x] **Verfügbare Zeiten** — `availability`-Feld in DB + API + Profil. _(schema.prisma, auth.ts, App.js)_
@@ -49,7 +47,6 @@
 
 - ~~**Verifizierungs-Aktion**~~ — nicht geplant; Freigabe via APPROVED-Status reicht
 - [ ] **Dokumente einsehen** — Upload-Dateien im Admin abrufbar
-- [ ] **E-Mail-Benachrichtigungen** — Admin-Aktionen (Approve/Reject) senden automatisch E-Mail an Therapeuten
 
 ### API
 
@@ -59,9 +56,9 @@
 
 ### Infrastruktur
 
-- [ ] **Produktions-Deployment** — Docker + Railway/Render für API, Vercel für Admin, EAS für Mobile
+- [x] **Produktions-Deployment** — Docker + Railway/Render für API, Vercel für Admin, EAS für Mobile
 - [ ] **PostgreSQL** — SQLite durch PostgreSQL ersetzen für Production
-- [ ] **Umgebungsvariablen** — Secrets-Management (z. B. Doppler) einrichten
+- [x] **Umgebungsvariablen** — Secrets-Management (z. B. Doppler) einrichten
 
 ---
 

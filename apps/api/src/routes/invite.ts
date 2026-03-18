@@ -9,7 +9,11 @@ import { sendInviteEmail, sendReinviteEmail } from '../utils/mailer.js';
 
 async function getPracticeByToken(fastify: any, token: string | null) {
   if (!token) return null;
-  return fastify.prisma.practice.findUnique({ where: { adminSessionToken: token } });
+  const manager = await fastify.prisma.practiceManager.findUnique({
+    where: { sessionToken: token },
+    include: { practice: true },
+  });
+  return manager?.practice ?? null;
 }
 
 function checkProfileComplete(therapist: {
@@ -52,6 +56,8 @@ export const inviteRoutes: FastifyPluginAsync = async (fastify) => {
     // Check if a therapist with this email already exists
     const existing = await fastify.prisma.therapist.findUnique({ where: { email } });
     if (existing) return reply.conflict('Ein Therapeut mit dieser E-Mail-Adresse existiert bereits.');
+    const existingUser = await fastify.prisma.user.findUnique({ where: { email } });
+    if (existingUser) return reply.conflict('Ein Benutzer mit dieser E-Mail-Adresse existiert bereits.');
 
     const isDev = process.env.NODE_ENV !== 'production';
     const reviewStatus = isDev ? 'APPROVED' : 'PENDING_REVIEW';
@@ -186,11 +192,28 @@ export const inviteRoutes: FastifyPluginAsync = async (fastify) => {
       data: { usedAt: now },
     });
 
+    // Ensure user account exists (invite flow creates therapist first, then user on claim)
+    const existingUser = await fastify.prisma.user.findUnique({
+      where: { email: invitation.therapist.email },
+    });
+    const user = existingUser ?? await fastify.prisma.user.create({
+      data: {
+        email: invitation.therapist.email,
+        role: 'therapist',
+      },
+    });
+
+    await fastify.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, sessionToken },
+    });
+
     // Update therapist
     const updateData: Record<string, any> = {
       passwordHash,
       sessionToken,
       onboardingStatus: 'claimed',
+      userId: invitation.therapist.userId ?? user.id,
     };
     if (fullName) updateData.fullName = fullName;
 
@@ -211,7 +234,11 @@ export const inviteRoutes: FastifyPluginAsync = async (fastify) => {
     const bearerToken = getToken(request);
     if (!bearerToken) return reply.unauthorized('Kein Token');
 
-    const therapist = await fastify.prisma.therapist.findUnique({
+    const user = await fastify.prisma.user.findUnique({
+      where: { sessionToken: bearerToken },
+      include: { therapistProfile: true },
+    });
+    const therapist = user?.therapistProfile ?? await fastify.prisma.therapist.findUnique({
       where: { sessionToken: bearerToken },
     });
     if (!therapist) return reply.unauthorized('Ungültiger Token');

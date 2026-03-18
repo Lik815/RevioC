@@ -30,9 +30,29 @@ enum SuggestionType {
   CITY
 }
 
+enum Role {
+  therapist
+  manager
+  admin
+}
+
+model User {
+  id               String                  @id @default(cuid())
+  email            String                  @unique
+  passwordHash     String?
+  sessionToken     String?                 @unique
+  role             Role
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  therapistProfile Therapist?              @relation("TherapistUser")
+  managerProfile   PracticeManager?
+}
+
 model Therapist {
   id                    String       @id @default(cuid())
   email                 String       @unique
+  userId                String?      @unique
+  user                  User?        @relation("TherapistUser", fields: [userId], references: [id], onDelete: SetNull)
   fullName              String
   professionalTitle     String
   city                  String
@@ -55,8 +75,8 @@ model Therapist {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
   links                 TherapistPracticeLink[]
-  adminOfPractice       Practice?    @relation("PracticeAdmin")
   invitations           Invitation[]
+  managerAccount        PracticeManager? @relation("ManagerTherapist")
 }
 
 model Practice {
@@ -69,11 +89,6 @@ model Practice {
   lat               Float        @default(0)
   lng               Float        @default(0)
   reviewStatus      ReviewStatus @default(PENDING_REVIEW)
-  adminEmail        String?      @unique
-  adminPasswordHash String?
-  adminSessionToken String?      @unique
-  adminTherapistId  String?      @unique
-  adminTherapist    Therapist?   @relation("PracticeAdmin", fields: [adminTherapistId], references: [id])
   description       String?
   inviteToken       String?      @unique
   logo              String?
@@ -82,6 +97,21 @@ model Practice {
   updatedAt         DateTime     @updatedAt
   links             TherapistPracticeLink[]
   invitations       Invitation[]
+  manager           PracticeManager?
+}
+
+model PracticeManager {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  userId       String?   @unique
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  passwordHash String
+  sessionToken String?   @unique
+  practiceId   String    @unique
+  practice     Practice  @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  therapistId  String?   @unique
+  therapist    Therapist? @relation("ManagerTherapist", fields: [therapistId], references: [id])
+  createdAt    DateTime  @default(now())
 }
 
 model Invitation {

@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
 import {
   ActivityIndicator,
+  Animated,
   Alert,
   Image,
   Linking,
@@ -278,7 +279,29 @@ const regSpecOptions = [
   'Osteopathie', 'Kinesiotaping', 'Dry Needling', 'Triggerpunkt-Therapie',
   'Vojta-Therapie', 'Bobath-Therapie', 'Aquatherapie', 'Entspannungstherapie'
 ];
-const languageOptions = ['DE', 'EN', 'TR', 'AR', 'FR', 'ES', 'IT', 'PL', 'RU'];
+const LANGUAGE_MAP = {
+  DE: 'Deutsch',
+  EN: 'Englisch',
+  FR: 'Französisch',
+  ES: 'Spanisch',
+  IT: 'Italienisch',
+  TR: 'Türkisch',
+  AR: 'Arabisch',
+  PL: 'Polnisch',
+  RU: 'Russisch',
+  SR: 'Serbisch',
+};
+const languageOptions = Object.keys(LANGUAGE_MAP);
+const normalizeLanguageCode = (value) => {
+  if (typeof value !== 'string') return '';
+  return value.trim().toUpperCase();
+};
+const normalizeLanguageCodes = (values) =>
+  parseStringOrArray(values)
+    .map(normalizeLanguageCode)
+    .filter(Boolean)
+    .filter((value, index, arr) => arr.indexOf(value) === index);
+const getLangLabel = (code) => LANGUAGE_MAP[normalizeLanguageCode(code)] ?? code;
 const REG_STEPS = 5;
 
 // ─── Demo data ────────────────────────────────────────────────────────────────
@@ -335,7 +358,7 @@ const mapApiTherapist = (t) => ({
   fullName: t.fullName,
   professionalTitle: t.professionalTitle,
   specializations: parseStringOrArray(t.specializations),
-  languages: parseStringOrArray(t.languages).map(l => l.toUpperCase()),
+  languages: normalizeLanguageCodes(t.languages),
   homeVisit: t.homeVisit ?? false,
   isVisible: t.isVisible ?? true,
   availability: t.availability ?? '',
@@ -363,6 +386,14 @@ const mapApiTherapist = (t) => ({
   })),
 });
 
+const normalizeTherapistProfile = (therapist) => {
+  if (!therapist) return therapist;
+  return {
+    ...therapist,
+    languages: normalizeLanguageCodes(therapist.languages),
+  };
+};
+
 // ─── Distance helper (Haversine, returns km) ─────────────────────────────────
 
 const haversine = (lat1, lng1, lat2, lng2) => {
@@ -389,6 +420,33 @@ function callPhone(phone) {
     { text: 'Anrufen', onPress: () => Linking.openURL(`tel:${phone}`) },
     { text: 'Abbrechen', style: 'cancel' },
   ]);
+}
+
+function HeartButton({ isSaved, onToggle, size = 22, savedColor = '#E05A77', unsavedColor, hitSlop, style }) {
+  const scale = React.useRef(new Animated.Value(1)).current;
+
+  const handlePress = () => {
+    const willSave = !isSaved;
+    onToggle();
+    if (willSave) {
+      Animated.sequence([
+        Animated.spring(scale, { toValue: 1.45, useNativeDriver: true, speed: 40, bounciness: 12 }),
+        Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 4 }),
+      ]).start();
+    }
+  };
+
+  return (
+    <Pressable onPress={handlePress} hitSlop={hitSlop} style={style}>
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <Ionicons
+          name={isSaved ? 'heart' : 'heart-outline'}
+          size={size}
+          color={isSaved ? savedColor : (unsavedColor ?? '#9ca3af')}
+        />
+      </Animated.View>
+    </Pressable>
+  );
 }
 
 export default function App() {
@@ -447,6 +505,33 @@ export default function App() {
 
   // Registration state
   const [showRegister, setShowRegister] = useState(false);
+  // Manager registration state
+  const [showManagerReg, setShowManagerReg] = useState(false);
+  const [mgrRegStep, setMgrRegStep] = useState(1);
+  const [mgrEmail, setMgrEmail] = useState('');
+  const [mgrPassword, setMgrPassword] = useState('');
+  const [mgrPasswordConfirm, setMgrPasswordConfirm] = useState('');
+  const [mgrPracticeName, setMgrPracticeName] = useState('');
+  const [mgrPracticeCity, setMgrPracticeCity] = useState('');
+  const [mgrPracticeAddress, setMgrPracticeAddress] = useState('');
+  const [mgrPracticePhone, setMgrPracticePhone] = useState('');
+  const [mgrIsTherapist, setMgrIsTherapist] = useState(false);
+  const [mgrFullName, setMgrFullName] = useState('');
+  const [mgrProfTitle, setMgrProfTitle] = useState('');
+  const [mgrRegLoading, setMgrRegLoading] = useState(false);
+  const [mgrRegError, setMgrRegError] = useState('');
+  // Manager login tab
+  // Manager dashboard edit state
+  const [mgrEditMode, setMgrEditMode] = useState(false);
+  const [mgrEditName, setMgrEditName] = useState('');
+  const [mgrEditCity, setMgrEditCity] = useState('');
+  const [mgrEditAddress, setMgrEditAddress] = useState('');
+  const [mgrEditPhone, setMgrEditPhone] = useState('');
+  const [mgrEditHours, setMgrEditHours] = useState('');
+  const [mgrEditDescription, setMgrEditDescription] = useState('');
+  const [mgrEditLogo, setMgrEditLogo] = useState(null);
+  const [mgrEditPhotos, setMgrEditPhotos] = useState([]);
+  const [mgrEditSaving, setMgrEditSaving] = useState(false);
   const [regStep, setRegStep] = useState(1);
   const [regSubmitted, setRegSubmitted] = useState(false);
   const [regEmail, setRegEmail] = useState('');
@@ -468,7 +553,6 @@ export default function App() {
   const toggleRegSpec = (s) => setRegSpecializations(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
   const toggleRegLang = (l) => setRegLanguages(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l]);
   const toggleRegFort = (f) => setRegFortbildungen(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
-  const [regCustomLanguage, setRegCustomLanguage] = useState('');
   const [regPracticeMode, setRegPracticeMode] = useState('new'); // 'new' | 'existing' | 'skip'
   const [regExistingPracticeName, setRegExistingPracticeName] = useState('');
   const [regExistingPracticeId, setRegExistingPracticeId] = useState(null);
@@ -478,6 +562,8 @@ export default function App() {
   // Auth state
   const [authToken, setAuthToken] = useState(null);
   const [loggedInTherapist, setLoggedInTherapist] = useState(null);
+  const [loggedInManager, setLoggedInManager] = useState(null);
+  const [accountType, setAccountType] = useState(null); // 'therapist' | 'manager' | null
   const [showLogin, setShowLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -486,7 +572,7 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const [editBio, setEditBio] = useState('');
   const [editSpecializations, setEditSpecializations] = useState('');
-  const [editLanguages, setEditLanguages] = useState('');
+  const [editLanguages, setEditLanguages] = useState([]);
   const [editHomeVisit, setEditHomeVisit] = useState(false);
   const [editIsVisible, setEditIsVisible] = useState(true);
   const [editAvailability, setEditAvailability] = useState('');
@@ -550,17 +636,36 @@ export default function App() {
   const [visibilityLoading, setVisibilityLoading] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('revio_auth_token').then(async (token) => {
+    Promise.all([
+      AsyncStorage.getItem('revio_auth_token'),
+      AsyncStorage.getItem('revio_account_type'),
+    ]).then(async ([token, storedAccountType]) => {
       if (!token) return;
       try {
-        const res = await fetch(`${getBaseUrl()}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          setAuthToken(token);
-          setLoggedInTherapist(await res.json());
+        if (storedAccountType === 'manager') {
+          const res = await fetch(`${getBaseUrl()}/manager/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            setAuthToken(token);
+            setAccountType('manager');
+            setLoggedInManager(await res.json());
+          } else {
+            AsyncStorage.removeItem('revio_auth_token');
+            AsyncStorage.removeItem('revio_account_type');
+          }
         } else {
-          AsyncStorage.removeItem('revio_auth_token');
+          const res = await fetch(`${getBaseUrl()}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            setAuthToken(token);
+            setAccountType('therapist');
+            setLoggedInTherapist(normalizeTherapistProfile(await res.json()));
+          } else {
+            AsyncStorage.removeItem('revio_auth_token');
+            AsyncStorage.removeItem('revio_account_type');
+          }
         }
       } catch {}
     });
@@ -640,12 +745,23 @@ export default function App() {
         return;
       }
       const data = await res.json();
+      const nextType = data.accountType === 'manager' ? 'manager' : 'therapist';
       await AsyncStorage.setItem('revio_auth_token', data.token);
+      await AsyncStorage.setItem('revio_account_type', nextType);
       setAuthToken(data.token);
-      const profileRes = await fetch(`${getBaseUrl()}/auth/me`, {
-        headers: { Authorization: `Bearer ${data.token}` },
-      });
-      if (profileRes.ok) setLoggedInTherapist(await profileRes.json());
+      setAccountType(nextType);
+
+      if (nextType === 'manager') {
+        const meRes = await fetch(`${getBaseUrl()}/manager/me`, {
+          headers: { Authorization: `Bearer ${data.token}` },
+        });
+        if (meRes.ok) setLoggedInManager(await meRes.json());
+      } else {
+        const profileRes = await fetch(`${getBaseUrl()}/auth/me`, {
+          headers: { Authorization: `Bearer ${data.token}` },
+        });
+        if (profileRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await profileRes.json()));
+      }
       setShowLogin(false);
       setLoginEmail('');
       setLoginPassword('');
@@ -663,9 +779,12 @@ export default function App() {
         headers: { Authorization: `Bearer ${authToken}` },
       }).catch(() => {});
       await AsyncStorage.removeItem('revio_auth_token');
+      await AsyncStorage.removeItem('revio_account_type');
     }
     setAuthToken(null);
     setLoggedInTherapist(null);
+    setLoggedInManager(null);
+    setAccountType(null);
   };
 
   const deleteAccountConfirmed = async () => {
@@ -710,7 +829,7 @@ export default function App() {
         const meRes = await fetch(`${getBaseUrl()}/auth/me`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
-        if (meRes.ok) setLoggedInTherapist(await meRes.json());
+        if (meRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await meRes.json()));
       }
     } catch {}
   };
@@ -738,7 +857,7 @@ export default function App() {
         body: JSON.stringify({
           bio: editBio,
           specializations: editSpecializations.split(',').map(s => s.trim()).filter(Boolean),
-          languages: editLanguages.split(',').map(s => s.trim()).filter(Boolean),
+          languages: editLanguages.map(l => l.toLowerCase()),
           homeVisit: editHomeVisit,
           isVisible: editIsVisible,
           availability: editAvailability,
@@ -748,7 +867,7 @@ export default function App() {
         const profileRes = await fetch(`${getBaseUrl()}/auth/me`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
-        if (profileRes.ok) setLoggedInTherapist(await profileRes.json());
+        if (profileRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await profileRes.json()));
         setEditMode(false);
         Alert.alert('Gespeichert', 'Dein Profil wurde erfolgreich aktualisiert.');
       } else {
@@ -821,7 +940,7 @@ export default function App() {
         const profileRes = await fetch(`${getBaseUrl()}/auth/me`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
-        if (profileRes.ok) setLoggedInTherapist(await profileRes.json());
+        if (profileRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await profileRes.json()));
         setCreatePracticeName(''); setCreatePracticeCity('');
         setCreatePracticeAddress(''); setCreatePracticePhone(''); setCreatePracticeHours('');
         setShowCreatePractice(false);
@@ -1704,11 +1823,7 @@ export default function App() {
               </View>
               <Text style={[styles.practiceArrow, { color: c.muted }]}>›</Text>
             </Pressable>
-            <Pressable onPress={() => toggleFavorite(th)} hitSlop={10}>
-              <Text style={{ fontSize: 22, color: isFavorite(th.id) ? '#E05A77' : c.muted }}>
-                {isFavorite(th.id) ? '♥' : '♡'}
-              </Text>
-            </Pressable>
+            <HeartButton isSaved={isFavorite(th.id)} onToggle={() => toggleFavorite(th)} unsavedColor={c.muted} hitSlop={10} />
           </View>
 
           {/* Tags: Spezialisierungen + Sprachen + Hausbesuch */}
@@ -1720,7 +1835,7 @@ export default function App() {
             ))}
             {th.languages.map((l) => (
               <View key={l} style={[styles.tag, { backgroundColor: c.mutedBg }]}>
-                <Text style={[styles.tagText, { color: c.muted }]}>{l}</Text>
+                <Text style={[styles.tagText, { color: c.muted }]}>{getLangLabel(l)}</Text>
               </View>
             ))}
             {th.homeVisit && (
@@ -1941,9 +2056,7 @@ export default function App() {
           <Text style={[styles.backBtnText, { color: c.primary }]}>‹ {t('backBtn')}</Text>
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={() => toggleFavorite(th)} style={{ paddingHorizontal: 10, paddingVertical: 10 }}>
-            <Ionicons name={isFavorite(th.id) ? 'heart' : 'heart-outline'} size={22} color={isFavorite(th.id) ? '#E05A77' : c.muted} />
-          </Pressable>
+          <HeartButton isSaved={isFavorite(th.id)} onToggle={() => toggleFavorite(th)} unsavedColor={c.muted} style={{ paddingHorizontal: 10, paddingVertical: 10 }} />
           <Pressable onPress={() => shareTherapist(th)} style={{ paddingHorizontal: 12, paddingVertical: 10 }}>
             <Ionicons name="share-outline" size={22} color={c.primary} />
           </Pressable>
@@ -1969,7 +2082,7 @@ export default function App() {
           <View style={[styles.tagRow, { justifyContent: 'center', marginTop: 8 }]}>
             {(th.languages ?? []).map(l => (
               <View key={l} style={[styles.tag, { backgroundColor: c.mutedBg }]}>
-                <Text style={[styles.tagText, { color: c.muted }]}>{l}</Text>
+                <Text style={[styles.tagText, { color: c.muted }]}>{getLangLabel(l)}</Text>
               </View>
             ))}
             {th.homeVisit && (
@@ -2119,7 +2232,7 @@ export default function App() {
         <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: c.text }]}>Anmelden</Text>
-          <Text style={[styles.headerSub, { color: c.muted }]}>Therapeuten-Login</Text>
+          <Text style={[styles.headerSub, { color: c.muted }]}>Ein Login für alle Konten</Text>
         </View>
       </View>
 
@@ -2170,7 +2283,7 @@ export default function App() {
     const enterEdit = () => {
       setEditBio(th.bio ?? '');
       setEditSpecializations((th.specializations ?? []).join(', '));
-      setEditLanguages((th.languages ?? []).join(', '));
+      setEditLanguages(normalizeLanguageCodes(th.languages));
       setEditHomeVisit(th.homeVisit ?? false);
       setEditIsVisible(th.isVisible ?? true);
       setEditAvailability(th.availability ?? '');
@@ -2222,14 +2335,24 @@ export default function App() {
               placeholder="Rücken, Sport, Neurologie…"
               placeholderTextColor={c.muted}
             />
-            <Text style={[styles.filterSectionTitle, { color: c.muted, marginTop: 12 }]}>Sprachen (kommagetrennt)</Text>
-            <TextInput
-              style={[styles.inputField, { color: c.text, borderColor: c.border, backgroundColor: c.mutedBg }]}
-              value={editLanguages}
-              onChangeText={setEditLanguages}
-              placeholder="de, en…"
-              placeholderTextColor={c.muted}
-            />
+            <Text style={[styles.filterSectionTitle, { color: c.muted, marginTop: 12 }]}>Sprachen</Text>
+            <View>
+              {languageOptions.map(l => {
+                const checked = editLanguages.includes(l);
+                return (
+                  <Pressable
+                    key={l}
+                    onPress={() => setEditLanguages(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l])}
+                    style={styles.checkRow}
+                  >
+                    <View style={[styles.checkbox, { borderColor: checked ? c.primary : c.border, backgroundColor: checked ? c.primary : 'transparent' }]}>
+                      {checked && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={[styles.checkLabel, { color: c.text }]}>{getLangLabel(l)}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
             <View style={[styles.detailInfoRow, { marginTop: 12 }]}>
               <Text style={[styles.detailInfoLabel, { color: c.text, flex: 1 }]}>Hausbesuch</Text>
               <Switch value={editHomeVisit} onValueChange={setEditHomeVisit} trackColor={{ true: c.primary }} />
@@ -2302,7 +2425,7 @@ export default function App() {
               <View style={styles.tagRow}>
                 {(th.languages ?? []).map(l => (
                   <View key={l} style={[styles.tag, { backgroundColor: c.mutedBg }]}>
-                    <Text style={[styles.tagText, { color: c.muted }]}>{l}</Text>
+                    <Text style={[styles.tagText, { color: c.muted }]}>{getLangLabel(l)}</Text>
                   </View>
                 ))}
               </View>
@@ -3116,9 +3239,7 @@ export default function App() {
                   </View>
                   <Text style={[styles.practiceArrow, { color: c.muted }]}>›</Text>
                 </Pressable>
-                <Pressable onPress={() => toggleFavorite(fav)} hitSlop={10}>
-                  <Ionicons name="heart" size={22} color="#E05A77" />
-                </Pressable>
+                <HeartButton isSaved={true} onToggle={() => toggleFavorite(fav)} hitSlop={10} />
               </View>
               {fav.practices?.length > 0 && (
                 <Pressable
@@ -3285,41 +3406,18 @@ export default function App() {
                 })}
               </View>
               <Text style={[styles.filterSectionTitle, { color: c.muted, marginTop: 14 }]}>Sprachen</Text>
-              <View style={styles.tagRow}>
+              <View>
                 {languageOptions.map(l => {
-                  const active = regLanguages.includes(l);
+                  const checked = regLanguages.includes(l);
                   return (
-                    <Pressable key={l} onPress={() => toggleRegLang(l)} style={[styles.chip, active ? { backgroundColor: c.primary, borderColor: c.primary } : { backgroundColor: c.card, borderColor: c.border }]}>
-                      <Text style={[styles.chipText, { color: active ? '#FFFFFF' : c.text }]}>{l}</Text>
+                    <Pressable key={l} onPress={() => toggleRegLang(l)} style={styles.checkRow}>
+                      <View style={[styles.checkbox, { borderColor: checked ? c.primary : c.border, backgroundColor: checked ? c.primary : 'transparent' }]}>
+                        {checked && <Text style={styles.checkmark}>✓</Text>}
+                      </View>
+                      <Text style={[styles.checkLabel, { color: c.text }]}>{getLangLabel(l)}</Text>
                     </Pressable>
                   );
                 })}
-                {regLanguages.filter(l => !languageOptions.includes(l)).map(l => (
-                  <Pressable key={l} onPress={() => toggleRegLang(l)} style={[styles.chip, { backgroundColor: c.primary, borderColor: c.primary }]}>
-                    <Text style={[styles.chipText, { color: '#FFFFFF' }]}>{l} ✕</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 6 }}>
-                <TextInput
-                  value={regCustomLanguage}
-                  onChangeText={setRegCustomLanguage}
-                  placeholder="Andere Sprache (z. B. Farsi, Vietn.)"
-                  placeholderTextColor={c.muted}
-                  style={[styles.regInput, { flex: 1, backgroundColor: c.card, borderColor: c.border, color: c.text, paddingVertical: 8 }]}
-                />
-                <Pressable
-                  onPress={() => {
-                    const lang = regCustomLanguage.trim().toUpperCase().slice(0, 5);
-                    if (lang && !regLanguages.includes(lang)) {
-                      setRegLanguages(prev => [...prev, lang]);
-                      setRegCustomLanguage('');
-                    }
-                  }}
-                  style={[styles.kassenartBtn, { backgroundColor: c.primary, borderColor: c.primary, paddingHorizontal: 18 }]}
-                >
-                  <Text style={[styles.kassenartText, { color: '#FFFFFF' }]}>＋</Text>
-                </Pressable>
               </View>
               <Text style={[styles.filterSectionTitle, { color: c.muted, marginTop: 14 }]}>Fortbildungen <Text style={{ fontWeight: '400', textTransform: 'none', letterSpacing: 0, fontSize: 11 }}>(Checkliste)</Text></Text>
               {fortbildungOptions.map(opt => {
@@ -3441,7 +3539,7 @@ export default function App() {
                 { label: 'E-Mail', value: regEmail || '—' },
                 { label: 'Stadt', value: regCity || '—' },
                 { label: 'Spezialisierungen', value: regSpecializations.join(', ') || '—' },
-                { label: 'Sprachen', value: regLanguages.join(', ') || '—' },
+                { label: 'Sprachen', value: regLanguages.map(getLangLabel).join(', ') || '—' },
                 { label: 'Hausbesuche', value: regHomeVisit ? 'Ja' : 'Nein' },
                 { label: 'Praxis', value: regPracticeMode === 'new' ? (regPracticeName || '—') : regPracticeMode === 'existing' ? (regExistingPracticeName || '—') : 'Keine Praxis' },
                 ...(regPracticeMode === 'new' ? [{ label: 'Adresse', value: [regPracticeAddress, regPracticeCity].filter(Boolean).join(', ') || '—' }] : []),
@@ -3565,7 +3663,7 @@ export default function App() {
         const profileRes = await fetch(`${getBaseUrl()}/auth/me`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
-        if (profileRes.ok) setLoggedInTherapist(await profileRes.json());
+        if (profileRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await profileRes.json()));
 
         if (preference === 'visible') {
           if (data.isPublished) {
@@ -3651,7 +3749,7 @@ export default function App() {
         const profileRes = await fetch(`${getBaseUrl()}/auth/me`, {
           headers: { Authorization: `Bearer ${data.token}` },
         });
-        if (profileRes.ok) setLoggedInTherapist(await profileRes.json());
+        if (profileRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await profileRes.json()));
         setShowInviteClaim(false);
         setInviteClaimToken(null);
         setInviteClaimData(null);
@@ -3723,9 +3821,579 @@ export default function App() {
     );
   };
 
+  // ── Manager Registration Flow ─────────────────────────────────────────────
+
+  const MGR_REG_STEPS = mgrIsTherapist ? 5 : 4;
+
+  const mgrRegCanProceed = () => {
+    switch (mgrRegStep) {
+      case 1:
+        return mgrEmail.length > 3 && mgrPassword.length >= 6 && mgrPassword === mgrPasswordConfirm;
+      case 2:
+        return mgrPracticeName.trim().length > 0 && mgrPracticeCity.trim().length > 0;
+      case 3:
+        return true; // role selection always valid
+      case 4:
+        if (mgrIsTherapist) return mgrFullName.trim().length > 0 && mgrProfTitle.trim().length > 0;
+        return true; // summary step
+      default:
+        return true;
+    }
+  };
+
+  const handleManagerRegSubmit = async () => {
+    setMgrRegLoading(true);
+    setMgrRegError('');
+    try {
+      const body = {
+        email: mgrEmail,
+        password: mgrPassword,
+        practiceName: mgrPracticeName,
+        practiceCity: mgrPracticeCity,
+        isTherapist: mgrIsTherapist,
+      };
+      if (mgrPracticeAddress.trim()) body.practiceAddress = mgrPracticeAddress.trim();
+      if (mgrPracticePhone.trim()) body.practicePhone = mgrPracticePhone.trim();
+      if (mgrIsTherapist && mgrFullName.trim()) body.fullName = mgrFullName.trim();
+      if (mgrIsTherapist && mgrProfTitle.trim()) body.professionalTitle = mgrProfTitle.trim();
+      const res = await fetch(`${getBaseUrl()}/manager/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMgrRegError(data.message ?? 'Registrierung fehlgeschlagen.');
+        return;
+      }
+      await AsyncStorage.setItem('revio_auth_token', data.token);
+      await AsyncStorage.setItem('revio_account_type', 'manager');
+      setAuthToken(data.token);
+      setAccountType('manager');
+      const meRes = await fetch(`${getBaseUrl()}/manager/me`, {
+        headers: { Authorization: `Bearer ${data.token}` },
+      });
+      if (meRes.ok) setLoggedInManager(await meRes.json());
+      setShowManagerReg(false);
+      // Reset form
+      setMgrEmail(''); setMgrPassword(''); setMgrPasswordConfirm('');
+      setMgrPracticeName(''); setMgrPracticeCity(''); setMgrPracticeAddress(''); setMgrPracticePhone('');
+      setMgrIsTherapist(false); setMgrFullName(''); setMgrProfTitle('');
+      setMgrRegStep(1);
+    } catch {
+      setMgrRegError('Verbindungsfehler. Bitte prüfe deine Internetverbindung.');
+    } finally {
+      setMgrRegLoading(false);
+    }
+  };
+
+  const renderManagerReg = () => {
+    const renderProgress = () => (
+      <View style={styles.regProgressRow}>
+        {Array.from({ length: MGR_REG_STEPS }).map((_, i) => (
+          <View key={i} style={[styles.regProgressBar, { backgroundColor: i < mgrRegStep ? c.primary : c.border }]} />
+        ))}
+      </View>
+    );
+
+    // Determine actual step label (step 4 is therapist profile if mgrIsTherapist, else summary)
+    const isSummaryStep = mgrIsTherapist ? mgrRegStep === 5 : mgrRegStep === 4;
+
+    const renderStepContent = () => {
+      if (mgrRegStep === 1) {
+        return (
+          <>
+            <Text style={[styles.regStepTitle, { color: c.text }]}>Zugangsdaten</Text>
+            <Text style={[styles.regStepSub, { color: c.muted }]}>Erstelle deinen Praxis-Account</Text>
+            <TextInput value={mgrEmail} onChangeText={setMgrEmail} placeholder="E-Mail-Adresse" placeholderTextColor={c.muted} keyboardType="email-address" autoCapitalize="none" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
+            <TextInput value={mgrPassword} onChangeText={setMgrPassword} placeholder="Passwort (mind. 6 Zeichen)" placeholderTextColor={c.muted} secureTextEntry style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
+            <TextInput value={mgrPasswordConfirm} onChangeText={setMgrPasswordConfirm} placeholder="Passwort wiederholen" placeholderTextColor={c.muted} secureTextEntry style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
+            {mgrPasswordConfirm.length > 0 && mgrPassword !== mgrPasswordConfirm && (
+              <Text style={{ color: '#E05A77', fontSize: 13, marginTop: -6 }}>Passwörter stimmen nicht überein</Text>
+            )}
+          </>
+        );
+      }
+      if (mgrRegStep === 2) {
+        return (
+          <>
+            <Text style={[styles.regStepTitle, { color: c.text }]}>Praxis-Daten</Text>
+            <Text style={[styles.regStepSub, { color: c.muted }]}>Informationen zu deiner Praxis</Text>
+            <TextInput value={mgrPracticeName} onChangeText={setMgrPracticeName} placeholder="Praxisname *" placeholderTextColor={c.muted} style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
+            <TextInput value={mgrPracticeCity} onChangeText={setMgrPracticeCity} placeholder="Stadt * (z. B. Köln)" placeholderTextColor={c.muted} style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
+            <TextInput value={mgrPracticeAddress} onChangeText={setMgrPracticeAddress} placeholder="Adresse (optional)" placeholderTextColor={c.muted} style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
+            <TextInput value={mgrPracticePhone} onChangeText={setMgrPracticePhone} placeholder="Telefon (optional)" placeholderTextColor={c.muted} keyboardType="phone-pad" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
+          </>
+        );
+      }
+      if (mgrRegStep === 3) {
+        return (
+          <>
+            <Text style={[styles.regStepTitle, { color: c.text }]}>Deine Rolle</Text>
+            <Text style={[styles.regStepSub, { color: c.muted }]}>Bist du selbst auch Therapeut/in?</Text>
+            <Pressable
+              onPress={() => setMgrIsTherapist(false)}
+              style={{ backgroundColor: !mgrIsTherapist ? c.primary : c.card, borderWidth: 2, borderColor: !mgrIsTherapist ? c.primary : c.border, borderRadius: 14, paddingVertical: 18, paddingHorizontal: 16, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+            >
+              <Ionicons name={!mgrIsTherapist ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={!mgrIsTherapist ? '#fff' : c.muted} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: !mgrIsTherapist ? '#fff' : c.text, fontWeight: '700', fontSize: 15 }}>Nein, nur Praxismanager</Text>
+                <Text style={{ color: !mgrIsTherapist ? 'rgba(255,255,255,0.8)' : c.muted, fontSize: 13, marginTop: 2 }}>Ich verwalte die Praxis, bin aber kein Therapeut</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={() => setMgrIsTherapist(true)}
+              style={{ backgroundColor: mgrIsTherapist ? c.primary : c.card, borderWidth: 2, borderColor: mgrIsTherapist ? c.primary : c.border, borderRadius: 14, paddingVertical: 18, paddingHorizontal: 16, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+            >
+              <Ionicons name={mgrIsTherapist ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={mgrIsTherapist ? '#fff' : c.muted} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: mgrIsTherapist ? '#fff' : c.text, fontWeight: '700', fontSize: 15 }}>Ja, ich bin auch Therapeut/in</Text>
+                <Text style={{ color: mgrIsTherapist ? 'rgba(255,255,255,0.8)' : c.muted, fontSize: 13, marginTop: 2 }}>Ich behandle selbst und verwalte die Praxis</Text>
+              </View>
+            </Pressable>
+          </>
+        );
+      }
+      if (mgrIsTherapist && mgrRegStep === 4) {
+        return (
+          <>
+            <Text style={[styles.regStepTitle, { color: c.text }]}>Therapeuten-Profil</Text>
+            <Text style={[styles.regStepSub, { color: c.muted }]}>Deine Angaben als Therapeut/in</Text>
+            <TextInput value={mgrFullName} onChangeText={setMgrFullName} placeholder="Vollständiger Name *" placeholderTextColor={c.muted} style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
+            <TextInput value={mgrProfTitle} onChangeText={setMgrProfTitle} placeholder="Berufsbezeichnung * (z. B. Physiotherapeut/in)" placeholderTextColor={c.muted} style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
+            <View style={{ backgroundColor: c.mutedBg, borderRadius: 10, padding: 12, marginTop: 4 }}>
+              <Text style={{ color: c.muted, fontSize: 13, lineHeight: 18 }}>Dein Profil wird erst veröffentlicht, wenn du es selbst freigibst.</Text>
+            </View>
+          </>
+        );
+      }
+      // Summary step
+      return (
+        <>
+          <Text style={[styles.regStepTitle, { color: c.text }]}>Übersicht</Text>
+          <Text style={[styles.regStepSub, { color: c.muted }]}>Bitte überprüfe deine Angaben</Text>
+          <View style={{ backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, padding: 16, gap: 10 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: c.muted, fontSize: 13 }}>E-Mail</Text>
+              <Text style={{ color: c.text, fontSize: 13, fontWeight: '600' }}>{mgrEmail}</Text>
+            </View>
+            <View style={{ height: 1, backgroundColor: c.border }} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: c.muted, fontSize: 13 }}>Praxisname</Text>
+              <Text style={{ color: c.text, fontSize: 13, fontWeight: '600' }}>{mgrPracticeName}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: c.muted, fontSize: 13 }}>Stadt</Text>
+              <Text style={{ color: c.text, fontSize: 13, fontWeight: '600' }}>{mgrPracticeCity}</Text>
+            </View>
+            {!!mgrPracticeAddress && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.muted, fontSize: 13 }}>Adresse</Text>
+                <Text style={{ color: c.text, fontSize: 13, fontWeight: '600', flex: 1, textAlign: 'right' }}>{mgrPracticeAddress}</Text>
+              </View>
+            )}
+            {!!mgrPracticePhone && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.muted, fontSize: 13 }}>Telefon</Text>
+                <Text style={{ color: c.text, fontSize: 13, fontWeight: '600' }}>{mgrPracticePhone}</Text>
+              </View>
+            )}
+            <View style={{ height: 1, backgroundColor: c.border }} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: c.muted, fontSize: 13 }}>Rolle</Text>
+              <Text style={{ color: c.text, fontSize: 13, fontWeight: '600' }}>{mgrIsTherapist ? 'Praxismanager + Therapeut/in' : 'Nur Praxismanager'}</Text>
+            </View>
+            {mgrIsTherapist && !!mgrFullName && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.muted, fontSize: 13 }}>Name</Text>
+                <Text style={{ color: c.text, fontSize: 13, fontWeight: '600' }}>{mgrFullName}</Text>
+              </View>
+            )}
+            {mgrIsTherapist && !!mgrProfTitle && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: c.muted, fontSize: 13 }}>Berufsbezeichnung</Text>
+                <Text style={{ color: c.text, fontSize: 13, fontWeight: '600', flex: 1, textAlign: 'right' }}>{mgrProfTitle}</Text>
+              </View>
+            )}
+          </View>
+          {!!mgrRegError && (
+            <View style={{ backgroundColor: '#FDECEA', borderRadius: 10, borderWidth: 1, borderColor: '#E74C3C', padding: 12, marginTop: 8 }}>
+              <Text style={{ color: '#E74C3C', fontSize: 13 }}>{mgrRegError}</Text>
+            </View>
+          )}
+        </>
+      );
+    };
+
+    const advanceStep = () => {
+      // Skip step 4 (therapist profile) if not a therapist
+      if (mgrRegStep === 3 && !mgrIsTherapist) {
+        setMgrRegStep(4); // jump to summary (which is step 4 when !mgrIsTherapist)
+      } else {
+        setMgrRegStep(s => s + 1);
+      }
+    };
+
+    const goBack = () => {
+      if (mgrRegStep === 1) {
+        setShowManagerReg(false);
+        setShowLogin(true);
+        return;
+      }
+      // If on summary step and not therapist, skip back over step 4
+      if (!mgrIsTherapist && mgrRegStep === 4) {
+        setMgrRegStep(3);
+      } else {
+        setMgrRegStep(s => s - 1);
+      }
+    };
+
+    return (
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]} keyboardShouldPersistTaps="handled">
+        <Pressable onPress={goBack} style={styles.backBtn}>
+          <Text style={[styles.backBtnText, { color: c.primary }]}>‹ {t('backBtn')}</Text>
+        </Pressable>
+        <View style={styles.header}>
+          <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.headerTitle, { color: c.text }]}>Praxis registrieren</Text>
+            <Text style={[styles.headerSub, { color: c.muted }]}>Schritt {mgrRegStep} von {MGR_REG_STEPS}</Text>
+          </View>
+        </View>
+        {renderProgress()}
+        <View style={{ gap: 12, marginTop: 8 }}>
+          {renderStepContent()}
+        </View>
+        {isSummaryStep ? (
+          <Pressable
+            style={[styles.registerBtn, { backgroundColor: mgrRegLoading ? c.border : c.primary, marginTop: 20 }]}
+            onPress={handleManagerRegSubmit}
+            disabled={mgrRegLoading}
+          >
+            <Text style={styles.registerBtnText}>{mgrRegLoading ? 'Registrieren…' : 'Registrieren'}</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={[styles.registerBtn, { backgroundColor: mgrRegCanProceed() ? c.primary : c.border, marginTop: 20 }]}
+            onPress={advanceStep}
+            disabled={!mgrRegCanProceed()}
+          >
+            <Text style={styles.registerBtnText}>Weiter</Text>
+          </Pressable>
+        )}
+      </ScrollView>
+    );
+  };
+
+  // ── Manager Dashboard ──────────────────────────────────────────────────────
+
+  const handleManagerLogout = async () => {
+    if (authToken) {
+      await fetch(`${getBaseUrl()}/manager/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+      }).catch(() => {});
+    }
+    await AsyncStorage.removeItem('revio_auth_token');
+    await AsyncStorage.removeItem('revio_account_type');
+    setAuthToken(null);
+    setLoggedInManager(null);
+    setAccountType(null);
+  };
+
+  const handleManagerPracticeSave = async () => {
+    setMgrEditSaving(true);
+    try {
+      const body = {};
+      if (mgrEditName.trim()) body.name = mgrEditName.trim();
+      if (mgrEditCity.trim()) body.city = mgrEditCity.trim();
+      if (mgrEditAddress.trim()) body.address = mgrEditAddress.trim();
+      if (mgrEditPhone.trim()) body.phone = mgrEditPhone.trim();
+      if (mgrEditHours.trim()) body.hours = mgrEditHours.trim();
+      if (mgrEditDescription.trim()) body.description = mgrEditDescription.trim();
+      body.logo = mgrEditLogo || null;
+      body.photos = mgrEditPhotos.length > 0 ? JSON.stringify(mgrEditPhotos) : null;
+      const res = await fetch(`${getBaseUrl()}/manager/practice`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        const meRes = await fetch(`${getBaseUrl()}/manager/me`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (meRes.ok) setLoggedInManager(await meRes.json());
+        setMgrEditMode(false);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        Alert.alert('Fehler', err.message ?? 'Speichern fehlgeschlagen.');
+      }
+    } catch {
+      Alert.alert('Verbindungsfehler', 'Bitte prüfe deine Internetverbindung.');
+    } finally {
+      setMgrEditSaving(false);
+    }
+  };
+
+  const handlePickManagerPracticeLogo = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert('Kein Zugriff', 'Bitte Fotobibliothek erlauben.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      setMgrEditLogo(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
+
+  const handleAddManagerPracticePhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert('Kein Zugriff', 'Bitte Fotobibliothek erlauben.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.4,
+      base64: true,
+    });
+    if (!result.canceled && result.assets?.[0]?.base64) {
+      setMgrEditPhotos(prev => [...prev, `data:image/jpeg;base64,${result.assets[0].base64}`]);
+    }
+  };
+
+  const renderManagerDashboard = () => {
+    const mgr = loggedInManager;
+    if (!mgr) return null;
+    const practice = mgr.practice;
+    let practicePhotos = [];
+    if (typeof practice?.photos === 'string') {
+      try { practicePhotos = JSON.parse(practice.photos); } catch {}
+    } else if (Array.isArray(practice?.photos)) {
+      practicePhotos = practice.photos;
+    }
+    const therapists = practice?.therapists ?? [];
+
+    const statusColors = {
+      APPROVED: { bg: '#E8F5E9', text: '#2E7D32' },
+      PENDING_REVIEW: { bg: '#FFF8E1', text: '#F57F17' },
+      DRAFT: { bg: '#F5F5F5', text: '#9E9E9E' },
+      REJECTED: { bg: '#FDECEA', text: '#C62828' },
+      SUSPENDED: { bg: '#FDECEA', text: '#C62828' },
+      CHANGES_REQUESTED: { bg: '#FFF3E0', text: '#E65100' },
+    };
+    const statusLabels = {
+      APPROVED: 'Freigegeben',
+      PENDING_REVIEW: 'In Prüfung',
+      DRAFT: 'Entwurf',
+      REJECTED: 'Abgelehnt',
+      SUSPENDED: 'Gesperrt',
+      CHANGES_REQUESTED: 'Änderungen nötig',
+    };
+
+    const reviewStatus = practice?.reviewStatus ?? 'DRAFT';
+    const statusStyle = statusColors[reviewStatus] ?? statusColors.DRAFT;
+
+    return (
+      <View style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 }]}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.headerTitle, { color: c.text }]}>Praxis-Dashboard</Text>
+              <Text style={[styles.headerSub, { color: c.muted }]}>{mgr.email}</Text>
+            </View>
+          </View>
+
+          {/* Practice Card */}
+          {practice && (
+            <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text, fontSize: 18, fontWeight: '800' }}>{practice.name}</Text>
+                  <Text style={{ color: c.muted, fontSize: 14, marginTop: 2 }}>{practice.city}</Text>
+                </View>
+                <View style={{ backgroundColor: statusStyle.bg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+                  <Text style={{ color: statusStyle.text, fontSize: 12, fontWeight: '600' }}>{statusLabels[reviewStatus] ?? reviewStatus}</Text>
+                </View>
+              </View>
+
+              {!!practice.address && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <Ionicons name="location-outline" size={14} color={c.muted} />
+                  <Text style={{ color: c.muted, fontSize: 13 }}>{practice.address}</Text>
+                </View>
+              )}
+              {!!practice.phone && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <Ionicons name="call-outline" size={14} color={c.muted} />
+                  <Text style={{ color: c.muted, fontSize: 13 }}>{practice.phone}</Text>
+                </View>
+              )}
+              {!!practice.description && (
+                <Text style={{ color: c.muted, fontSize: 13, marginTop: 4, lineHeight: 18 }}>{practice.description}</Text>
+              )}
+              {practice.logo ? (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={[styles.filterSectionTitle, { color: c.muted, marginBottom: 6 }]}>Logo</Text>
+                  <Image source={{ uri: practice.logo }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+                </View>
+              ) : null}
+              {practicePhotos.length > 0 ? (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={[styles.filterSectionTitle, { color: c.muted, marginBottom: 6 }]}>Praxisfotos</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    {practicePhotos.map((uri, idx) => (
+                      <Image key={`${uri}-${idx}`} source={{ uri }} style={{ width: 80, height: 80, borderRadius: 8 }} />
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : null}
+
+              {mgrEditMode ? (
+                <View style={{ marginTop: 16, gap: 10 }}>
+                  <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Praxisname</Text>
+                  <TextInput value={mgrEditName} onChangeText={setMgrEditName} placeholder={practice.name} placeholderTextColor={c.muted} style={[styles.inputField, { color: c.text, borderColor: c.border, backgroundColor: c.mutedBg }]} />
+                  <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Stadt</Text>
+                  <TextInput value={mgrEditCity} onChangeText={setMgrEditCity} placeholder={practice.city} placeholderTextColor={c.muted} style={[styles.inputField, { color: c.text, borderColor: c.border, backgroundColor: c.mutedBg }]} />
+                  <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Adresse</Text>
+                  <TextInput value={mgrEditAddress} onChangeText={setMgrEditAddress} placeholder={practice.address ?? 'Straße und Hausnummer'} placeholderTextColor={c.muted} style={[styles.inputField, { color: c.text, borderColor: c.border, backgroundColor: c.mutedBg }]} />
+                  <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Telefon</Text>
+                  <TextInput value={mgrEditPhone} onChangeText={setMgrEditPhone} placeholder={practice.phone ?? '+49 …'} placeholderTextColor={c.muted} keyboardType="phone-pad" style={[styles.inputField, { color: c.text, borderColor: c.border, backgroundColor: c.mutedBg }]} />
+                  <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Öffnungszeiten</Text>
+                  <TextInput value={mgrEditHours} onChangeText={setMgrEditHours} placeholder={practice.hours ?? 'Mo–Fr 8–18 Uhr'} placeholderTextColor={c.muted} style={[styles.inputField, { color: c.text, borderColor: c.border, backgroundColor: c.mutedBg }]} />
+                  <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Beschreibung</Text>
+                  <TextInput value={mgrEditDescription} onChangeText={setMgrEditDescription} placeholder={practice.description ?? 'Kurze Beschreibung…'} placeholderTextColor={c.muted} multiline numberOfLines={3} style={[styles.inputField, { color: c.text, borderColor: c.border, backgroundColor: c.mutedBg, minHeight: 72, textAlignVertical: 'top' }]} />
+                  <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Logo</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    {mgrEditLogo ? (
+                      <Image source={{ uri: mgrEditLogo }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+                    ) : (
+                      <View style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: '#fff', fontSize: 22, fontWeight: '700' }}>{(mgrEditName || practice.name || '?').charAt(0).toUpperCase()}</Text>
+                      </View>
+                    )}
+                    <Pressable onPress={handlePickManagerPracticeLogo} style={[styles.kassenartBtn, { backgroundColor: c.mutedBg, borderColor: c.border }]}>
+                      <Text style={[styles.kassenartText, { color: c.text }]}>📷 Logo ändern</Text>
+                    </Pressable>
+                    {mgrEditLogo && (
+                      <Pressable onPress={() => setMgrEditLogo(null)} style={[styles.kassenartBtn, { backgroundColor: 'transparent', borderColor: '#E74C3C' }]}>
+                        <Text style={[styles.kassenartText, { color: '#E74C3C' }]}>Entfernen</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                  <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Praxisfotos</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {mgrEditPhotos.map((photo, idx) => (
+                      <View key={`${photo}-${idx}`} style={{ position: 'relative' }}>
+                        <Image source={{ uri: photo }} style={{ width: 80, height: 80, borderRadius: 6 }} />
+                        <Pressable
+                          onPress={() => setMgrEditPhotos(prev => prev.filter((_, i) => i !== idx))}
+                          style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#E74C3C', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✕</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                    <Pressable
+                      onPress={handleAddManagerPracticePhoto}
+                      style={{ width: 80, height: 80, borderRadius: 6, borderWidth: 1, borderColor: c.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: c.mutedBg }}
+                    >
+                      <Text style={{ color: c.muted, fontSize: 28 }}>＋</Text>
+                    </Pressable>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                    <Pressable
+                      style={{ flex: 1, backgroundColor: c.mutedBg, borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: c.border }}
+                      onPress={() => setMgrEditMode(false)}
+                    >
+                      <Text style={{ color: c.text, fontWeight: '600' }}>Abbrechen</Text>
+                    </Pressable>
+                    <Pressable
+                      style={{ flex: 1, backgroundColor: mgrEditSaving ? c.border : c.primary, borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
+                      onPress={handleManagerPracticeSave}
+                      disabled={mgrEditSaving}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '700' }}>{mgrEditSaving ? 'Speichern…' : 'Speichern'}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable
+                  style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                  onPress={() => {
+                    setMgrEditName(practice.name ?? '');
+                    setMgrEditCity(practice.city ?? '');
+                    setMgrEditAddress(practice.address ?? '');
+                    setMgrEditPhone(practice.phone ?? '');
+                    setMgrEditHours(practice.hours ?? '');
+                    setMgrEditDescription(practice.description ?? '');
+                    setMgrEditLogo(practice.logo ?? null);
+                    setMgrEditPhotos(practicePhotos);
+                    setMgrEditMode(true);
+                  }}
+                >
+                  <Ionicons name="pencil-outline" size={16} color={c.primary} />
+                  <Text style={{ color: c.primary, fontSize: 14, fontWeight: '600' }}>Bearbeiten</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
+
+          {/* Therapeuten-Liste */}
+          <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Text style={[styles.filterSectionTitle, { color: c.muted, marginBottom: 12 }]}>THERAPEUTEN</Text>
+            {therapists.length === 0 ? (
+              <Text style={{ color: c.muted, fontSize: 14, textAlign: 'center', paddingVertical: 16 }}>Noch keine Therapeuten verknüpft</Text>
+            ) : (
+              therapists.map((th) => {
+                const isInvited = th.onboardingStatus === 'invited';
+                const initials = (th.fullName ?? '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                return (
+                  <View key={th.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border }}>
+                    {th.photo ? (
+                      <Image source={{ uri: th.photo.startsWith('http') ? th.photo : `${getBaseUrl()}${th.photo}` }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                    ) : (
+                      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{initials}</Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: c.text, fontWeight: '700', fontSize: 14 }}>{th.fullName ?? '—'}</Text>
+                      {!!th.professionalTitle && <Text style={{ color: c.muted, fontSize: 12 }}>{th.professionalTitle}</Text>}
+                    </View>
+                    <View style={{ backgroundColor: isInvited ? '#FFF8E1' : '#E8F5E9', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <Text style={{ color: isInvited ? '#F57F17' : '#2E7D32', fontSize: 11, fontWeight: '600' }}>
+                        {isInvited ? 'Eingeladen' : 'Aktiv'}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </View>
+        </ScrollView>
+
+        {/* Abmelden button */}
+        <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+          <Pressable
+            onPress={handleManagerLogout}
+            style={{ borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#E74C3C' }}
+          >
+            <Text style={{ color: '#E74C3C', fontSize: 16, fontWeight: '600' }}>Abmelden</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
   // ── Layout ────────────────────────────────────────────────────────────────
 
   const renderTab = () => {
+    if (accountType === 'manager' && loggedInManager) return renderManagerDashboard();
     if (showInviteClaim) return renderInviteClaimScreen();
     if (selectedTherapist) return renderTherapistProfile(selectedTherapist);
     if (selectedPractice) return renderPracticeProfile(selectedPractice);

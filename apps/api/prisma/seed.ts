@@ -142,6 +142,8 @@ function jitter(base: number, seed: number, range = 0.06): number {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
+  await prisma.practiceManager.deleteMany();
+  await prisma.user.deleteMany();
   await prisma.therapistPracticeLink.deleteMany();
   await prisma.therapist.deleteMany();
   await prisma.practice.deleteMany();
@@ -179,14 +181,36 @@ async function main() {
         lat: jitter(lat, i * 17),
         lng: jitter(lng, i * 31),
         reviewStatus: 'APPROVED',
-        adminEmail,
-        adminPasswordHash: adminPwHash,
         photos: JSON.stringify([
           `https://picsum.photos/id/${photoId1}/600/400`,
           `https://picsum.photos/id/${photoId2}/600/400`,
         ]),
       },
     });
+
+    // Create matching manager user + PracticeManager for this practice
+    const managerUser = await prisma.user.upsert({
+      where: { email: adminEmail },
+      update: {
+        passwordHash: adminPwHash,
+        role: 'manager',
+      },
+      create: {
+        email: adminEmail,
+        passwordHash: adminPwHash,
+        role: 'manager',
+      },
+    });
+
+    await prisma.practiceManager.create({
+      data: {
+        email: adminEmail,
+        userId: managerUser.id,
+        passwordHash: adminPwHash,
+        practiceId: p.id,
+      },
+    });
+
     practiceRecords.push({ id: p.id, city: cityName });
   }
 
@@ -233,9 +257,11 @@ async function main() {
 
   // ── Test-Account ──────────────────────────────────────────────────────────
   const testPasswordHash = await hashPassword('password');
+  const testManagerUser = await prisma.user.findUnique({ where: { email: 'test@revio.de' } });
   const testTherapist = await prisma.therapist.create({
     data: {
       email: 'test@revio.de',
+      userId: testManagerUser?.id,
       fullName: 'Test Therapeut',
       professionalTitle: 'Physiotherapeut',
       city: 'Köln',
@@ -254,10 +280,10 @@ async function main() {
     },
   });
 
-  // Set test therapist as admin of the first practice
-  await prisma.practice.update({
-    where: { id: practiceRecords[0].id },
-    data: { adminTherapistId: testTherapist.id } as any,
+  // Link test therapist as manager of the first practice (update the existing PracticeManager)
+  await prisma.practiceManager.update({
+    where: { practiceId: practiceRecords[0].id },
+    data: { therapistId: testTherapist.id },
   });
 
   // ── Notification für Test-User: Beitrittsanfrage an seine Praxis ──────────

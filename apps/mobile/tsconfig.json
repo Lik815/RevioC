@@ -2,7 +2,7 @@
   "compilerOptions": {
     "skipLibCheck": true,
     "allowJs": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "noEmit": true,
     "strict": false,
     "target": "es2015",

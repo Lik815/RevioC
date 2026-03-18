@@ -36,10 +36,25 @@ export type VisibilityIssues = {
   issues: VisibilityIssue[];
 };
 
+export type PracticeManager = {
+  id: string;
+  email: string;
+  createdAt: string;
+  practiceId: string;
+  therapistId: string | null;
+  practice: { id: string; name: string; city: string; reviewStatus: string };
+  therapist: { id: string; fullName: string; email: string; reviewStatus: string } | null;
+};
+
+export type ManagersResponse = {
+  managers: PracticeManager[];
+};
+
 export const api = {
   getStats: () => adminFetch<AdminStats>('/admin/stats'),
   getTherapists: () => adminFetch<TherapistWithLinks[]>('/admin/therapists'),
   getPractices: () => adminFetch<PracticeWithLinks[]>('/admin/practices'),
   getLinks: () => adminFetch<LinkWithEntities[]>('/admin/links'),
   getVisibilityIssues: () => adminFetch<VisibilityIssues>('/admin/visibility-issues'),
+  getManagers: () => adminFetch<ManagersResponse>('/admin/managers'),
 };

@@ -38,6 +38,12 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
     if (existing) {
       return reply.conflict('A therapist with this email already exists.');
     }
+    const existingUser = await fastify.prisma.user.findUnique({
+      where: { email: data.email },
+    });
+    if (existingUser) {
+      return reply.conflict('A user with this email already exists.');
+    }
 
     // In development, auto-approve so the profile immediately appears in search
     const isDev = process.env.NODE_ENV !== 'production';
@@ -67,10 +73,18 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const passwordHash = data.password ? await hashPassword(data.password) : undefined;
+    const user = await fastify.prisma.user.create({
+      data: {
+        email: data.email,
+        passwordHash,
+        role: 'therapist',
+      },
+    });
 
     const therapist = await fastify.prisma.therapist.create({
       data: {
         email: data.email,
+        userId: user.id,
         fullName: data.fullName,
         professionalTitle: data.professionalTitle,
         city: data.city,

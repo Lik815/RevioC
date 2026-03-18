@@ -16,6 +16,7 @@ import { practiceAuthRoutes } from './routes/practice-auth.js';
 import { practiceRoutes } from './routes/practice.js';
 import { uploadRoutes } from './routes/upload.js';
 import { inviteRoutes } from './routes/invite.js';
+import { managerAuthRoutes } from './routes/manager-auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -42,6 +43,7 @@ export async function buildApp() {
   await app.register(practiceRoutes);
   await app.register(uploadRoutes);
   await app.register(inviteRoutes);
+  await app.register(managerAuthRoutes);
 
   return app;
 }

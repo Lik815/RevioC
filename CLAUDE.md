@@ -297,6 +297,8 @@ Revio/
 
 > **⚠️ Important:** There are legacy folders `AdminRevio/` and `revioApp/` at the root. These are **old copies** — ignore them. The active code is in `apps/`.
 
+> **⚠️ DB path note:** Prisma resolves SQLite paths relative to `schema.prisma`, not the process CWD. The `DATABASE_URL="file:./prisma/prisma/dev.db"` in `.env` resolves to `apps/api/prisma/prisma/prisma/dev.db` (triple-nested). Do not be confused by this — the server, migrations, and seed all use this same path consistently.
+
 ---
 
 ## 3. How to Run
@@ -350,7 +352,7 @@ pnpm dev:mobile
 ## 4. Database
 
 - **ORM:** Prisma with SQLite (production will move to PostgreSQL)
-- **DB file:** `apps/api/prisma/prisma/dev.db` (note the nested `prisma/prisma/` path)
+- **DB file:** `apps/api/prisma/prisma/prisma/dev.db` (note the triple-nested path — Prisma resolves SQLite paths relative to `schema.prisma`, so `file:./prisma/prisma/dev.db` in `.env` becomes `prisma/` + `prisma/prisma/dev.db`)
 - **Schema:** `apps/api/prisma/schema.prisma`
 - **Full data model:** See [`docs/data-model.md`](docs/data-model.md)
 
@@ -461,7 +463,7 @@ pnpm typecheck
 
 ## 9. Common Pitfalls
 
-1. **DB path is nested:** `prisma/prisma/dev.db` — the `DATABASE_URL` must be `file:./prisma/prisma/dev.db` (relative to `apps/api/`)
+1. **DB path is triple-nested:** Prisma resolves SQLite paths relative to `schema.prisma`. With `DATABASE_URL="file:./prisma/prisma/dev.db"` and schema at `apps/api/prisma/`, the actual DB file is `apps/api/prisma/prisma/prisma/dev.db`. The `.env` value is correct — don't change it.
 2. **Admin routing:** Never create `page.tsx` files directly in `apps/admin/app/` — use the `(admin)` route group
 3. **pnpm not in PATH:** If `pnpm` command fails, the binary is at `/Users/vucenovic/Library/pnpm/.tools/pnpm/10.6.3_tmp_7687_0/bin/pnpm`
 4. **workspace:* protocol:** Don't use `npm install` — it can't resolve `workspace:*`. Always use `pnpm`.

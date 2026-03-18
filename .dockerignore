@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+**/.next
+**/dist
+apps/api/uploads
+apps/api/prisma/prisma/*.db
+apps/api/prisma/prisma/*.db-journal
+apps/mobile
+apps/admin
+AdminRevio
+revioApp
+.git
+.gitignore
+**/.env*
+*.log
