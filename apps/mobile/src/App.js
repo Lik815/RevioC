@@ -6,6 +6,7 @@ import {
   Animated,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
@@ -92,6 +93,17 @@ const palette = {
   }
 };
 
+const webWindow = typeof globalThis !== 'undefined' ? globalThis.window : undefined;
+const webNavigator = typeof globalThis !== 'undefined' ? globalThis.navigator : undefined;
+
+function showWebAlert(message) {
+  webWindow?.alert?.(message);
+}
+
+function showWebConfirm(message) {
+  return webWindow?.confirm?.(message) ?? false;
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 function callPhone(phone) {
@@ -105,7 +117,15 @@ function callPhone(phone) {
   ]);
 }
 
-function HeartButton({ isSaved, onToggle, size = 22, savedColor = '#E05A77', unsavedColor, hitSlop, style }) {
+function HeartButton({
+  isSaved,
+  onToggle,
+  size = 22,
+  savedColor = '#E05A77',
+  unsavedColor = '#9ca3af',
+  hitSlop = 8,
+  style = undefined,
+}) {
   const scale = React.useRef(new Animated.Value(1)).current;
 
   const handlePress = () => {
@@ -125,7 +145,7 @@ function HeartButton({ isSaved, onToggle, size = 22, savedColor = '#E05A77', uns
         <Ionicons
           name={isSaved ? 'heart' : 'heart-outline'}
           size={size}
-          color={isSaved ? savedColor : (unsavedColor ?? '#9ca3af')}
+          color={isSaved ? savedColor : unsavedColor}
         />
       </Animated.View>
     </Pressable>
@@ -523,13 +543,13 @@ export default function App() {
   const handleDeleteAccount = () => {
     if (loggedInTherapist?.adminPractice) {
       const msg = `Du bist Admin von „${loggedInTherapist.adminPractice.name}". Bitte lösche zuerst die Praxis, bevor du dein Konto löschst.`;
-      if (Platform.OS === 'web') { window.alert(`Praxis zuerst löschen\n\n${msg}`); }
+      if (Platform.OS === 'web') { showWebAlert(`Praxis zuerst löschen\n\n${msg}`); }
       else { Alert.alert('Praxis zuerst löschen', msg, [{ text: 'OK' }]); }
       return;
     }
     const msg = t('deleteAccountConfirmMsg');
     if (Platform.OS === 'web') {
-      if (window.confirm(`${t('deleteAccountConfirmTitle')}\n\n${msg}`)) deleteAccountConfirmed();
+      if (showWebConfirm(`${t('deleteAccountConfirmTitle')}\n\n${msg}`)) deleteAccountConfirmed();
     } else {
       Alert.alert(t('deleteAccountConfirmTitle'), msg, [
         { text: t('cancelBtn') ?? 'Abbrechen', style: 'cancel' },
@@ -559,7 +579,7 @@ export default function App() {
     const practiceName = loggedInTherapist?.adminPractice?.name ?? 'diese Praxis';
     const msg = `„${practiceName}" wird dauerhaft gelöscht. Alle verknüpften Therapeuten werden getrennt. Diese Aktion kann nicht rückgängig gemacht werden.`;
     if (Platform.OS === 'web') {
-      if (window.confirm(`Praxis löschen?\n\n${msg}`)) deletePracticeConfirmed();
+      if (showWebConfirm(`Praxis löschen?\n\n${msg}`)) deletePracticeConfirmed();
     } else {
       Alert.alert('Praxis löschen', msg, [
         { text: 'Abbrechen', style: 'cancel' },
@@ -618,7 +638,11 @@ export default function App() {
     const mimeType = asset.mimeType || 'image/jpeg';
     try {
       const formData = new FormData();
-      formData.append('photo', { uri, name: filename, type: mimeType });
+      formData.append('photo', {
+        uri,
+        name: filename,
+        type: mimeType,
+      });
       const uploadRes = await fetch(`${getBaseUrl()}/upload/photo`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${authToken}` },
@@ -880,7 +904,7 @@ export default function App() {
     };
 
     if (Platform.OS === 'web') {
-      if (window.confirm(`Einladung an ${therapistName} zurückziehen?`)) doCancel();
+      if (showWebConfirm(`Einladung an ${therapistName} zurückziehen?`)) doCancel();
     } else {
       Alert.alert(
         'Einladung zurückziehen',
@@ -1010,6 +1034,7 @@ export default function App() {
   const [homeVisit, setHomeVisit] = useState(false);
   const [kassenart, setKassenart] = useState(null);
   const [fortbildungen, setFortbildungen] = useState([]);
+  const [searchRadius, setSearchRadius] = useState(5);
   const [showFilters, setShowFilters] = useState(false);
   const [results, setResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -1052,13 +1077,25 @@ export default function App() {
     runSearchWith(query, userCoords);
   }, [homeVisit, kassenart, fortbildungen]);
 
-  const applyFilters = (list) => {
+  // Radius changes re-filter the cached result set — no API call
+  useEffect(() => {
+    if (!searchedRef.current) return;
+    if (allApiTherapists.length === 0) return;
+    setResults(applyFilters(allApiTherapists, userCoords));
+  }, [searchRadius]);
+
+  const applyFilters = (list, coords) => {
+    const origin = coords ?? userCoords;
     return list.filter(t => {
       if (homeVisit && !t.homeVisit) return false;
       if (kassenart && t.kassenart && t.kassenart !== kassenart) return false;
       if (fortbildungen.length > 0) {
         const certs = t.fortbildungen ?? t.certifications ?? [];
         if (!fortbildungen.some(f => certs.includes(f))) return false;
+      }
+      if (origin) {
+        if (t.distKm == null) return false;
+        if (t.distKm > searchRadius) return false;
       }
       return true;
     });
@@ -1100,14 +1137,13 @@ export default function App() {
       if (!response.ok) throw new Error('failed');
       const payload = await response.json();
       const mapped = (payload.therapists ?? []).map(mapApiTherapist);
-      const filtered = applyFilters(mapped);
-      const withDist = withDistances(filtered, coords ?? userCoords);
-      Alert.alert('Debug', `API: ${mapped.length}, filtered: ${filtered.length}, city: ${effectiveCity}`);
-      setResults(withDist);
-      setAllApiTherapists(mapped);
-    } catch (err) {
+      const origin = coords ?? userCoords;
+      const withDist = withDistances(mapped, origin);
+      const filtered = applyFilters(withDist, origin);
+      setResults(filtered);
+      setAllApiTherapists(withDist);
+    } catch {
       setResults([]);
-      Alert.alert('API Fehler', String(err?.message ?? err));
     } finally {
       setSearchLoading(false);
     }
@@ -1171,12 +1207,12 @@ export default function App() {
     setLocationLoading(true);
 
     if (Platform.OS === 'web') {
-      if (!navigator?.geolocation) {
+      if (!webNavigator?.geolocation) {
         Alert.alert('Fehler', 'Standortzugriff wird in diesem Browser nicht unterstützt.');
         setLocationLoading(false);
         return;
       }
-      navigator.geolocation.getCurrentPosition(
+      webNavigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
             const { latitude, longitude } = position.coords;
@@ -1322,7 +1358,7 @@ export default function App() {
         setSelectedPracticeTherapists((data.therapists ?? []).map(th => ({
           ...th,
           photo: th.photo
-            ? (th.photo.startsWith('http') ? th.photo : `${BASE_URL}${th.photo}`)
+            ? (th.photo.startsWith('http') ? th.photo : `${getBaseUrl()}${th.photo}`)
             : `https://i.pravatar.cc/96?u=${th.id}`,
           specializations: Array.isArray(th.specializations) ? th.specializations : [],
         })));
@@ -1356,6 +1392,17 @@ export default function App() {
   }, [results]);
 
   const mapRegion = React.useMemo(() => {
+    // When a nearby-search origin is active, fit the map to show the full radius circle
+    if (userCoords) {
+      const delta = Math.max((searchRadius / 111) * 2.8, 0.02);
+      return {
+        latitude: userCoords.lat,
+        longitude: userCoords.lng,
+        latitudeDelta: delta,
+        longitudeDelta: delta,
+      };
+    }
+    // No origin: fit to practice markers or fall back to Germany
     if (mapPractices.length === 0)
       return { latitude: 51.1657, longitude: 10.4515, latitudeDelta: 5.0, longitudeDelta: 5.0 };
     const avgLat = mapPractices.reduce((s, p) => s + p.lat, 0) / mapPractices.length;
@@ -1367,7 +1414,7 @@ export default function App() {
       latitudeDelta: Math.max(latSpan, 0.05),
       longitudeDelta: Math.max(lngSpan, 0.05),
     };
-  }, [mapPractices]);
+  }, [mapPractices, userCoords, searchRadius]);
 
   const getMapRegion = () => mapRegion;
 
@@ -1399,7 +1446,9 @@ export default function App() {
       runSearchWith={runSearchWith}
       searched={searched}
       searchLoading={searchLoading}
+      searchRadius={searchRadius}
       selectChip={selectChip}
+      setSearchRadius={setSearchRadius}
       selectSuggestion={selectSuggestion}
       setActiveChip={setActiveChip}
       setFortbildungen={setFortbildungen}
@@ -2265,11 +2314,11 @@ export default function App() {
                 });
                 if (!res.ok) {
                   const err = await res.json().catch(() => ({}));
-                  alert(err.message ?? 'Fehler beim Einreichen. Bitte versuche es erneut.');
+                  showWebAlert(err.message ?? 'Fehler beim Einreichen. Bitte versuche es erneut.');
                   return;
                 }
               } catch {
-                alert('Verbindungsfehler. Bitte prüfe deine Internetverbindung.');
+                showWebAlert('Verbindungsfehler. Bitte prüfe deine Internetverbindung.');
                 return;
               }
               setRegSubmitted(true);
@@ -2800,7 +2849,7 @@ export default function App() {
     };
 
     if (Platform.OS === 'web') {
-      if (window.confirm(`${therapistName} aus der Praxis entfernen?\n\nDas Therapeuten-Konto wird nicht gelöscht. Falls dies die letzte aktive Praxis ist, wird das Profil automatisch unsichtbar.`)) {
+      if (showWebConfirm(`${therapistName} aus der Praxis entfernen?\n\nDas Therapeuten-Konto wird nicht gelöscht. Falls dies die letzte aktive Praxis ist, wird das Profil automatisch unsichtbar.`)) {
         doRemove();
       }
     } else {
@@ -3149,8 +3198,15 @@ export default function App() {
 
       {/* ── Location Sheet ─────────────────────────────────────────────────── */}
       <Modal visible={showLocationSheet} transparent animationType="slide" onRequestClose={() => setShowLocationSheet(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setShowLocationSheet(false)} />
-        <View style={{ backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, gap: 16 }}>
+        <ScrollView
+          style={{ backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}
+          contentContainerStyle={{ padding: 24, paddingBottom: 40, gap: 16 }}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={{ width: 36, height: 4, backgroundColor: c.border, borderRadius: 2, alignSelf: 'center', marginBottom: 4 }} />
           <Text style={{ fontSize: 20, fontWeight: '700', color: c.text, textAlign: 'center' }}>{t('locationTitle')}</Text>
           <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', marginTop: -8 }}>
@@ -3198,6 +3254,19 @@ export default function App() {
               </Pressable>
             </View>
 
+            {/* Radius selector */}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              {[1, 3, 5, 10, 25].map((km) => (
+                <Pressable
+                  key={km}
+                  onPress={() => setSearchRadius(km)}
+                  style={{ borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: searchRadius === km ? c.primary : c.border, backgroundColor: searchRadius === km ? c.primary : c.card }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: searchRadius === km ? '#fff' : c.muted }}>{km} km</Text>
+                </Pressable>
+              ))}
+            </View>
+
             {/* Autocomplete dropdown */}
             {locationSuggestions.length > 0 && (
               <View style={{ backgroundColor: c.card, borderWidth: 1, borderColor: c.primary, borderRadius: 10, marginTop: 6, overflow: 'hidden' }}>
@@ -3215,7 +3284,8 @@ export default function App() {
               </View>
             )}
           </View>
-        </View>
+        </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       <View style={styles.appFrame}>

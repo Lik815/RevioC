@@ -18,14 +18,17 @@ import {
   getPrimaryPractice,
 } from './mobile-utils';
 
+const webNavigator = typeof globalThis !== 'undefined' ? globalThis.navigator : undefined;
+const webAlert = typeof globalThis !== 'undefined' ? globalThis.alert : undefined;
+
 async function sharePublicLink({ title, url, message }) {
   if (Platform.OS === 'web') {
-    if (navigator.share) {
-      navigator.share({ title, url });
+    if (webNavigator?.share) {
+      webNavigator.share({ title, url });
       return;
     }
-    navigator.clipboard.writeText(url);
-    alert('Link kopiert!');
+    await webNavigator?.clipboard?.writeText?.(url);
+    webAlert?.('Link kopiert!');
     return;
   }
 

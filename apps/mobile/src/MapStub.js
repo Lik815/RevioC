@@ -4,3 +4,4 @@ export default function MapView({ children, style }) {
   return <View style={style}>{children}</View>;
 }
 export function Marker() { return null; }
+export function Circle() { return null; }

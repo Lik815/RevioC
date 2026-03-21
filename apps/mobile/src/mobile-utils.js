@@ -69,6 +69,8 @@ const PROFILE_FIELD_LABELS = {
   languages: 'Sprachen',
 };
 
+const radiusOptions = [1, 3, 5, 10, 25];
+
 const GENERIC_SEARCH_LABELS = ['physiotherapie', 'physio', 'therapeut', 'physiotherapeut', 'krankengymnastik'];
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -189,6 +191,7 @@ export {
   REG_STEPS,
   allSuggestions,
   fortbildungOptions,
+  radiusOptions,
   formatDist,
   formatMissingProfileFields,
   getBaseUrl,

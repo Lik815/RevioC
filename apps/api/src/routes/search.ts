@@ -102,6 +102,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
     if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
 
     const input: SearchInput = parsed.data;
+    fastify.log.info({ searchInput: input }, 'mobile search input');
 
     // Load all approved therapists that are publicly visible.
     // Invited profiles and manager-onboarding profiles require an explicit publication

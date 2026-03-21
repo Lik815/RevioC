@@ -339,7 +339,7 @@ export function InvitePageScreen(props) {
               { label: 'Berufsbezeichnung *', value: createTherapistTitle, setter: setCreateTherapistTitle, placeholder: 'Physiotherapeut/in' },
               { label: 'Stadt', value: createTherapistCity, setter: setCreateTherapistCity, placeholder: 'Berlin' },
               { label: 'Verfügbarkeit', value: createTherapistAvailability, setter: setCreateTherapistAvailability, placeholder: 'Mo–Fr 8–18 Uhr' },
-            ].map(({ label, value, setter, placeholder, keyboard, lower }) => (
+            ].map(({ label, value, setter, placeholder, keyboard = 'default', lower }) => (
               <View key={label}>
                 <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{label}</Text>
                 <TextInput
@@ -348,7 +348,7 @@ export function InvitePageScreen(props) {
                   onChangeText={setter}
                   placeholder={placeholder}
                   placeholderTextColor={c.muted}
-                  keyboardType={keyboard ?? 'default'}
+                  keyboardType={keyboard}
                   autoCapitalize={lower ? 'none' : 'words'}
                 />
               </View>

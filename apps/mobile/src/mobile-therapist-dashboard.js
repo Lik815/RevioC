@@ -426,7 +426,7 @@ export function PracticeAdminScreen(props) {
           { label: 'Adresse', value: editPracticeAddress, setter: setEditPracticeAddress, placeholder: 'Straße Nr, PLZ Stadt' },
           { label: 'Telefon', value: editPracticePhone, setter: setEditPracticePhone, placeholder: '+49 …', keyboard: 'phone-pad' },
           { label: 'Öffnungszeiten', value: editPracticeHours, setter: setEditPracticeHours, placeholder: 'Mo–Fr 8:00–18:00' },
-        ].map(({ label, value, setter, placeholder, keyboard }) => (
+        ].map(({ label, value, setter, placeholder, keyboard = 'default' }) => (
           <View key={label}>
             <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{label}</Text>
             <TextInput
@@ -435,7 +435,7 @@ export function PracticeAdminScreen(props) {
               onChangeText={setter}
               placeholder={placeholder}
               placeholderTextColor={c.muted}
-              keyboardType={keyboard ?? 'default'}
+              keyboardType={keyboard}
             />
           </View>
         ))}

@@ -28,6 +28,7 @@ const mapModule = Platform.OS === 'web'
 
 const MapView = mapModule.default;
 const Marker = mapModule.Marker;
+const Circle = mapModule.Circle ?? (() => null);
 
 export function DiscoverScreen(props) {
   const {
@@ -79,6 +80,7 @@ export function DiscoverScreen(props) {
     viewMode,
     fortbildungen,
     kassenart,
+    searchRadius,
   } = props;
 
   const mapRegion = getMapRegion();
@@ -143,6 +145,10 @@ export function DiscoverScreen(props) {
               <Ionicons name="close-circle" size={16} color={c.muted} />
             </Pressable>
           )}
+          <View style={[styles.searchDivider, { backgroundColor: c.border }]} />
+          <Pressable onPress={() => runSearch()} style={styles.searchFilterArea} hitSlop={4}>
+            <Ionicons name="arrow-forward-circle" size={20} color={c.primary} />
+          </Pressable>
           <View style={[styles.searchDivider, { backgroundColor: c.border }]} />
           <Pressable onPress={() => setShowFilters(!showFilters)} style={styles.searchFilterArea} hitSlop={4}>
             <Ionicons name="options-outline" size={20} color={showFilters || activeFilterCount > 0 ? c.primary : c.muted} />
@@ -380,8 +386,31 @@ export function DiscoverScreen(props) {
               onTouchEnd={() => setMapScrollEnabled(true)}
               onTouchCancel={() => setMapScrollEnabled(true)}
             >
+              {/* Radius circle — only when a nearby-search origin is active */}
+              {userCoords && (
+                <Circle
+                  center={{ latitude: userCoords.lat, longitude: userCoords.lng }}
+                  radius={searchRadius * 1000}
+                  strokeColor="rgba(43,104,119,0.55)"
+                  fillColor="rgba(43,104,119,0.08)"
+                  strokeWidth={1.5}
+                />
+              )}
+
+              {/* Origin marker — visually distinct from practice pills */}
+              {userCoords && (
+                <Marker
+                  coordinate={{ latitude: userCoords.lat, longitude: userCoords.lng }}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  tracksViewChanges={false}
+                >
+                  <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: c.primary, borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 5 }} />
+                </Marker>
+              )}
+
+              {/* Practice markers */}
               {mapPractices.map((practice) => (
-                <Marker key={practice.id} coordinate={{ latitude: practice.lat, longitude: practice.lng }} onPress={() => openPractice(practice)}>
+                <Marker key={practice.id} coordinate={{ latitude: practice.lat, longitude: practice.lng }} onPress={() => openPractice(practice)} tracksViewChanges={false}>
                   <View style={{ backgroundColor: c.primary, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 5, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
                     <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{getPracticeInitials(practice.name)}</Text>
                     <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', maxWidth: 100 }} numberOfLines={1}>{practice.name}</Text>
@@ -399,10 +428,25 @@ export function DiscoverScreen(props) {
             {!searchLoading && mapPractices.length === 0 && searched && (
               <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: 24, borderRadius: 20 }}>
                 <Ionicons name="location-outline" size={36} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', textAlign: 'center', marginTop: 10 }}>Keine Praxen mit Standortdaten</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center', marginTop: 6 }}>
-                  Für diese Ergebnisse liegen noch keine Koordinaten vor.
-                </Text>
+                {userCoords ? (
+                  <>
+                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', textAlign: 'center', marginTop: 10 }}>
+                      Keine Praxen im Umkreis von {searchRadius} km
+                    </Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center', marginTop: 6 }}>
+                      Versuche einen größeren Radius.
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', textAlign: 'center', marginTop: 10 }}>
+                      Keine Praxen mit Standortdaten
+                    </Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center', marginTop: 6 }}>
+                      Für diese Ergebnisse liegen noch keine Koordinaten vor.
+                    </Text>
+                  </>
+                )}
               </View>
             )}
           </View>
