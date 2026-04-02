@@ -1,0 +1,14 @@
+[options]
+packageManager = "pnpm"
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = [
+  "cd apps/api && npx prisma generate --schema prisma/schema.production.prisma",
+  "cd apps/api && npx tsc -p tsconfig.json"
+]
+
+[deploy]
+cmd = "cd apps/api && npx prisma db push --schema prisma/schema.production.prisma --skip-generate && node dist/server.js"
