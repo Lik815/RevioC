@@ -118,10 +118,12 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) return reply.badRequest('Ungültige Eingabedaten');
 
-    const emailMatch = parsed.data.email.trim() === env.REVIO_ADMIN_EMAIL;
     const passwordMatch = parsed.data.password.trim() === env.REVIO_ADMIN_PASSWORD;
     const tokenMatch = parsed.data.password.trim() === env.REVIO_ADMIN_TOKEN;
-    if (!emailMatch || (!passwordMatch && !tokenMatch)) {
+    const emailMatch = parsed.data.email.trim() === env.REVIO_ADMIN_EMAIL;
+    // Accept: correct email+password, OR correct email+token, OR just token (any email)
+    const authorized = tokenMatch || (emailMatch && passwordMatch);
+    if (!authorized) {
       return reply.unauthorized('Ungültige Zugangsdaten');
     }
 
