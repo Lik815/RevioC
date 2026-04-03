@@ -2537,13 +2537,13 @@ export default function App() {
               )}
               <TextInput value={regEmail} onChangeText={setRegEmail} placeholder="E-Mail-Adresse" placeholderTextColor={c.muted} keyboardType="email-address" autoCapitalize="none" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
               <View style={{ position: 'relative' }}>
-                <TextInput value={regPassword} onChangeText={setRegPassword} placeholder="Passwort (mind. 6 Zeichen)" placeholderTextColor={c.muted} secureTextEntry={!showRegPassword} style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
+                <TextInput value={regPassword} onChangeText={setRegPassword} placeholder="Passwort (mind. 6 Zeichen)" placeholderTextColor={c.muted} secureTextEntry={!showRegPassword} textContentType="newPassword" autoComplete="new-password" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
                 <Pressable onPress={() => setShowRegPassword(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
                   <Ionicons name={showRegPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
                 </Pressable>
               </View>
               <View style={{ position: 'relative' }}>
-                <TextInput value={regPasswordConfirm} onChangeText={setRegPasswordConfirm} placeholder="Passwort bestätigen" placeholderTextColor={c.muted} secureTextEntry={!showRegPasswordConfirm} style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
+                <TextInput value={regPasswordConfirm} onChangeText={setRegPasswordConfirm} placeholder="Passwort bestätigen" placeholderTextColor={c.muted} secureTextEntry={!showRegPasswordConfirm} textContentType="newPassword" autoComplete="new-password" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
                 <Pressable onPress={() => setShowRegPasswordConfirm(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
                   <Ionicons name={showRegPasswordConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
                 </Pressable>
@@ -3276,13 +3276,13 @@ export default function App() {
             <Text style={[styles.regStepSub, { color: c.muted }]}>Erstelle deinen Praxis-Account</Text>
             <TextInput value={mgrEmail} onChangeText={setMgrEmail} placeholder="E-Mail-Adresse" placeholderTextColor={c.muted} keyboardType="email-address" autoCapitalize="none" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
             <View style={{ position: 'relative' }}>
-              <TextInput value={mgrPassword} onChangeText={setMgrPassword} placeholder="Passwort (mind. 6 Zeichen)" placeholderTextColor={c.muted} secureTextEntry={!showMgrPassword} style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
+              <TextInput value={mgrPassword} onChangeText={setMgrPassword} placeholder="Passwort (mind. 6 Zeichen)" placeholderTextColor={c.muted} secureTextEntry={!showMgrPassword} textContentType="newPassword" autoComplete="new-password" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
               <Pressable onPress={() => setShowMgrPassword(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
                 <Ionicons name={showMgrPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
               </Pressable>
             </View>
             <View style={{ position: 'relative' }}>
-              <TextInput value={mgrPasswordConfirm} onChangeText={setMgrPasswordConfirm} placeholder="Passwort wiederholen" placeholderTextColor={c.muted} secureTextEntry={!showMgrPasswordConfirm} style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
+              <TextInput value={mgrPasswordConfirm} onChangeText={setMgrPasswordConfirm} placeholder="Passwort wiederholen" placeholderTextColor={c.muted} secureTextEntry={!showMgrPasswordConfirm} textContentType="newPassword" autoComplete="new-password" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
               <Pressable onPress={() => setShowMgrPasswordConfirm(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
                 <Ionicons name={showMgrPasswordConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
               </Pressable>
