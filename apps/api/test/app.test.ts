@@ -205,11 +205,11 @@ describe('POST /search', () => {
     expect(body.therapists[0].homeVisit).toBe(true);
   });
 
-  it('returns requestable fields for a directly requestable therapist', async () => {
-    await prisma.therapist.create({
+  it('returns contact email on therapist detail for standalone therapists', async () => {
+    const therapist = await prisma.therapist.create({
       data: {
-        email: 'requestable@test.com',
-        fullName: 'Requestable Therapist',
+        email: 'kontakt@test.com',
+        fullName: 'Kontakt Therapeut',
         professionalTitle: 'PT',
         city: 'Köln',
         homeVisit: true,
@@ -219,23 +219,18 @@ describe('POST /search', () => {
         languages: 'de',
         certifications: '',
         reviewStatus: 'APPROVED',
-        bookingMode: 'FIRST_APPOINTMENT_REQUEST',
-        nextFreeSlotAt: new Date('2026-04-02T09:00:00.000Z'),
       },
     });
 
     const res = await app.inject({
-      method: 'POST',
-      url: '/search',
-      payload: { query: 'mobile physio', city: 'Köln', requestable: true },
+      method: 'GET',
+      url: `/therapist/${therapist.id}`,
     });
 
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.therapists).toHaveLength(1);
-    expect(body.therapists[0].requestable).toBe(true);
-    expect(body.therapists[0].bookingMode).toBe('FIRST_APPOINTMENT_REQUEST');
-    expect(body.therapists[0].nextFreeSlotAt).toBe('2026-04-02T09:00:00.000Z');
+    expect(body.therapist.id).toBe(therapist.id);
+    expect(body.therapist.email).toBe('kontakt@test.com');
   });
 
   it('finds therapists by reversed and partial name queries', async () => {
@@ -585,58 +580,6 @@ describe('GET /practice-detail/:id', () => {
     expect(body.therapists[0].id).toBe(visibleTherapist.id);
     expect(body.therapists[0].fullName).toBe('Visible Therapist');
     expect(body.therapists[0].specializations).toEqual(['Manuelle Therapie', 'Lymphdrainage']);
-  });
-});
-
-// ─── Booking Requests ─────────────────────────────────────────────────────────
-
-describe('Booking Requests', () => {
-  it('creates and lists a guest booking request for a requestable therapist', async () => {
-    const therapist = await prisma.therapist.create({
-      data: {
-        email: 'bookable@test.com',
-        fullName: 'Bookable Therapist',
-        professionalTitle: 'PT',
-        city: 'Köln',
-        homeVisit: true,
-        serviceRadiusKm: 15,
-        kassenart: 'ALLE',
-        specializations: 'orthopädie',
-        languages: 'de',
-        certifications: '',
-        reviewStatus: 'APPROVED',
-        bookingMode: 'FIRST_APPOINTMENT_REQUEST',
-        sessionToken: 'therapist-booking-token',
-      },
-    });
-
-    const createRes = await app.inject({
-      method: 'POST',
-      url: '/booking-requests',
-      payload: {
-        therapistId: therapist.id,
-        patientName: 'Max Mustermann',
-        patientEmail: 'max@example.com',
-        preferredDays: ['Montag', 'Dienstag'],
-        preferredTimeWindows: ['Vormittag'],
-        message: 'Bitte um einen Ersttermin',
-        consentAccepted: true,
-      },
-    });
-
-    expect(createRes.statusCode).toBe(201);
-    expect(createRes.json().status).toBe('PENDING');
-
-    const listRes = await app.inject({
-      method: 'GET',
-      url: '/auth/booking-requests',
-      headers: { authorization: 'Bearer therapist-booking-token' },
-    });
-
-    expect(listRes.statusCode).toBe(200);
-    expect(listRes.json().requests).toHaveLength(1);
-    expect(listRes.json().requests[0].patientName).toBe('Max Mustermann');
-    expect(listRes.json().requests[0].status).toBe('PENDING');
   });
 });
 

@@ -31,12 +31,6 @@ const blockingReasonLabel: Record<string, string> = {
   no_service_radius: 'Kein Einzugsgebiet angegeben (serviceRadiusKm fehlt)',
   no_kassenart: 'Keine Kassenart angegeben',
   no_confirmed_practice_link: 'Keine bestätigte Praxis-Verknüpfung (Praxis-Pfad)',
-  booking_mode_disabled: 'Direkte Anfragen sind ausgeschaltet',
-};
-
-const bookingModeLabel: Record<string, string> = {
-  DIRECTORY_ONLY: 'Nur Verzeichnis',
-  FIRST_APPOINTMENT_REQUEST: 'Ersttermin anfragbar',
 };
 
 function mimeIcon(mimetype: string) {
@@ -80,27 +74,6 @@ function getVisibilityCopy(therapist: {
   return summarizeReasons(reasons) ?? 'Noch nicht öffentlich sichtbar.';
 }
 
-function getRequestCopy(therapist: {
-  reviewStatus: string;
-  bookingMode?: string | null;
-  nextFreeSlotAt?: string | null;
-  requestability?: { requestable: boolean; blockingReasons: string[] };
-}) {
-  if (therapist.bookingMode !== 'FIRST_APPOINTMENT_REQUEST') {
-    return 'Keine Direktanfrage über Revio.';
-  }
-  if (therapist.requestability?.requestable) {
-    return therapist.nextFreeSlotAt
-      ? `Nächster freier Termin: ${formatDate(therapist.nextFreeSlotAt)}`
-      : 'Direkt über Revio anfragbar.';
-  }
-  if (therapist.reviewStatus !== 'APPROVED') {
-    return 'Wird nach Freigabe für Ersttermin-Anfragen verfügbar.';
-  }
-  const reasons = (therapist.requestability?.blockingReasons ?? []).map(humanizeReason);
-  return summarizeReasons(reasons) ?? 'Noch nicht anfragbar.';
-}
-
 export default async function TherapistDetailPage({ params }: Props) {
   const { id } = await params;
 
@@ -114,15 +87,7 @@ export default async function TherapistDetailPage({ params }: Props) {
       : therapist.reviewStatus === 'APPROVED' && !therapist.isVisible
         ? { label: 'Freigegeben, aber versteckt', className: 'badge badge--PENDING_REVIEW' }
         : { label: 'Nicht öffentlich', className: 'badge badge--DRAFT' };
-  const bookingModeBadge =
-    therapist.bookingMode === 'FIRST_APPOINTMENT_REQUEST'
-      ? {
-        label: therapist.requestability?.requestable ? 'Ersttermin anfragbar' : 'Anfragbar geplant',
-        className: therapist.requestability?.requestable ? 'badge badge--APPROVED' : 'badge badge--PENDING_REVIEW',
-      }
-      : { label: 'Nur Verzeichnis', className: 'badge badge--DRAFT' };
   const isApprovedButNotVisible = therapist.reviewStatus === 'APPROVED' && therapist.visibility.visibilityState !== 'visible';
-  const isRequestModeBlocked = therapist.bookingMode === 'FIRST_APPOINTMENT_REQUEST' && !therapist.requestability?.requestable;
   const blockerReasons = (
     therapist.visibility.blockingReasons.length > 0
       ? therapist.visibility.blockingReasons
@@ -130,12 +95,9 @@ export default async function TherapistDetailPage({ params }: Props) {
         ? ['manually_hidden']
       : []
   ).map(humanizeReason);
-  const requestabilityBlockers = (therapist.requestability?.blockingReasons ?? []).map(humanizeReason);
   const visibilitySummary = summarizeReasons(blockerReasons);
-  const requestabilitySummary = summarizeReasons(requestabilityBlockers);
   const operationalNotes = [
     isApprovedButNotVisible && visibilitySummary ? `Nicht sichtbar: ${visibilitySummary}` : null,
-    isRequestModeBlocked && requestabilitySummary ? `Nicht anfragbar: ${requestabilitySummary}` : null,
   ].filter(Boolean) as string[];
 
   return (
@@ -150,9 +112,6 @@ export default async function TherapistDetailPage({ params }: Props) {
           </span>
           <span className={publicVisibilityBadge.className}>
             {publicVisibilityBadge.label}
-          </span>
-          <span className={bookingModeBadge.className}>
-            {bookingModeBadge.label}
           </span>
         </div>
       }
@@ -191,15 +150,6 @@ export default async function TherapistDetailPage({ params }: Props) {
           </p>
         </article>
 
-        <article className="card">
-          <div className="kicker">Ersttermin</div>
-          <div className={bookingModeBadge.className} style={{ width: 'fit-content', marginTop: 8 }}>
-            {bookingModeBadge.label}
-          </div>
-          <p className="status-copy">
-            {getRequestCopy(therapist)}
-          </p>
-        </article>
       </section>
 
       {/* Actions */}
@@ -233,10 +183,6 @@ export default async function TherapistDetailPage({ params }: Props) {
             <dd style={{ margin: 0 }}>{therapist.serviceRadiusKm ? `${therapist.serviceRadiusKm} km` : '–'}</dd>
             <dt style={{ color: 'var(--muted)', fontSize: 13 }}>Kassenart</dt>
             <dd style={{ margin: 0 }}>{therapist.kassenart || '–'}</dd>
-            <dt style={{ color: 'var(--muted)', fontSize: 13 }}>Buchungsmodus</dt>
-            <dd style={{ margin: 0 }}>{bookingModeLabel[therapist.bookingMode ?? 'DIRECTORY_ONLY'] ?? therapist.bookingMode ?? '–'}</dd>
-            <dt style={{ color: 'var(--muted)', fontSize: 13 }}>Nächster Termin</dt>
-            <dd style={{ margin: 0 }}>{therapist.nextFreeSlotAt ? formatDate(therapist.nextFreeSlotAt) : '–'}</dd>
             <dt style={{ color: 'var(--muted)', fontSize: 13 }}>Eingereicht</dt>
             <dd style={{ margin: 0 }}>{new Date(therapist.createdAt).toLocaleDateString('de-DE')}</dd>
           </dl>

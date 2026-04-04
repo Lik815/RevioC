@@ -44,25 +44,6 @@ function getVisibilityMeta(t: {
   return summarizeReasons(reasons) ?? 'Noch nicht sichtbar.';
 }
 
-function getRequestMeta(t: {
-  reviewStatus: string;
-  bookingMode?: string | null;
-  nextFreeSlotAt?: string | null;
-  requestability?: { requestable: boolean; blockingReasons: string[] };
-}) {
-  if (t.bookingMode !== 'FIRST_APPOINTMENT_REQUEST') {
-    return 'Keine Direktanfrage.';
-  }
-  if (t.requestability?.requestable) {
-    return t.nextFreeSlotAt ? `Nächster Termin ab ${formatDate(t.nextFreeSlotAt)}` : 'Direkt anfragbar.';
-  }
-  if (t.reviewStatus !== 'APPROVED') {
-    return 'Wird nach Freigabe anfragbar.';
-  }
-  const reasons = (t.requestability?.blockingReasons ?? []).map(humanizeReason);
-  return summarizeReasons(reasons) ?? 'Noch nicht anfragbar.';
-}
-
 const statusLabel: Record<string, string> = {
   PENDING_REVIEW: 'Ausstehend',
   APPROVED: 'Freigegeben',
@@ -83,12 +64,6 @@ const blockingReasonLabel: Record<string, string> = {
   no_service_radius: 'Kein Einzugsgebiet',
   no_kassenart: 'Keine Kassenart',
   no_confirmed_practice_link: 'Keine Praxis bestätigt',
-  booking_mode_disabled: 'Direkte Anfragen sind ausgeschaltet',
-};
-
-const bookingModeLabel: Record<string, string> = {
-  DIRECTORY_ONLY: 'Nur Verzeichnis',
-  FIRST_APPOINTMENT_REQUEST: 'Ersttermin anfragbar',
 };
 
 const statusPriority: Record<string, number> = {
@@ -160,7 +135,7 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
   return (
     <PageShell
       title="Therapeut:innen-Warteschlange"
-      description="Klare Review-Liste für Profile, Sichtbarkeit und Ersttermin-Anfragen."
+      description="Klare Review-Liste für Profile, Sichtbarkeit und Kontaktqualität."
       eyebrow="Reviews"
       actions={<div className="hero-pill">{filtered.length} Ergebnisse</div>}
     >
@@ -212,7 +187,6 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
             <th>Überblick</th>
             <th>Review</th>
             <th>Öffentlich</th>
-            <th>Ersttermin</th>
             <th>Aktionen</th>
           </tr>
         </thead>
@@ -226,15 +200,7 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
                   : t.reviewStatus === 'APPROVED' && !t.isVisible
                     ? { label: 'Freigegeben, aber versteckt', className: 'badge badge--PENDING_REVIEW' }
                     : { label: 'Nicht öffentlich', className: 'badge badge--DRAFT' };
-              const bookingModeBadge =
-                t.bookingMode === 'FIRST_APPOINTMENT_REQUEST'
-                  ? {
-                    label: t.requestability?.requestable ? 'Ersttermin anfragbar' : 'Anfragbar geplant',
-                    className: t.requestability?.requestable ? 'badge badge--APPROVED' : 'badge badge--PENDING_REVIEW',
-                  }
-                  : { label: 'Nur Verzeichnis', className: 'badge badge--DRAFT' };
               const isApprovedButNotVisible = t.reviewStatus === 'APPROVED' && t.visibility.visibilityState !== 'visible';
-              const isRequestModeBlocked = t.bookingMode === 'FIRST_APPOINTMENT_REQUEST' && !t.requestability?.requestable;
               const blockerReasons = (
                 t.visibility.blockingReasons.length > 0
                   ? t.visibility.blockingReasons
@@ -242,9 +208,6 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
                     ? ['manually_hidden']
                     : []
               ).map((reason) => blockingReasonLabel[reason] ?? reason);
-              const requestBlockers = (t.requestability?.blockingReasons ?? []).map((reason) => blockingReasonLabel[reason] ?? reason);
-              const visibilitySummary = summarizeReasons(blockerReasons);
-              const requestSummary = summarizeReasons(requestBlockers);
               return (
               <tr key={t.id}>
                 <td data-label="Name">
@@ -290,16 +253,6 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
                     </span>
                     <span className="entity-meta" title={blockerReasons.join(', ')}>
                       {getVisibilityMeta(t)}
-                    </span>
-                  </div>
-                </td>
-                <td data-label="Ersttermin">
-                  <div className="priority-stack">
-                    <span className={bookingModeBadge.className}>
-                      {bookingModeBadge.label}
-                    </span>
-                    <span className="entity-meta" title={requestBlockers.join(', ')}>
-                      {getRequestMeta(t)}
                     </span>
                   </div>
                 </td>

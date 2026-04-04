@@ -230,6 +230,7 @@ const getLangLabel = (code) => LANGUAGE_MAP[normalizeLanguageCode(code)] ?? code
 
 const mapApiTherapist = (t) => ({
   id: t.id,
+  email: t.email ?? '',
   fullName: t.fullName,
   professionalTitle: t.professionalTitle,
   specializations: parseStringOrArray(t.specializations),
@@ -240,10 +241,6 @@ const mapApiTherapist = (t) => ({
   city: t.city ?? '',
   bio: t.bio ?? '',
   kassenart: t.kassenart ?? null,
-  bookingMode: t.bookingMode ?? 'DIRECTORY_ONLY',
-  requestable: t.requestable ?? false,
-  nextFreeSlotAt: t.nextFreeSlotAt ?? null,
-  requestability: t.requestability ?? null,
   fortbildungen: parseStringOrArray(t.certifications),
   distKm: typeof t.distKm === 'number' ? t.distKm : null,
   verifiziert: true,

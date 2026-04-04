@@ -5,7 +5,6 @@ import { hashPassword, verifyPassword, getToken } from './auth-utils.js';
 import {
   getTherapistProfileCompletion,
   getTherapistPublicationState,
-  getTherapistRequestabilityState,
 } from '../utils/profile-completeness.js';
 import { geocodeAddress } from '../utils/geocode.js';
 
@@ -26,8 +25,6 @@ const updateMeSchema = z.object({
   isVisible: z.boolean().optional(),
   availability: z.string().optional(),
   kassenart: z.string().optional(),
-  bookingMode: z.enum(['DIRECTORY_ONLY', 'FIRST_APPOINTMENT_REQUEST']).optional(),
-  nextFreeSlotAt: z.string().trim().min(10).nullable().optional(),
   specializations: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),
   certifications: z.array(z.string()).optional(),
@@ -289,8 +286,6 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     const adminPractice = managerAccount?.assignments[0]?.practice ?? null;
 
     const publication = getTherapistPublicationState(therapist, { links: therapist.links });
-    const requestability = getTherapistRequestabilityState(therapist, { links: therapist.links });
-
     return {
       id: therapist.id,
       email: therapist.email,
@@ -301,10 +296,6 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       homeVisit: therapist.homeVisit,
       serviceRadiusKm: (therapist as any).serviceRadiusKm ?? null,
       kassenart: (therapist as any).kassenart ?? '',
-      bookingMode: (therapist as any).bookingMode ?? 'DIRECTORY_ONLY',
-      nextFreeSlotAt: (therapist as any).nextFreeSlotAt
-        ? new Date((therapist as any).nextFreeSlotAt).toISOString()
-        : null,
       emailVerified: !!(user?.emailVerifiedAt ?? true),
       specializations: splitList(therapist.specializations),
       languages: splitList(therapist.languages),
@@ -316,7 +307,6 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       visibilityPreference: therapist.visibilityPreference,
       isPublished: therapist.isPublished,
       onboardingStatus: therapist.onboardingStatus,
-      requestability,
       ...publication,
       adminPractice: adminPractice ?? null,
       practices: therapist.links.map((l: any) => ({
@@ -369,10 +359,6 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (data.isVisible !== undefined) updateData.isVisible = data.isVisible;
     if (data.availability !== undefined) updateData.availability = data.availability;
     if (data.kassenart !== undefined) updateData.kassenart = data.kassenart;
-    if (data.bookingMode !== undefined) updateData.bookingMode = data.bookingMode;
-    if (data.nextFreeSlotAt !== undefined) {
-      updateData.nextFreeSlotAt = data.nextFreeSlotAt ? new Date(data.nextFreeSlotAt) : null;
-    }
     if (data.specializations !== undefined) updateData.specializations = data.specializations.join(', ');
     if (data.languages !== undefined) updateData.languages = data.languages.join(', ');
     if (data.certifications !== undefined) updateData.certifications = data.certifications.join(', ');
@@ -429,17 +415,10 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (!updated) return reply.notFound('Therapeuten-Profil nicht gefunden');
 
     const publication = getTherapistPublicationState(updated, { links: updated.links });
-    const requestability = getTherapistRequestabilityState(updated, { links: updated.links });
-
     return {
       success: true,
       fullName: updated.fullName,
       isPublished: updated.isPublished,
-      bookingMode: (updated as any).bookingMode ?? 'DIRECTORY_ONLY',
-      nextFreeSlotAt: (updated as any).nextFreeSlotAt
-        ? new Date((updated as any).nextFreeSlotAt).toISOString()
-        : null,
-      requestability,
       ...publication,
     };
   });
@@ -468,38 +447,6 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         data: { sessionToken: null },
       });
     }
-
-    return { success: true };
-  });
-
-  fastify.post('/auth/push-token', async (request, reply) => {
-    const token = getToken(request);
-    if (!token) return reply.unauthorized('Kein Token');
-
-    const { pushToken } = request.body as { pushToken?: string };
-    if (!pushToken || !pushToken.startsWith('ExponentPushToken[')) {
-      return reply.badRequest('Ungültiger Push-Token');
-    }
-
-    // Resolve therapist via User row or direct session token
-    let therapistId: string | null = null;
-    const user = await fastify.prisma.user.findUnique({
-      where: { sessionToken: token },
-      include: { therapistProfile: true },
-    });
-    if (user?.therapistProfile) {
-      therapistId = user.therapistProfile.id;
-    } else {
-      const therapist = await fastify.prisma.therapist.findUnique({ where: { sessionToken: token } });
-      if (therapist) therapistId = therapist.id;
-    }
-
-    if (!therapistId) return reply.unauthorized('Ungültiger Token');
-
-    await fastify.prisma.therapist.update({
-      where: { id: therapistId },
-      data: { expoPushToken: pushToken },
-    });
 
     return { success: true };
   });

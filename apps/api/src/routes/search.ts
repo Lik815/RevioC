@@ -1,11 +1,8 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import type { SearchInput, SearchTherapist, SearchPractice } from '@revio/shared';
-import { normalizeText, scoreMatch } from '../utils/search-utils.js';
-import {
-  getTherapistPublicationState,
-  getTherapistRequestabilityState,
-} from '../utils/profile-completeness.js';
+import { normalizeText, scoreMatch, levenshtein } from '../utils/search-utils.js';
+import { getTherapistPublicationState } from '../utils/profile-completeness.js';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -155,6 +152,17 @@ function scoreTherapist(
   // Generischer Begriff
   if (GENERIC_QUERIES.has(q)) return boost(1);
 
+  // Fuzzy fallback: typo-tolerant matching against specializations
+  if (q.length >= 5) {
+    const maxDist = q.length >= 8 ? 2 : 1;
+    if (specs.some((s) => levenshtein(s, q) <= maxDist || s.split(/\s+/).some((w) => w.length >= 4 && levenshtein(w, q) <= maxDist))) {
+      return boost(3);
+    }
+    if (certs.some((c) => levenshtein(c, q) <= maxDist || c.split(/\s+/).some((w) => w.length >= 4 && levenshtein(w, q) <= maxDist))) {
+      return boost(2);
+    }
+  }
+
   return 0;
 }
 
@@ -172,7 +180,6 @@ const searchBodySchema = z.object({
   homeVisit: z.boolean().optional(),
   specialization: z.string().optional(),
   kassenart: z.string().optional(),
-  requestable: z.boolean().optional(),
 }).refine((data) => Boolean(data.city) || Boolean(data.origin), {
   message: 'city oder origin ist erforderlich',
 });
@@ -220,13 +227,11 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
 
       const languages = splitList(t.languages).map((l) => l.toLowerCase());
       const specializations = splitList(t.specializations).map((s) => s.toLowerCase());
-      const requestability = getTherapistRequestabilityState(t, { links: t.links });
 
       if (input.language && !languages.includes(input.language.toLowerCase())) return false;
       if (typeof input.homeVisit === 'boolean' && t.homeVisit !== input.homeVisit) return false;
       if (input.specialization && !specializations.includes(input.specialization.toLowerCase())) return false;
       if (input.kassenart && (t as any).kassenart && (t as any).kassenart !== input.kassenart) return false;
-      if (typeof input.requestable === 'boolean' && requestability.requestable !== input.requestable) return false;
 
       return true;
     };
@@ -248,7 +253,6 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
       const practiceNames = t.links.map((l) => l.practice.name);
       const relevance = scoreTherapist(t, input.query, practiceNames, input.homeVisit);
       const specializations = splitList(t.specializations);
-      const requestability = getTherapistRequestabilityState(t, { links: t.links });
 
       // Distanz für mobile Therapeuten ohne Praxis (homeLat/homeLng)
       const tAny = t as any;
@@ -318,9 +322,6 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
         kassenart: tAny.kassenart ?? '',
         availability: tAny.availability ?? '',
         homeVisit: t.homeVisit,
-        bookingMode: tAny.bookingMode ?? 'DIRECTORY_ONLY',
-        requestable: requestability.requestable,
-        nextFreeSlotAt: tAny.nextFreeSlotAt ? new Date(tAny.nextFreeSlotAt).toISOString() : null,
         city: t.city,
         bio: t.bio ?? undefined,
         photo: t.photo ?? undefined,
@@ -368,7 +369,6 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
     });
     if (!t) return reply.notFound('Therapeut nicht gefunden');
     const publication = getTherapistPublicationState(t, { links: t.links });
-    const requestability = getTherapistRequestabilityState(t, { links: t.links });
     if (!publication.publicSearchEligible) return reply.notFound('Therapeut nicht gefunden');
     const practices = t.links.map((link) => {
       let photos: string[] | undefined;
@@ -389,12 +389,8 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
         certifications: splitList(t.certifications),
         kassenart: (t as any).kassenart ?? '',
         availability: (t as any).availability ?? '',
+        email: t.email,
         homeVisit: t.homeVisit, city: t.city, bio: t.bio ?? undefined,
-        bookingMode: (t as any).bookingMode ?? 'DIRECTORY_ONLY',
-        requestable: requestability.requestable,
-        nextFreeSlotAt: (t as any).nextFreeSlotAt
-          ? new Date((t as any).nextFreeSlotAt).toISOString()
-          : null,
         ...((t as any).serviceRadiusKm != null ? { serviceRadiusKm: (t as any).serviceRadiusKm } : {}),
         photo: t.photo ?? undefined, practices,
       },
@@ -430,8 +426,6 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
                 photo: true, specializations: true, city: true,
                 homeVisit: true, bio: true,
                 languages: true,
-                bookingMode: true,
-                nextFreeSlotAt: true,
                 reviewStatus: true,
                 isVisible: true,
                 isPublished: true,
@@ -460,9 +454,6 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
           }).publicSearchEligible,
         )
         .map((l) => {
-        const requestability = getTherapistRequestabilityState(l.therapist, {
-          links: [{ status: l.status, practice: { reviewStatus: practice.reviewStatus } }],
-        });
         return ({
         id: l.therapist.id,
         fullName: l.therapist.fullName,
@@ -471,11 +462,6 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
         specializations: splitList(l.therapist.specializations),
         city: l.therapist.city,
         homeVisit: l.therapist.homeVisit,
-        bookingMode: (l.therapist as any).bookingMode ?? 'DIRECTORY_ONLY',
-        requestable: requestability.requestable,
-        nextFreeSlotAt: (l.therapist as any).nextFreeSlotAt
-          ? new Date((l.therapist as any).nextFreeSlotAt).toISOString()
-          : null,
         bio: l.therapist.bio ?? undefined,
       })}),
     };

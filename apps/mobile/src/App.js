@@ -22,9 +22,7 @@ import {
   useColorScheme
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import * as Device from 'expo-device';
 import * as DocumentPicker from 'expo-document-picker';
-import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -35,7 +33,6 @@ import {
   SHADOW,
   SPACE,
   TYPE,
-  allSuggestions,
   fortbildungOptions,
   formatMissingProfileFields,
   getBaseUrl,
@@ -72,47 +69,6 @@ import {
   TherapistDashboardScreen,
 } from './mobile-therapist-dashboard';
 import { translations } from './mobile-translations';
-
-// ─── Push Notifications ───────────────────────────────────────────────────────
-// Show notifications as banners even while the app is foregrounded
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
-async function registerForPushNotifications(authToken) {
-  // Push tokens are only available on physical devices
-  if (!Device.isDevice) return;
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Standard',
-      importance: Notifications.AndroidImportance.MAX,
-    });
-  }
-
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-  if (finalStatus !== 'granted') return;
-
-  try {
-    const { data: pushToken } = await Notifications.getExpoPushTokenAsync({
-      projectId: '453d86fe-08c1-4852-ae2a-a9991f64c845',
-    });
-    await fetch(`${getBaseUrl()}/auth/push-token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-      body: JSON.stringify({ pushToken }),
-    });
-  } catch {}
-}
 
 const formatProfileOverviewName = (fullName = '') => {
   const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
@@ -230,15 +186,9 @@ export default function App() {
 
   // Favorites — stored locally on device only
   const [favorites, setFavorites] = useState([]);
-  const [bookingNotes, setBookingNotes] = useState({});
   useEffect(() => {
     AsyncStorage.getItem('revio_favorites').then(val => {
       if (val) setFavorites(JSON.parse(val));
-    });
-  }, []);
-  useEffect(() => {
-    AsyncStorage.getItem('revio_booking_notes').then(val => {
-      if (val) setBookingNotes(JSON.parse(val));
     });
   }, []);
   // ── Toast notification ────────────────────────────────────────────────────
@@ -265,28 +215,6 @@ export default function App() {
     });
   };
   const isFavorite = (id) => favorites.some(f => f.id === id);
-  const ensureFavorite = (therapist) => {
-    setFavorites(prev => {
-      if (prev.some(f => f.id === therapist.id)) return prev;
-      const next = [...prev, therapist];
-      AsyncStorage.setItem('revio_favorites', JSON.stringify(next));
-      return next;
-    });
-  };
-  const handleBookingSuccess = async (therapist, { preferredDays, preferredTimeWindows, message }) => {
-    ensureFavorite(therapist);
-    const note = {
-      preferredDays,
-      preferredTimeWindows,
-      message: message || null,
-      submittedAt: new Date().toISOString(),
-    };
-    setBookingNotes((prev) => {
-      const next = { ...prev, [therapist.id]: note };
-      AsyncStorage.setItem('revio_booking_notes', JSON.stringify(next));
-      return next;
-    });
-  };
 
   // Practice favorites — stored locally
   const [favoritePractices, setFavoritePractices] = useState([]);
@@ -410,8 +338,6 @@ export default function App() {
   const [editKassenart, setEditKassenart] = useState('');
   const [editIsVisible, setEditIsVisible] = useState(true);
   const [editAvailability, setEditAvailability] = useState('');
-  const [editBookingMode, setEditBookingMode] = useState('DIRECTORY_ONLY');
-  const [editNextFreeSlotAt, setEditNextFreeSlotAt] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
   const [therapistDocuments, setTherapistDocuments] = useState([]);
   const [documentUploading, setDocumentUploading] = useState(false);
@@ -615,32 +541,6 @@ export default function App() {
 
     Linking.getInitialURL().then(handleUrl);
     const sub = Linking.addEventListener('url', (e) => handleUrl(e.url));
-    return () => sub.remove();
-  }, []);
-
-  // Register Expo push token when a therapist logs in
-  useEffect(() => {
-    if (authToken && accountType === 'therapist') {
-      registerForPushNotifications(authToken);
-    }
-  }, [authToken, accountType]);
-
-  // Deep link: tapping a push notification navigates to the right screen
-  useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data ?? {};
-      if (data.screen === 'BookingRequests') {
-        setSelectedTherapist(null);
-        setSelectedPractice(null);
-        setShowCreatePractice(false);
-        setShowPracticeSearch(false);
-        setShowPracticeAdmin(false);
-        setShowInvitePage(false);
-        setShowLogin(false);
-        setShowRegister(false);
-        setActiveTab('therapist');
-      }
-    });
     return () => sub.remove();
   }, []);
 
@@ -859,8 +759,6 @@ export default function App() {
           kassenart: editKassenart,
           isVisible: editIsVisible,
           availability: editAvailability,
-          bookingMode: editBookingMode,
-          nextFreeSlotAt: editNextFreeSlotAt || null,
         }),
       });
       if (res.ok) {
@@ -1359,10 +1257,38 @@ export default function App() {
   const locationDebounceRef = React.useRef(null);
   const pendingGPSResult = React.useRef(null); // stores { city, coords, label } from GPS detection
 
-  // Autocomplete: suggestions matching current input
-  const acSuggestions = query.length >= 2
-    ? allSuggestions.filter(s => s.toLowerCase().includes(query.toLowerCase())).slice(0, 5)
-    : [];
+  // ── API-powered autocomplete ──────────────────────────────────────────────
+  const [acSuggestions, setAcSuggestions] = useState([]);   // [{ type, items: [{ text, entityId }] }]
+  const acDebounceRef = React.useRef(null);
+  const acAbortRef = React.useRef(null);
+
+  useEffect(() => {
+    if (query.length < 2) { setAcSuggestions([]); return; }
+
+    if (acDebounceRef.current) clearTimeout(acDebounceRef.current);
+    acDebounceRef.current = setTimeout(async () => {
+      // Abort previous in-flight request
+      if (acAbortRef.current) acAbortRef.current.abort();
+      const controller = new AbortController();
+      acAbortRef.current = controller;
+
+      try {
+        const res = await fetch(
+          `${getBaseUrl()}/suggest?q=${encodeURIComponent(query)}`,
+          { headers: TUNNEL_HEADERS, signal: controller.signal },
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setAcSuggestions(data.suggestions ?? []);
+      } catch (err) {
+        if (err.name !== 'AbortError') setAcSuggestions([]);
+      }
+    }, 200);
+
+    return () => {
+      if (acDebounceRef.current) clearTimeout(acDebounceRef.current);
+    };
+  }, [query]);
 
   const activeFilterCount = (homeVisit ? 1 : 0) + (kassenart ? 1 : 0) + fortbildungen.length;
   const getCertificationLabel = (key) => certificationOptions.find((option) => option.key === key)?.label ?? key;
@@ -1521,8 +1447,11 @@ export default function App() {
   };
 
   const selectSuggestion = (suggestion) => {
-    setQuery(suggestion);
-    runSearchWith(suggestion, userCoords);
+    const text = typeof suggestion === 'string' ? suggestion : suggestion.text;
+    setQuery(text);
+    setAcSuggestions([]);
+    setShowAutocomplete(false);
+    runSearchWith(text, userCoords);
   };
 
   const runSearch = () => runSearchWith(query, userCoords);
@@ -1876,7 +1805,6 @@ export default function App() {
         c={c}
         callPhone={callPhone}
         isFavorite={isFavorite}
-        onBookingSuccess={handleBookingSuccess}
         openPractice={openPractice}
         setSelectedTherapist={setSelectedTherapist}
         styles={styles}
@@ -1919,8 +1847,6 @@ export default function App() {
       setEditKassenart(th.kassenart ?? '');
       setEditIsVisible(th.isVisible ?? true);
       setEditAvailability(th.availability ?? '');
-      setEditBookingMode(th.bookingMode ?? 'DIRECTORY_ONLY');
-      setEditNextFreeSlotAt(th.nextFreeSlotAt ?? '');
       setEditMode(true);
     };
 
@@ -1935,8 +1861,6 @@ export default function App() {
         editKassenart={editKassenart}
         editLanguages={editLanguages}
         editMode={editMode}
-        editBookingMode={editBookingMode}
-        editNextFreeSlotAt={editNextFreeSlotAt}
         editServiceRadius={editServiceRadius}
         editSpecializations={editSpecializations}
         handleLoadInviteToken={handleLoadInviteToken}
@@ -1959,8 +1883,6 @@ export default function App() {
         setEditKassenart={setEditKassenart}
         setEditLanguages={setEditLanguages}
         setEditMode={setEditMode}
-        setEditBookingMode={setEditBookingMode}
-        setEditNextFreeSlotAt={setEditNextFreeSlotAt}
         setEditServiceRadius={setEditServiceRadius}
         setEditSpecializations={setEditSpecializations}
         setInvitePageTab={setInvitePageTab}
@@ -2082,7 +2004,7 @@ export default function App() {
                     <Text style={[styles.optionValue, { color: c.primary }]}>{t('managePractice')} ›</Text>
                   </Pressable>
                 )}
-                {loggedInTherapist && !loggedInTherapist.adminPractice && loggedInTherapist.bookingMode !== 'FIRST_APPOINTMENT_REQUEST' && (
+                {loggedInTherapist && !loggedInTherapist.adminPractice && (
                   <>
                     <Pressable onPress={() => setShowCreatePractice(true)} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -2411,26 +2333,6 @@ export default function App() {
                 </Pressable>
                 <ThemedHeartButton isSaved={true} onToggle={() => toggleFavorite(fav)} hitSlop={ICON_HIT_SLOP} />
               </View>
-              {bookingNotes[fav.id] ? (() => {
-                const note = bookingNotes[fav.id];
-                const days = note.preferredDays?.join(', ');
-                const times = note.preferredTimeWindows?.join(', ');
-                const date = new Date(note.submittedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-                return (
-                  <View style={{ paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: c.border, gap: 3 }}>
-                    <Text style={{ fontSize: 11, color: c.muted, fontWeight: '600' }}>
-                      Anfrage vom {date}
-                    </Text>
-                    {days ? <Text style={{ fontSize: 12, color: c.text }}>Wunschtage: {days}</Text> : null}
-                    {times ? <Text style={{ fontSize: 12, color: c.text }}>Zeitfenster: {times}</Text> : null}
-                    {note.message ? (
-                      <Text style={{ fontSize: 12, color: c.muted, marginTop: 2 }} numberOfLines={2}>
-                        {note.message}
-                      </Text>
-                    ) : null}
-                  </View>
-                );
-              })() : null}
               {fav.practices?.length > 0 && (
                 <Pressable
                   onPress={() => openPractice(fav.practices[0])}
@@ -2448,9 +2350,9 @@ export default function App() {
               )}
               <Pressable
                 style={[styles.ctaBtn, { backgroundColor: c.accent }]}
-                onPress={() => callPhone(fav.practices?.[0]?.phone)}
+                onPress={() => fav.practices?.[0]?.phone ? callPhone(fav.practices[0].phone) : openTherapistById(fav.id)}
               >
-                <Text style={styles.ctaBtnText}>{t('callPractice')}</Text>
+                <Text style={styles.ctaBtnText}>{fav.practices?.[0]?.phone ? t('callPractice') : 'Profil ansehen'}</Text>
               </Pressable>
             </View>
           ))}
@@ -2962,7 +2864,6 @@ export default function App() {
                     homeVisit: regHomeVisit === true,
                     serviceRadiusKm: regHomeVisit === true ? (regServiceRadius ?? null) : null,
                     kassenart: regKassenart || undefined,
-                    bookingMode: regFreelance === true ? 'FIRST_APPOINTMENT_REQUEST' : 'DIRECTORY_ONLY',
                   }),
                 });
                 const resData = await res.json().catch(() => ({}));

@@ -6,6 +6,7 @@
     "dev": "pnpm -r --parallel dev",
     "dev:api": "pnpm --filter @revio/api dev",
     "dev:admin": "pnpm --filter @revio/admin dev",
+    "dev:site": "pnpm --filter @revio/site dev",
     "dev:mobile": "pnpm --filter @revio/mobile start",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",

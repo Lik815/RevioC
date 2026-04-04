@@ -100,17 +100,6 @@ export function DiscoverScreen(props) {
 
   const mutedText = c.textMuted ?? c.muted;
   const iconHitSlop = { top: 10, bottom: 10, left: 10, right: 10 };
-  const formatBookingDate = (value) => {
-    if (!value) return '';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return parsed.toLocaleString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
   const showHeaderToggle = viewMode === 'map' || searched || results.length > 0;
   const [fortbildungQuery, setFortbildungQuery] = React.useState('');
   const selectedCertificationOptions = fortbildungen.map((key) =>
@@ -481,6 +470,46 @@ export function DiscoverScreen(props) {
           </View>
         )}
 
+        {/* ── Problem categories ─────────────────────────────────────── */}
+        {!searched && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 4 }}>
+            {[
+              { icon: '🦴', label: 'Rücken & Wirbelsäule', query: 'Rückenschmerzen' },
+              { icon: '🦵', label: 'Knie & Hüfte', query: 'Kniereha' },
+              { icon: '💪', label: 'Schulter & Nacken', query: 'Nackenschmerzen' },
+              { icon: '⚽', label: 'Sportverletzungen', query: 'Sportphysiotherapie' },
+              { icon: '🧠', label: 'Neurologische Reha', query: 'Neurologische Rehabilitation' },
+              { icon: '🏠', label: 'Hausbesuch', query: 'Hausbesuch' },
+              { icon: '👶', label: 'Kinder-Physio', query: 'Pädiatrische Physiotherapie' },
+              { icon: '💆', label: 'Manuelle Therapie', query: 'Manualtherapie' },
+            ].map((cat) => (
+              <Pressable
+                key={cat.label}
+                onPress={() => {
+                  setQuery(cat.query);
+                  setActiveChip(null);
+                  runSearchWith(cat.query, userCoords);
+                }}
+                style={{
+                  flexBasis: '47%',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  borderRadius: RADIUS.md,
+                  backgroundColor: c.card,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                }}
+              >
+                <Text style={{ fontSize: 20 }}>{cat.icon}</Text>
+                <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: c.text, flex: 1 }}>{cat.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         <View style={{ zIndex: 10 }}>
           <View
             style={[
@@ -530,19 +559,38 @@ export function DiscoverScreen(props) {
 
           {showAutocomplete && acSuggestions.length > 0 && (
             <View style={[styles.autocompleteBox, { backgroundColor: c.card, borderColor: c.primary }]}>
-              {acSuggestions.map((suggestion, index) => (
-                <Pressable
-                  key={suggestion}
-                  onPress={() => selectSuggestion(suggestion)}
-                  style={[
-                    styles.acItem,
-                    index < acSuggestions.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
-                  ]}
-                >
-                  <Text style={[styles.acSearchIcon, { color: c.muted }]}>⌕</Text>
-                  <Text style={[styles.acItemText, { color: c.text }]}>{suggestion}</Text>
-                </Pressable>
-              ))}
+              {acSuggestions.map((group) => {
+                const typeLabel = group.type === 'SPECIALTY' ? 'Spezialisierung'
+                  : group.type === 'THERAPIST_NAME' ? 'Therapeut'
+                  : group.type === 'PRACTICE_NAME' ? 'Praxis'
+                  : group.type === 'CITY' ? 'Ort'
+                  : group.type;
+                const typeIcon = group.type === 'SPECIALTY' ? 'medical-outline'
+                  : group.type === 'THERAPIST_NAME' ? 'person-outline'
+                  : group.type === 'PRACTICE_NAME' ? 'business-outline'
+                  : group.type === 'CITY' ? 'location-outline'
+                  : 'search-outline';
+                return (
+                  <View key={group.type}>
+                    <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: mutedText, textTransform: 'uppercase', letterSpacing: 0.5 }}>{typeLabel}</Text>
+                    </View>
+                    {group.items.map((item, idx) => (
+                      <Pressable
+                        key={`${group.type}-${item.text}-${idx}`}
+                        onPress={() => selectSuggestion(item)}
+                        style={[
+                          styles.acItem,
+                          idx < group.items.length - 1 && { borderBottomWidth: 1, borderBottomColor: c.border },
+                        ]}
+                      >
+                        <Ionicons name={typeIcon} size={14} color={c.muted} style={{ marginRight: 4 }} />
+                        <Text style={[styles.acItemText, { color: c.text }]}>{item.text}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
@@ -657,24 +705,7 @@ export function DiscoverScreen(props) {
                 <Text style={[styles.tagText, { color: mutedText }]}>{therapist.kassenart}</Text>
               </View>
             )}
-            {therapist.requestable && (
-              <View style={[styles.tag, { backgroundColor: c.primaryBg, borderWidth: 1, borderColor: c.primary }]}>
-                <Text style={[styles.tagText, { color: c.primary }]}>Ersttermin anfragbar</Text>
-              </View>
-            )}
           </View>
-
-          {therapist.requestable && therapist.nextFreeSlotAt ? (
-            <Text style={{ ...TYPE.meta, color: c.primary }}>
-              Nächster Termin: {formatBookingDate(therapist.nextFreeSlotAt)}
-            </Text>
-          ) : null}
-
-          {therapist.requestable ? (
-            <Text style={{ ...TYPE.meta, color: c.primary }}>
-              Ersten Termin direkt über die App anfragen.
-            </Text>
-          ) : null}
 
           {therapist.fortbildungen?.length > 0 && (
             <View style={styles.tagRow}>
@@ -731,11 +762,7 @@ export function DiscoverScreen(props) {
             onPress={() => therapist.practices?.[0]?.phone ? callPhone(therapist.practices[0].phone) : openTherapistById(therapist.id)}
           >
             <Text style={styles.ctaBtnText}>
-              {therapist.requestable
-                ? 'Ersttermin anfragen'
-                : therapist.practices?.[0]?.phone
-                  ? 'Anrufen'
-                  : 'Profil ansehen'}
+              {therapist.practices?.[0]?.phone ? 'Anrufen' : 'Profil ansehen'}
             </Text>
           </Pressable>
         </View>

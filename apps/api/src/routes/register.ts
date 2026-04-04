@@ -17,8 +17,6 @@ const registerSchema = z.object({
   serviceRadiusKm: z.number().min(1).max(200).nullable().optional(),
   kassenart: z.string().optional(),
   availability: z.string().optional(),
-  bookingMode: z.enum(['DIRECTORY_ONLY', 'FIRST_APPOINTMENT_REQUEST']).optional(),
-  nextFreeSlotAt: z.string().trim().min(10).nullable().optional(),
   practice: z.object({
     name: z.string().min(1),
     city: z.string().min(1),
@@ -87,8 +85,6 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
         serviceRadiusKm: data.serviceRadiusKm ?? null,
         kassenart: data.kassenart ?? '',
         availability: data.availability ?? '',
-        bookingMode: data.bookingMode ?? 'DIRECTORY_ONLY',
-        nextFreeSlotAt: data.nextFreeSlotAt ? new Date(data.nextFreeSlotAt) : null,
         passwordHash,
         reviewStatus,
       } as any,
