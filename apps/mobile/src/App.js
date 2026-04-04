@@ -478,7 +478,8 @@ export default function App() {
 
   // Email verification deep-link state
   const [showEmailVerify, setShowEmailVerify] = useState(false);
-  const [emailVerifyStatus, setEmailVerifyStatus] = useState('idle'); // 'verifying' | 'success' | 'error'
+  const [emailVerifyStatus, setEmailVerifyStatus] = useState('idle');
+  const [showPhotoPrompt, setShowPhotoPrompt] = useState(false); // 'verifying' | 'success' | 'error'
   const [emailVerifyError, setEmailVerifyError] = useState('');
   const [inviteClaimError, setInviteClaimError] = useState('');
   const [inviteClaimPassword, setInviteClaimPassword] = useState('');
@@ -554,7 +555,11 @@ export default function App() {
       const profileRes = await fetch(`${getBaseUrl()}/auth/me`, {
         headers: { Authorization: `Bearer ${data.token}`, ...TUNNEL_HEADERS },
       });
-      if (profileRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await profileRes.json()));
+      if (profileRes.ok) {
+        const profile = normalizeTherapistProfile(await profileRes.json());
+        setLoggedInTherapist(profile);
+        if (!profile.photo) setTimeout(() => setShowPhotoPrompt(true), 2800);
+      }
       setEmailVerifyStatus('success');
       setTimeout(() => setShowEmailVerify(false), 2500);
     } catch {
@@ -707,7 +712,14 @@ export default function App() {
         const profileRes = await fetch(`${getBaseUrl()}/auth/me`, {
           headers: { Authorization: `Bearer ${data.token}` },
         });
-        if (profileRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await profileRes.json()));
+        if (profileRes.ok) {
+          const profile = normalizeTherapistProfile(await profileRes.json());
+          setLoggedInTherapist(profile);
+          if (!profile.photo) {
+            const dismissed = await AsyncStorage.getItem('revio_photo_prompt_dismissed');
+            if (!dismissed) setShowPhotoPrompt(true);
+          }
+        }
       }
       setShowLogin(false);
       setLoginEmail('');
@@ -2059,7 +2071,7 @@ export default function App() {
                   </Pressable>
                 )}
                 {loggedInTherapist && loggedInTherapist.adminPractice && (
-                  <Pressable onPress={() => { setAdminPracticeDetail(null); loadAdminPracticeDetail(); setShowPracticeAdmin(true); }} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+                  <Pressable onPress={() => { setAdminPracticeDetail(null); loadAdminPracticeDetail(); setShowPracticeAdmin(true); }} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                       <Ionicons name="business-outline" size={18} color={c.muted} />
                       <View>
@@ -2072,14 +2084,14 @@ export default function App() {
                 )}
                 {loggedInTherapist && !loggedInTherapist.adminPractice && loggedInTherapist.bookingMode !== 'FIRST_APPOINTMENT_REQUEST' && (
                   <>
-                    <Pressable onPress={() => setShowCreatePractice(true)} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+                    <Pressable onPress={() => setShowCreatePractice(true)} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <Ionicons name="add-circle-outline" size={18} color={c.muted} />
                         <Text style={[styles.optionLabel, { color: c.text }]}>{t('newPractice')}</Text>
                       </View>
                       <Text style={[styles.optionValue, { color: c.primary }]}>＋</Text>
                     </Pressable>
-                    <Pressable onPress={() => { setPracticeSearchQuery(''); setPracticeSearchResults([]); setShowPracticeSearch(true); }} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+                    <Pressable onPress={() => { setPracticeSearchQuery(''); setPracticeSearchResults([]); setShowPracticeSearch(true); }} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <Ionicons name="link-outline" size={18} color={c.muted} />
                         <Text style={[styles.optionLabel, { color: c.text }]}>{t('linkPractice')}</Text>
@@ -2089,7 +2101,7 @@ export default function App() {
                   </>
                 )}
                 {isManager && (
-                  <Pressable onPress={() => { setMgrNewPracticeName(''); setMgrNewPracticeCity(''); setMgrNewPracticeAddress(''); setMgrNewPracticePhone(''); setAddPracticeStep(1); setShowAddPracticeScreen(true); }} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+                  <Pressable onPress={() => { setMgrNewPracticeName(''); setMgrNewPracticeCity(''); setMgrNewPracticeAddress(''); setMgrNewPracticePhone(''); setAddPracticeStep(1); setShowAddPracticeScreen(true); }} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                       <Ionicons name="add-circle-outline" size={18} color={c.muted} />
                       <Text style={[styles.optionLabel, { color: c.text }]}>Weitere Praxis hinzufügen</Text>
@@ -4236,6 +4248,39 @@ export default function App() {
           </View>
         </ScrollView>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Foto-Prompt Modal ────────────────────────────────────────────────── */}
+      <Modal visible={showPhotoPrompt} transparent animationType="fade" onRequestClose={() => setShowPhotoPrompt(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }} onPress={() => setShowPhotoPrompt(false)}>
+          <Pressable style={{ backgroundColor: c.card, borderRadius: 20, padding: 28, width: '100%', alignItems: 'center', gap: 12 }} onPress={() => {}}>
+            <Text style={{ fontSize: 52 }}>📷</Text>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: c.text, textAlign: 'center' }}>Profilfoto hinzufügen</Text>
+            <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 20 }}>
+              Ein Foto macht dein Profil vertrauenswürdiger und hilft Patienten, dich zu erkennen.
+            </Text>
+            <Pressable
+              onPress={async () => {
+                setShowPhotoPrompt(false);
+                await AsyncStorage.setItem('revio_photo_prompt_dismissed', '1');
+                setActiveTab('therapist');
+                setTimeout(() => handlePickPhoto(), 300);
+              }}
+              style={{ backgroundColor: c.primary, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32, width: '100%', alignItems: 'center', marginTop: 4 }}
+            >
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Foto auswählen</Text>
+            </Pressable>
+            <Pressable
+              onPress={async () => {
+                setShowPhotoPrompt(false);
+                await AsyncStorage.setItem('revio_photo_prompt_dismissed', '1');
+              }}
+              style={{ paddingVertical: 10 }}
+            >
+              <Text style={{ color: c.muted, fontSize: 14 }}>Später</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       <View style={styles.appFrame}>
