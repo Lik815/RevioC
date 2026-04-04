@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  Image,
   Pressable,
   ScrollView,
   Switch,
@@ -208,7 +209,7 @@ export function CreatePracticeScreen(props) {
         <Text style={[styles.backBtnText, { color: c.primary }]}>‹ {t('backBtn')}</Text>
       </Pressable>
       <View style={styles.header}>
-        <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
+        <Image source={require('../assets/icon.png')} style={styles.logoMark} />
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: c.text }]}>Neue Praxis</Text>
           <Text style={[styles.headerSub, { color: c.muted }]}>Erstelle und verwalte deine Praxis</Text>
@@ -254,7 +255,7 @@ export function PracticeSearchScreen(props) {
           <Text style={[styles.backBtnText, { color: c.primary }]}>‹ {t('backBtn')}</Text>
         </Pressable>
         <View style={styles.header}>
-          <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
+          <Image source={require('../assets/icon.png')} style={styles.logoMark} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.headerTitle, { color: c.text }]}>Praxis vernetzen</Text>
             <Text style={[styles.headerSub, { color: c.muted }]}>Finde deine Praxis und sende eine Anfrage</Text>

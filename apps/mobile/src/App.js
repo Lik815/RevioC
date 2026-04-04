@@ -1963,7 +1963,7 @@ export default function App() {
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
+            <Image source={require('../assets/icon.png')} style={styles.logoMark} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.headerTitle, { color: c.text }]}>{t('optionsTitle')}</Text>
               <Text style={[styles.headerSub, { color: c.muted }]}>{t('optionsSubtitle')}</Text>
@@ -3079,9 +3079,7 @@ export default function App() {
     return (
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
         <View style={[styles.infoCard, { backgroundColor: c.card, borderColor: c.border, marginTop: 20, alignItems: 'center' }]}>
-          <View style={[styles.logoMark, { backgroundColor: c.primary, width: 56, height: 56, borderRadius: 16 }]}>
-            <Text style={[styles.logoText, { fontSize: 24 }]}>R</Text>
-          </View>
+          <Image source={require('../assets/icon.png')} style={{ width: 56, height: 56, borderRadius: 16 }} />
           <Text style={[styles.infoTitle, { color: c.text, textAlign: 'center', marginTop: 8 }]}>Du wurdest eingeladen!</Text>
           <Text style={[styles.infoBody, { color: c.muted, textAlign: 'center' }]}>
             {invitePractice.name} hat ein Profil für dich erstellt. Setze jetzt ein Passwort, um dein Konto zu aktivieren.
@@ -3905,9 +3903,7 @@ export default function App() {
         <View style={{ flex: 1 }}>
           <View style={styles.authBrandSlot}>
             <View style={styles.authBrandRow}>
-              <View style={[styles.logoMark, styles.authBrandMark, { backgroundColor: c.primary }]}>
-                <Text style={[styles.logoText, styles.authBrandLogoText]}>R</Text>
-              </View>
+              <Image source={require('../assets/icon.png')} style={[styles.logoMark, styles.authBrandMark]} />
               <Text style={[styles.authBrandWordmark, { color: c.text }]}>evio</Text>
             </View>
           </View>
