@@ -139,6 +139,27 @@ function HeartButton({
   );
 }
 
+function PracticeLogoAvatar({ uri, name, style, c }) {
+  const [error, setError] = useState(false);
+  const initials = name
+    ? (name.split(' ').filter(w => w.length > 2).map(w => w[0]).join('').toUpperCase().slice(0, 2) || name.charAt(0).toUpperCase())
+    : '?';
+  if (uri && !error) {
+    return (
+      <Image
+        source={{ uri }}
+        style={style}
+        onError={() => setError(true)}
+      />
+    );
+  }
+  return (
+    <View style={[style, { backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }]}>
+      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{initials}</Text>
+    </View>
+  );
+}
+
 function SkeletonCard({ C }) {
   return (
     <View
@@ -2367,15 +2388,12 @@ export default function App() {
             <View key={p.id} style={[styles.resultCard, { backgroundColor: c.card, borderColor: c.border }]}>
               <Pressable onPress={() => openPractice(p)} style={styles.cardTop}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  {p.logo ? (
-                    <Image source={{ uri: resolveMediaUrl(p.logo) }} style={[styles.avatar, { borderRadius: 10 }]} />
-                  ) : (
-                    <View style={[styles.avatar, { backgroundColor: c.primary, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }]}>
-                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
-                        {p.name.split(' ').filter(w => w.length > 2).map(w => w[0]).join('').toUpperCase().slice(0, 2) || p.name.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                  )}
+                  <PracticeLogoAvatar
+                    uri={resolveMediaUrl(p.logo)}
+                    name={p.name}
+                    style={[styles.avatar, { borderRadius: 10 }]}
+                    c={c}
+                  />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.cardName, { color: c.text }]}>{p.name}</Text>
                     <Text style={[styles.cardTitle, { color: c.muted }]}>{p.city}</Text>
