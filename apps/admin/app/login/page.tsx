@@ -4,7 +4,9 @@ export default function LoginPage() {
   return (
     <div className="login-shell">
       <div className="login-card">
-        <div className="login-brand">Revio Admin</div>
+        <div className="login-brand">
+          <img src="/logo-full.png" alt="Revio" style={{ height: 48, marginBottom: 8 }} />
+        </div>
         <h1 className="login-title">Willkommen zurück</h1>
         <p className="login-copy">
           Melde dich an, um Therapeut:innen, Praxen und Verknüpfungen in einer zentralen Moderationsoberfläche zu verwalten.

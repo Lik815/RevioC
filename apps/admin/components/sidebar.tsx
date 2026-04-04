@@ -39,7 +39,7 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
-        <div className="brand-mark">R</div>
+        <img src="/logo.png" alt="Revio" style={{ width: 36, height: 36, borderRadius: 8 }} />
         <div>
           <div className="kicker">Revio</div>
           <h1 className="sidebar-title">Admin</h1>
