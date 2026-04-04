@@ -442,9 +442,7 @@ export function DiscoverScreen(props) {
       <View style={{ backgroundColor: c.background, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, zIndex: 10, gap: SPACE.sm }}>
         <View style={[styles.header, { justifyContent: 'space-between' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={[styles.logoMark, { backgroundColor: c.primary }]}>
-              <Text style={styles.logoText}>R</Text>
-            </View>
+            <Image source={require('../assets/icon.png')} style={styles.logoMark} />
             <Text style={[styles.brandName, { color: c.text }]}>evio</Text>
           </View>
           {authToken && (

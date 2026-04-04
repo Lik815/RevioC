@@ -2317,7 +2317,7 @@ export default function App() {
   const renderFavorites = () => (
     <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
+        <Image source={require('../assets/icon.png')} style={styles.logoMark} />
         <Text style={[styles.headerTitle, { color: c.text }]}>{t('favoritesTitle')}</Text>
       </View>
 
@@ -3387,7 +3387,7 @@ export default function App() {
           <Text style={[styles.backBtnText, { color: c.primary }]}>‹ {t('backBtn')}</Text>
         </Pressable>
         <View style={styles.header}>
-          <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
+          <Image source={require('../assets/icon.png')} style={styles.logoMark} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.headerTitle, { color: c.text }]}>Praxis registrieren</Text>
             <Text style={[styles.headerSub, { color: c.muted }]}>Schritt {mgrRegStep} von {MGR_REG_STEPS}</Text>
