@@ -9,6 +9,7 @@ import { tryEnsurePracticeLogoAsset } from '../../prisma/practice-logo.js';
 import { getTherapistPublicationState } from '../utils/profile-completeness.js';
 import { sendProfileApprovedEmail, sendProfileRejectedEmail, sendProfileChangesRequestedEmail } from '../utils/mailer.js';
 import { ensureDefaultCertificationOptions } from '../utils/certification-options.js';
+import { getPublicSiteSettings, setBooleanAppSetting, SITE_UNDER_CONSTRUCTION_KEY } from '../utils/app-settings.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DOCUMENTS_DIR = join(__dirname, '../../../documents');
@@ -105,6 +106,9 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
   const certificationSchema = z.object({
     label: z.string().trim().min(2),
   });
+  const siteSettingsSchema = z.object({
+    underConstruction: z.boolean(),
+  });
 
   fastify.post('/login', async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
@@ -142,6 +146,26 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
         name: 'Revio Admin',
         role: 'Super Admin',
       },
+    };
+  });
+
+  fastify.get('/site-settings', async () => {
+    return getPublicSiteSettings(fastify.prisma);
+  });
+
+  fastify.post('/site-settings/update', async (request, reply) => {
+    const parsed = siteSettingsSchema.safeParse(request.body);
+    if (!parsed.success) return reply.badRequest('Ungültige Eingabedaten');
+
+    await setBooleanAppSetting(
+      fastify.prisma,
+      SITE_UNDER_CONSTRUCTION_KEY,
+      parsed.data.underConstruction,
+    );
+
+    return {
+      success: true,
+      underConstruction: parsed.data.underConstruction,
     };
   });
 

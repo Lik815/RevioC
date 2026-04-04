@@ -118,6 +118,10 @@ export type CertificationOption = {
   sortOrder: number;
 };
 
+export type SiteSettings = {
+  underConstruction: boolean;
+};
+
 export const api = {
   getStats: () => adminFetch<AdminStats>('/admin/stats'),
   getTherapists: () => adminFetch<TherapistWithLinks[]>('/admin/therapists'),
@@ -126,6 +130,7 @@ export const api = {
   getLinks: () => adminFetch<LinkWithEntities[]>('/admin/links'),
   getVisibilityIssues: () => adminFetch<VisibilityIssues>('/admin/visibility-issues'),
   getManagers: () => adminFetch<ManagersResponse>('/admin/managers'),
+  getSiteSettings: () => adminFetch<SiteSettings>('/admin/site-settings'),
   getTherapistDocuments: (id: string) => adminFetch<TherapistDocument[]>(`/admin/therapists/${id}/documents`),
   getCertificationOptions: () => adminFetch<{ certifications: CertificationOption[] }>('/admin/certifications'),
 };

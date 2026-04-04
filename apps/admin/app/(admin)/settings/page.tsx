@@ -4,20 +4,49 @@ import {
   createCertificationOption,
   deleteCertificationOption,
   toggleCertificationOption,
+  updateSiteUnderConstruction,
   updateCertificationOption,
 } from '../../../lib/actions';
 
 export default async function SettingsPage() {
-  const { certifications } = await api.getCertificationOptions();
+  const [{ certifications }, siteSettings] = await Promise.all([
+    api.getCertificationOptions(),
+    api.getSiteSettings(),
+  ]);
   const activeCount = certifications.filter((option) => option.isActive).length;
 
   return (
     <PageShell
-      title="Fortbildungen"
-      description="Verwalte die auswählbaren Fortbildungen, die in Registrierung, Suche und Manager-Formularen angeboten werden."
+      title="Einstellungen"
+      description="Verwalte die wichtigsten globalen Optionen für Website und App, ohne unnötige Produktlogik aufzubauen."
       eyebrow="Konfiguration"
-      actions={<div className="hero-pill">{activeCount} aktiv</div>}
+      actions={<div className="hero-pill">{activeCount} Fortbildungen aktiv</div>}
     >
+      <article className="panel" style={{ marginBottom: 24 }}>
+        <div className="panel-header">
+          <div>
+            <div className="kicker">Website</div>
+            <h3>Präsentationsseite</h3>
+            <p style={{ margin: '8px 0 0', color: 'var(--muted)', maxWidth: 560 }}>
+              Mit diesem Schalter kannst du die öffentliche Website vorübergehend auf einen ruhigen
+              „Under Construction“-Zustand setzen, ohne sie offline zu nehmen.
+            </p>
+          </div>
+          <span className={`badge ${siteSettings.underConstruction ? 'badge--PENDING_REVIEW' : 'badge--APPROVED'}`}>
+            {siteSettings.underConstruction ? 'Under Construction aktiv' : 'Website normal sichtbar'}
+          </span>
+        </div>
+
+        <div className="action-row" style={{ marginTop: 18 }}>
+          <form action={updateSiteUnderConstruction}>
+            <input type="hidden" name="underConstruction" value={siteSettings.underConstruction ? 'false' : 'true'} />
+            <button className={`primary-btn ${siteSettings.underConstruction ? 'primary-btn--muted' : ''}`} type="submit">
+              {siteSettings.underConstruction ? 'Website wieder freigeben' : 'Under Construction aktivieren'}
+            </button>
+          </form>
+        </div>
+      </article>
+
       <article className="panel">
         <div className="panel-header">
           <div>

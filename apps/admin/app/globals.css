@@ -617,6 +617,13 @@ a {
   box-shadow: 0 12px 24px rgba(80,109,122,.2);
 }
 
+.primary-btn--muted {
+  background: rgba(255,255,255,0.82);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
 .secondary-btn {
   display: inline-flex;
   align-items: center;

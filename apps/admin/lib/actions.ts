@@ -183,3 +183,14 @@ export async function deleteCertificationOption(id: string) {
   await adminRequest(`/admin/certifications/${id}/delete`);
   revalidatePath('/settings');
 }
+
+export async function updateSiteUnderConstruction(formData: FormData) {
+  const value = String(formData.get('underConstruction') ?? '').trim();
+  const underConstruction = value === 'true';
+
+  await adminRequest('/admin/site-settings/update', {
+    body: { underConstruction },
+  });
+
+  revalidatePath('/settings');
+}

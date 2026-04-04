@@ -20,6 +20,7 @@ afterAll(async () => {
 
 // Clean DB between test suites
 afterEach(async () => {
+  await prisma.appSetting.deleteMany();
   await prisma.practiceManager.deleteMany();
   await prisma.user.deleteMany();
   await prisma.bookingRequest.deleteMany();
@@ -35,6 +36,28 @@ describe('GET /health', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ status: 'ok' });
+  });
+});
+
+describe('Site settings', () => {
+  it('returns public site config and can toggle under construction via admin', async () => {
+    const initialRes = await app.inject({ method: 'GET', url: '/config/site' });
+    expect(initialRes.statusCode).toBe(200);
+    expect(initialRes.json()).toEqual({ underConstruction: false });
+
+    const updateRes = await app.inject({
+      method: 'POST',
+      url: '/admin/site-settings/update',
+      headers: AUTH,
+      payload: { underConstruction: true },
+    });
+
+    expect(updateRes.statusCode).toBe(200);
+    expect(updateRes.json()).toEqual({ success: true, underConstruction: true });
+
+    const nextRes = await app.inject({ method: 'GET', url: '/config/site' });
+    expect(nextRes.statusCode).toBe(200);
+    expect(nextRes.json()).toEqual({ underConstruction: true });
   });
 });
 
