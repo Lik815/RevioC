@@ -20,6 +20,7 @@
     "expo-device": "^55.0.10",
     "expo-document-picker": "^55.0.9",
     "expo-image-picker": "^17.0.10",
+    "expo-insights": "~0.10.8",
     "expo-location": "~19.0.8",
     "expo-notifications": "^55.0.13",
     "expo-sharing": "^14.0.8",

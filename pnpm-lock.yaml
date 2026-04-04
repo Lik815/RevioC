@@ -134,6 +134,9 @@ importers:
       expo-image-picker:
         specifier: ^17.0.10
         version: 17.0.10(expo@54.0.33)
+      expo-insights:
+        specifier: ~0.10.8
+        version: 0.10.8(expo@54.0.33)
       expo-location:
         specifier: ~19.0.8
         version: 19.0.8(expo@54.0.33)
@@ -2714,6 +2717,11 @@ packages:
 
   expo-image-picker@17.0.10:
     resolution: {integrity: sha512-a2xrowp2trmvXyUWgX3O6Q2rZaa2C59AqivKI7+bm+wLvMfTEbZgldLX4rEJJhM8xtmEDTNU+lzjtObwzBRGaw==}
+    peerDependencies:
+      expo: '*'
+
+  expo-insights@0.10.8:
+    resolution: {integrity: sha512-5X96+4KGbYFYjxW/cxK9Q7zTYgLYXoVNNmnk18qiLiSZYKcb4pEnaDSKk97RCxTdzWo9ZBbvM4u8nyCwWeHsmw==}
     peerDependencies:
       expo: '*'
 
@@ -7931,6 +7939,11 @@ snapshots:
     dependencies:
       expo: 54.0.33(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@6.1.2)(graphql@15.8.0)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)
       expo-image-loader: 6.0.0(expo@54.0.33)
+
+  expo-insights@0.10.8(expo@54.0.33):
+    dependencies:
+      expo: 54.0.33(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@6.1.2)(graphql@15.8.0)(react-native@0.81.5(@babel/core@7.29.0)(@react-native-community/cli@13.6.9)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)
+      expo-eas-client: 1.0.8
 
   expo-json-utils@0.15.0: {}
 

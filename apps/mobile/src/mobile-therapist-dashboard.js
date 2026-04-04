@@ -84,6 +84,7 @@ export function TherapistDashboardScreen(props) {
   } = props;
 
   const th = loggedInTherapist;
+  const [photoError, setPhotoError] = useState(false);
   const initials = th.fullName.split(' ').map((name) => name[0]).join('').slice(0, 2).toUpperCase();
   const reviewStatusLabel = th.reviewStatus === 'APPROVED' ? 'Freigegeben' : th.reviewStatus === 'CHANGES_REQUESTED' ? 'Anpassung nötig' : 'In Prüfung';
   const reviewStatusColor = th.reviewStatus === 'APPROVED' ? c.success : th.reviewStatus === 'CHANGES_REQUESTED' ? c.warning : c.muted;
@@ -93,8 +94,8 @@ export function TherapistDashboardScreen(props) {
     <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}>
       <View style={[styles.practiceHeader, { backgroundColor: c.card, borderColor: c.border, alignItems: 'center' }]}>
         <Pressable onPress={handlePickPhoto} style={{ position: 'relative' }}>
-          {th.photo ? (
-            <Image source={{ uri: th.photo }} style={[styles.therapistAvatarLarge, { borderRadius: 48 }]} />
+          {th.photo && !photoError ? (
+            <Image source={{ uri: th.photo }} style={[styles.therapistAvatarLarge, { borderRadius: 48 }]} onError={() => setPhotoError(true)} />
           ) : (
             <View style={[styles.therapistAvatarLarge, { borderRadius: 48, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }]}>
               <Text style={{ color: '#fff', fontSize: 28, fontWeight: '700' }}>{initials}</Text>

@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 type HeroProps = {
@@ -39,10 +40,22 @@ export function Hero({
         </div>
 
         <div className="hero-card">
-          <div className="hero-card__line" />
-          <div className="hero-card__label">Revio</div>
+          <div className="hero-phones">
+            {['/screenshot-1.png', '/screenshot-2.png', '/screenshot-3.png'].map((src, i) => (
+              <div key={src} className={`hero-phone hero-phone--${i}`}>
+                <Image
+                  src={src}
+                  alt="Revio App"
+                  width={390}
+                  height={844}
+                  className="hero-phone__img"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="hero-card__label">Revio App</div>
           <div className="hero-card__text">
-            Die Präsentationsseite soll erklären, Vertrauen schaffen und einen hochwertigen ersten Eindruck setzen — nicht das Produkt duplizieren.
+            Physiotherapie suchen, einordnen und Kontakt aufnehmen — ruhig und vertrauenswürdig.
           </div>
           <div className="hero-card__meta">
             Finden · Einordnen · Kontakt aufnehmen

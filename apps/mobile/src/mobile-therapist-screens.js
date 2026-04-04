@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Image,
+  Modal,
   Pressable,
   ScrollView,
   Switch,
@@ -247,6 +248,20 @@ export function PracticeSearchScreen(props) {
     styles,
     t,
   } = props;
+  const [practiceToConfirm, setPracticeToConfirm] = useState(null);
+  const [connectingPracticeId, setConnectingPracticeId] = useState(null);
+
+  const handleConfirmPracticeRequest = async () => {
+    if (!practiceToConfirm) return;
+    const practiceId = practiceToConfirm.id;
+    setConnectingPracticeId(practiceId);
+    try {
+      await handleConnectToPractice(practiceId);
+      setPracticeToConfirm(null);
+    } finally {
+      setConnectingPracticeId(null);
+    }
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -293,8 +308,22 @@ export function PracticeSearchScreen(props) {
                 <Text style={[{ fontSize: 12, color: c.muted }]}>{practice.links?.length ?? 0} Therapeuten</Text>
               </View>
             </View>
-            <Pressable onPress={() => handleConnectToPractice(practice.id)} style={[styles.kassenartBtn, { backgroundColor: c.primary, borderColor: c.primary, alignSelf: 'flex-start' }]}>
-              <Text style={[styles.kassenartText, { color: '#fff' }]}>Anfrage senden</Text>
+            <Pressable
+              onPress={() => setPracticeToConfirm(practice)}
+              disabled={Boolean(connectingPracticeId)}
+              style={[
+                styles.kassenartBtn,
+                {
+                  backgroundColor: connectingPracticeId ? c.border : c.primary,
+                  borderColor: connectingPracticeId ? c.border : c.primary,
+                  alignSelf: 'flex-start',
+                  opacity: connectingPracticeId && connectingPracticeId !== practice.id ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.kassenartText, { color: '#fff' }]}>
+                {connectingPracticeId === practice.id ? 'Wird gesendet…' : 'Anfrage senden'}
+              </Text>
             </Pressable>
           </View>
         ))}
@@ -307,6 +336,114 @@ export function PracticeSearchScreen(props) {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={Boolean(practiceToConfirm)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!connectingPracticeId) setPracticeToConfirm(null);
+        }}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(14, 20, 24, 0.5)', justifyContent: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: c.card, borderRadius: 24, borderWidth: 1, borderColor: c.border, padding: 20, gap: 16 }}>
+            <View style={{ gap: 6 }}>
+              <Text style={{ fontSize: 24, fontWeight: '800', color: c.text }}>Praxis bestätigen</Text>
+              <Text style={{ fontSize: 14, lineHeight: 21, color: c.muted }}>
+                Ist das die richtige Praxis? Erst nach deiner Bestätigung wird die Verbindungsanfrage gesendet.
+              </Text>
+            </View>
+
+            {practiceToConfirm ? (
+              <View style={{ borderWidth: 1, borderColor: c.border, borderRadius: 18, padding: 16, gap: 12, backgroundColor: c.background }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={[styles.practiceInitial, { backgroundColor: c.border }]}>
+                    <Text style={[styles.practiceInitialText, { color: c.muted }]}>
+                      {practiceToConfirm.name.charAt(0)}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: c.text }}>{practiceToConfirm.name}</Text>
+                    <Text style={{ fontSize: 13, color: c.muted }}>
+                      {practiceToConfirm.city}
+                      {practiceToConfirm.address ? ` · ${practiceToConfirm.address}` : ''}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={{ gap: 8 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 12, color: c.muted }}>Praxis</Text>
+                    <Text style={{ flex: 1, textAlign: 'right', fontSize: 13, fontWeight: '600', color: c.text }}>
+                      {practiceToConfirm.name}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 12, color: c.muted }}>Ort</Text>
+                    <Text style={{ flex: 1, textAlign: 'right', fontSize: 13, fontWeight: '600', color: c.text }}>
+                      {practiceToConfirm.city}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 12, color: c.muted }}>Adresse</Text>
+                    <Text style={{ flex: 1, textAlign: 'right', fontSize: 13, fontWeight: '600', color: c.text }}>
+                      {practiceToConfirm.address || 'Keine Adresse hinterlegt'}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 12, color: c.muted }}>Therapeuten</Text>
+                    <Text style={{ flex: 1, textAlign: 'right', fontSize: 13, fontWeight: '600', color: c.text }}>
+                      {practiceToConfirm.links?.length ?? 0}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            <View style={{ backgroundColor: c.mutedBg, borderRadius: 16, padding: 14 }}>
+              <Text style={{ fontSize: 13, lineHeight: 20, color: c.muted }}>
+                Nach dem Absenden muss die Praxis deine Anfrage noch bestätigen.
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Pressable
+                onPress={() => setPracticeToConfirm(null)}
+                disabled={Boolean(connectingPracticeId)}
+                style={{
+                  flex: 1,
+                  minHeight: 52,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: c.card,
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '600', color: c.text }}>Abbrechen</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleConfirmPracticeRequest}
+                disabled={Boolean(connectingPracticeId)}
+                style={{
+                  flex: 1.35,
+                  minHeight: 52,
+                  borderRadius: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: connectingPracticeId ? c.border : c.primary,
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>
+                  {connectingPracticeId ? 'Wird gesendet…' : 'Jetzt bestätigen'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

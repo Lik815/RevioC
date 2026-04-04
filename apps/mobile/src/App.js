@@ -827,9 +827,8 @@ export default function App() {
         body: formData,
       });
       if (uploadRes.ok) {
-        const { url } = await uploadRes.json();
-        const fullUrl = `${getBaseUrl()}${url}`;
-        setLoggedInTherapist(prev => ({ ...prev, photo: fullUrl }));
+        await uploadRes.json();
+        setLoggedInTherapist(prev => ({ ...prev, photo: uri }));
         Alert.alert('Erfolg', 'Profilbild gespeichert.');
       } else {
         const status = uploadRes.status;

@@ -13,6 +13,7 @@
       "backgroundColor": "#2F3E46"
     },
     "ios": {
+      "bundleIdentifier": "de.myrevio.app",
       "supportsTablet": false,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Revio benötigt deinen Standort, um Therapeuten in deiner Nähe zu finden.",
@@ -20,6 +21,7 @@
       }
     },
     "android": {
+      "package": "de.myrevio.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#2F3E46"
