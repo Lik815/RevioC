@@ -45,7 +45,7 @@ export async function sendInviteEmail(opts: {
           kannst du sie ignorieren.
         </p>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0"/>
-        <p style="color:#9ca3af;font-size:12px">Revio · revioclub.app@gmail.com</p>
+        <p style="color:#9ca3af;font-size:12px">Revio · noreply@my-revio.de</p>
       </div>
     `,
     text: `Hallo ${therapistName},\n\n${practiceName} hat ein Profil für dich auf Revio erstellt.\n\nKlicke hier, um dein Konto zu aktivieren:\n${inviteLink}\n\nDieser Link ist 7 Tage gültig.`,
@@ -86,7 +86,7 @@ export async function sendVerificationEmail(opts: {
           Dieser Link ist 48 Stunden gültig. Wenn du diese E-Mail nicht erwartet hast, kannst du sie ignorieren.
         </p>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0"/>
-        <p style="color:#9ca3af;font-size:12px">Revio · revioclub.app@gmail.com</p>
+        <p style="color:#9ca3af;font-size:12px">Revio · noreply@my-revio.de</p>
       </div>
     `,
     text: `Hallo ${name},\n\nBitte bestätige deine E-Mail-Adresse:\n${verifyLink}\n\n${browserFallbackLink ? `Alternativ im Browser: ${browserFallbackLink}\n\n` : ''}Dieser Link ist 48 Stunden gültig.`,
@@ -114,7 +114,7 @@ export async function sendProfileApprovedEmail(opts: {
           Melde dich in der App an, um dein Profil zu verwalten.
         </p>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0"/>
-        <p style="color:#9ca3af;font-size:12px">Revio · revioclub.app@gmail.com</p>
+        <p style="color:#9ca3af;font-size:12px">Revio · noreply@my-revio.de</p>
       </div>
     `,
     text: `Hallo ${name},\n\nDein Therapeutenprofil auf Revio wurde geprüft und freigegeben. Du bist jetzt für Patienten sichtbar.\n\nMelde dich in der App an, um dein Profil zu verwalten.`,
@@ -143,7 +143,7 @@ export async function sendProfileRejectedEmail(opts: {
           wenn du Fragen hast oder weitere Informationen benötigst.
         </p>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0"/>
-        <p style="color:#9ca3af;font-size:12px">Revio · revioclub.app@gmail.com</p>
+        <p style="color:#9ca3af;font-size:12px">Revio · noreply@my-revio.de</p>
       </div>
     `,
     text: `Hallo ${name},\n\nDein Therapeutenprofil auf Revio konnte leider nicht freigegeben werden.\n\nBitte kontaktiere uns unter revioclub.app@gmail.com, wenn du Fragen hast.`,
@@ -173,7 +173,7 @@ export async function sendProfileChangesRequestedEmail(opts: {
           <a href="mailto:revioclub.app@gmail.com" style="color:#2563eb">revioclub.app@gmail.com</a>.
         </p>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0"/>
-        <p style="color:#9ca3af;font-size:12px">Revio · revioclub.app@gmail.com</p>
+        <p style="color:#9ca3af;font-size:12px">Revio · noreply@my-revio.de</p>
       </div>
     `,
     text: `Hallo ${name},\n\nBei der Prüfung deines Therapeutenprofils auf Revio wurden Änderungen festgestellt, die vor der Freigabe korrigiert werden müssen.\n\nBitte melde dich in der App an, aktualisiere dein Profil und reiche es erneut ein. Bei Fragen: revioclub.app@gmail.com`,
@@ -211,7 +211,7 @@ export async function sendReinviteEmail(opts: {
           Dieser Link ist 7 Tage gültig.
         </p>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0"/>
-        <p style="color:#9ca3af;font-size:12px">Revio · revioclub.app@gmail.com</p>
+        <p style="color:#9ca3af;font-size:12px">Revio · noreply@my-revio.de</p>
       </div>
     `,
     text: `Hallo ${therapistName},\n\n${practiceName} hat dir eine neue Einladung geschickt.\n\nKlicke hier:\n${inviteLink}\n\nDieser Link ist 7 Tage gültig.`,

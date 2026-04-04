@@ -118,15 +118,13 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     if (!isDev && verificationToken) {
-      const apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:4000';
-      const deepLink = `revo://verify?token=${verificationToken}`;
+      const apiBaseUrl = process.env.API_BASE_URL ?? 'https://api.my-revio.de';
       const browserLink = `${apiBaseUrl}/auth/verify-email?token=${verificationToken}`;
       try {
         await sendVerificationEmail({
           to: data.email,
           name: data.fullName,
-          verifyLink: deepLink,
-          browserFallbackLink: browserLink,
+          verifyLink: browserLink,
         });
       } catch {
         fastify.log.warn(`Failed to send verification email to ${data.email}`);

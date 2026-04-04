@@ -197,10 +197,19 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     reply.header('Content-Type', 'text/html');
     return reply.send(`
-      <html><body style="font-family:sans-serif;text-align:center;padding:60px">
-        <h2 style="color:#2563eb">E-Mail bestätigt ✓</h2>
-        <p>Dein Konto ist jetzt aktiv. Du kannst die Revio-App öffnen und dich einloggen.</p>
-      </body></html>
+      <html>
+        <head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+        <body style="font-family:sans-serif;text-align:center;padding:60px 20px;background:#f9fafb">
+          <div style="max-width:400px;margin:0 auto;background:#fff;border-radius:16px;padding:40px;box-shadow:0 2px 12px rgba(0,0,0,0.08)">
+            <div style="font-size:48px;margin-bottom:16px">✅</div>
+            <h2 style="color:#16a34a;margin-bottom:8px">E-Mail bestätigt!</h2>
+            <p style="color:#6b7280;margin-bottom:32px">Dein Konto ist aktiv. Öffne die Revio-App und melde dich an.</p>
+            <a href="revo://login" style="display:inline-block;background:#2563eb;color:#fff;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:16px">
+              App öffnen
+            </a>
+          </div>
+        </body>
+      </html>
     `);
   });
 
