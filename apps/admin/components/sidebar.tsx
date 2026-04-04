@@ -2,13 +2,21 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 
+function Icon({ d, size = 16 }: { d: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />
+    </svg>
+  );
+}
+
 const links = [
-  { href: '/', label: 'Übersicht', icon: '◫' },
-  { href: '/therapists', label: 'Therapeut:innen', icon: '◌' },
-  { href: '/practices', label: 'Praxen', icon: '◪' },
-  { href: '/links', label: 'Verknüpfungen', icon: '⇄' },
-  { href: '/managers', label: 'Manager', icon: '◈' },
-  { href: '/settings', label: 'Fortbildungen', icon: '☰' },
+  { href: '/', label: 'Übersicht', icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
+  { href: '/therapists', label: 'Therapeut:innen', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z' },
+  { href: '/practices', label: 'Praxen', icon: 'M3 21h18M9 21V10m6 11V10M3 10l9-7 9 7' },
+  { href: '/links', label: 'Verknüpfungen', icon: 'M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71' },
+  { href: '/managers', label: 'Manager', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75' },
+  { href: '/settings', label: 'Fortbildungen', icon: 'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 014 17V4h16v13M4 19.5V21' },
 ];
 
 export function Sidebar({
@@ -49,7 +57,7 @@ export function Sidebar({
               onNavigate?.();
             }}
           >
-            <span className="nav-icon">{link.icon}</span>
+            <span className="nav-icon"><Icon d={link.icon} /></span>
             <span>{link.label}</span>
           </button>
         ))}
