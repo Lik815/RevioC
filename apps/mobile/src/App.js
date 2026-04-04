@@ -2323,7 +2323,7 @@ export default function App() {
 
       <View style={[styles.noticeBox, { backgroundColor: c.mutedBg, borderColor: c.border, marginBottom: 4 }]}>
         <View style={styles.lockBadge}>
-          <Ionicons name="accessibility" size={16} color={c.primary} />
+          <Ionicons name="bookmark-outline" size={16} color={c.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.noticeBody, { color: c.muted, flex: 0 }]}>{t('favoritesHint')}</Text>
@@ -2373,6 +2373,7 @@ export default function App() {
                 style={[styles.ctaBtn, { backgroundColor: c.accent }]}
                 onPress={() => fav.practices?.[0]?.phone ? callPhone(fav.practices[0].phone) : openTherapistById(fav.id)}
               >
+                <Ionicons name={fav.practices?.[0]?.phone ? 'call-outline' : 'person-outline'} size={16} color="#fff" style={{ marginRight: 6 }} />
                 <Text style={styles.ctaBtnText}>{fav.practices?.[0]?.phone ? t('callPractice') : 'Profil ansehen'}</Text>
               </Pressable>
             </View>
@@ -2409,6 +2410,7 @@ export default function App() {
                   style={[styles.ctaBtn, { backgroundColor: c.accent }]}
                   onPress={() => callPhone(p.phone)}
                 >
+                  <Ionicons name="call-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
                   <Text style={styles.ctaBtnText}>{t('callPractice')}</Text>
                 </Pressable>
               )}
@@ -4696,7 +4698,7 @@ const styles = StyleSheet.create({
   },
   miniAvatar: { width: 44, height: 44, borderRadius: RADIUS.full },
 
-  ctaBtn: { borderRadius: RADIUS.md, paddingVertical: 12, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  ctaBtn: { borderRadius: RADIUS.md, paddingVertical: 12, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   ctaBtnText: { ...TYPE.heading, color: '#FFFFFF' },
   ctaBtnSecondary: { borderRadius: RADIUS.md, paddingVertical: 12, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   ctaBtnSecondaryText: { ...TYPE.heading },
