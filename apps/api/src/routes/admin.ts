@@ -5,11 +5,8 @@ import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { getEnv } from '../env.js';
 import { geocodeAddress } from '../utils/geocode.js';
-import {
-  getTherapistPublicationState,
-  getTherapistRequestabilityState,
-} from '../utils/profile-completeness.js';
-import { sendPushNotification } from '../utils/push-notify.js';
+import { tryEnsurePracticeLogoAsset } from '../../prisma/practice-logo.js';
+import { getTherapistPublicationState } from '../utils/profile-completeness.js';
 import { sendProfileApprovedEmail, sendProfileRejectedEmail, sendProfileChangesRequestedEmail } from '../utils/mailer.js';
 import { ensureDefaultCertificationOptions } from '../utils/certification-options.js';
 
@@ -24,7 +21,6 @@ type TherapistRow = {
   city: string; bio: string | null; homeVisit: boolean; specializations: string;
   languages: string; certifications: string; reviewStatus: string;
   serviceRadiusKm: number | null; kassenart: string;
-  bookingMode?: string | null; nextFreeSlotAt?: Date | null;
   isVisible: boolean; isPublished: boolean; onboardingStatus: string | null;
   createdAt: Date; updatedAt: Date;
   links?: Array<{ id: string; status: string; practice: { id: string; name: string; city: string; address: string | null; phone: string | null; hours: string | null; lat: number; lng: number; reviewStatus: string; createdAt: Date; updatedAt: Date } }>;
@@ -61,15 +57,12 @@ function computeVisibility(t: TherapistRow) {
 }
 
 function mapTherapist(t: TherapistRow) {
-  const requestability = getTherapistRequestabilityState(t, { links: t.links });
   return {
     id: t.id, email: t.email, fullName: t.fullName,
     professionalTitle: t.professionalTitle, city: t.city,
     bio: t.bio ?? undefined, homeVisit: t.homeVisit,
     serviceRadiusKm: t.serviceRadiusKm ?? undefined,
     kassenart: t.kassenart,
-    bookingMode: t.bookingMode ?? 'DIRECTORY_ONLY',
-    nextFreeSlotAt: t.nextFreeSlotAt ? t.nextFreeSlotAt.toISOString() : null,
     specializations: splitList(t.specializations),
     languages: splitList(t.languages),
     certifications: splitList(t.certifications),
@@ -80,7 +73,6 @@ function mapTherapist(t: TherapistRow) {
     createdAt: t.createdAt.toISOString(),
     links: t.links?.map((l) => ({ id: l.id, status: l.status, practice: mapPractice(l.practice) })),
     visibility: computeVisibility(t),
-    requestability,
   };
 }
 
@@ -386,15 +378,6 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
       }),
     ]);
 
-    // Push + email notifications — fire-and-forget, must not block the response
-    if (t.expoPushToken) {
-      sendPushNotification({
-        to: t.expoPushToken,
-        title: 'Profil freigegeben ✓',
-        body: 'Dein Therapeutenprofil wurde geprüft und ist jetzt auf Revio sichtbar.',
-        data: { type: 'profile_approved' },
-      });
-    }
     sendProfileApprovedEmail({ to: t.email, name: t.fullName }).catch((err) =>
       fastify.log.error({ err }, 'Failed to send profile approved email'),
     );
@@ -413,14 +396,6 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const t = await fastify.prisma.therapist.update({ where: { id }, data: { reviewStatus: 'REJECTED' } }).catch(() => null);
     if (!t) return reply.notFound('Therapist not found');
 
-    if (t.expoPushToken) {
-      sendPushNotification({
-        to: t.expoPushToken,
-        title: 'Profil nicht freigegeben',
-        body: 'Dein Therapeutenprofil konnte leider nicht freigegeben werden. Bitte kontaktiere uns für weitere Informationen.',
-        data: { type: 'profile_rejected' },
-      });
-    }
     sendProfileRejectedEmail({ to: t.email, name: t.fullName }).catch((err) =>
       fastify.log.error({ err }, 'Failed to send profile rejected email'),
     );
@@ -437,14 +412,6 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
       fastify.log.error({ err }, 'Failed to send profile changes-requested email'),
     );
 
-    if (t.expoPushToken) {
-      sendPushNotification({
-        to: t.expoPushToken,
-        title: 'Änderungen erforderlich',
-        body: 'Bitte überarbeite dein Therapeutenprofil und reiche es erneut ein.',
-      }).catch((err) => fastify.log.error({ err }, 'Failed to send push for request-changes'));
-    }
-
     return { message: 'Changes requested.' };
   });
 
@@ -452,14 +419,6 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string };
     const t = await fastify.prisma.therapist.update({ where: { id }, data: { reviewStatus: 'SUSPENDED' } }).catch(() => null);
     if (!t) return reply.notFound('Therapist not found');
-
-    if (t.expoPushToken) {
-      sendPushNotification({
-        to: t.expoPushToken,
-        title: 'Profil gesperrt',
-        body: 'Dein Therapeutenprofil wurde vorübergehend gesperrt. Bitte kontaktiere uns für weitere Informationen.',
-      }).catch((err) => fastify.log.error({ err }, 'Failed to send push for suspend'));
-    }
 
     return { message: 'Therapist suspended.' };
   });
@@ -579,6 +538,28 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     return { total: practices.length, updated, failed };
+  });
+
+  // POST /admin/practices/regenerate-logos — regenerate all managed practice logos on disk
+  fastify.post('/practices/regenerate-logos', async (_request, _reply) => {
+    const practices = await fastify.prisma.practice.findMany();
+    let regenerated = 0;
+    let failed = 0;
+
+    for (const p of practices) {
+      const result = tryEnsurePracticeLogoAsset(p.name, p.city);
+      if (result) {
+        await fastify.prisma.practice.update({
+          where: { id: p.id },
+          data: { logo: result },
+        });
+        regenerated++;
+      } else {
+        failed++;
+      }
+    }
+
+    return { total: practices.length, regenerated, failed };
   });
 
   // Documents
