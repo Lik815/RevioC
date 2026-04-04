@@ -22,6 +22,7 @@
     "expo": "^55.0.8"
   },
   "devDependencies": {
+    "next": "15.5.14",
     "@types/react": "~19.2.10",
     "typescript": "~5.9.2"
   }
