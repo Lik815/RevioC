@@ -16,6 +16,27 @@ export default function HomePage() {
         secondaryLabel="Für Therapeut:innen"
       />
 
+      <section className="app-showcase">
+        <div className="shell">
+          <div className="app-showcase__text">
+            <div className="eyebrow">Die App</div>
+            <h2>Physiotherapie — einfach gefunden.</h2>
+            <p>Revio ist als App für iOS und Android verfügbar. Suche nach Beschwerde, finde geprüfte Therapeut:innen in deiner Nähe und nimm direkt Kontakt auf.</p>
+          </div>
+          <div className="phone-row">
+            <div className="phone-frame phone-frame--left">
+              <img src="/screenshot-1.png" alt="Revio App – Suche" />
+            </div>
+            <div className="phone-frame phone-frame--center">
+              <img src="/screenshot-2.png" alt="Revio App – Favoriten" />
+            </div>
+            <div className="phone-frame phone-frame--right">
+              <img src="/screenshot-3.png" alt="Revio App – Optionen" />
+            </div>
+          </div>
+        </div>
+      </section>
+
       <Section
         eyebrow="So funktioniert Revio"
         title="Weniger suchen. Besser einordnen. Klarer Kontakt aufnehmen."

@@ -72,26 +72,12 @@ p {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  line-height: 0;
 }
 
-.brand-mark {
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-.brand-word {
-  font-size: 1.9rem;
-  letter-spacing: -0.05em;
+.brand-logo {
+  height: auto;
+  display: block;
 }
 
 .site-nav {
@@ -521,6 +507,74 @@ h3 {
   }
 }
 
+/* ── App Showcase ─────────────────────────────────────────── */
+.app-showcase {
+  padding: 80px 0 96px;
+  overflow: hidden;
+}
+
+.app-showcase .shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 56px;
+}
+
+.app-showcase__text {
+  text-align: center;
+  max-width: 560px;
+}
+
+.app-showcase__text h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 12px 0 16px;
+  line-height: 1.2;
+}
+
+.app-showcase__text p {
+  color: var(--muted);
+  line-height: 1.65;
+  font-size: 1rem;
+}
+
+.phone-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 20px;
+}
+
+.phone-frame {
+  border-radius: 36px;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(28, 43, 51, 0.18);
+  border: 6px solid rgba(255,255,255,0.9);
+  background: #fff;
+}
+
+.phone-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.phone-frame--center {
+  width: 220px;
+  transform: translateY(0);
+  z-index: 2;
+  box-shadow: 0 32px 80px rgba(28, 43, 51, 0.22);
+}
+
+.phone-frame--left,
+.phone-frame--right {
+  width: 190px;
+  transform: translateY(24px);
+  opacity: 0.85;
+  z-index: 1;
+}
+
 @media (max-width: 720px) {
   .shell {
     width: min(var(--shell), calc(100% - 24px));
@@ -545,6 +599,10 @@ h3 {
     padding-top: 52px;
   }
 
+  .app-showcase {
+    padding: 48px 0;
+  }
+
   .section {
     padding: 24px 0 46px;
   }
@@ -559,5 +617,18 @@ h3 {
 
   h1 {
     max-width: 12ch;
+  }
+
+  .phone-row {
+    gap: 12px;
+  }
+
+  .phone-frame--left,
+  .phone-frame--right {
+    display: none;
+  }
+
+  .app-showcase__text h2 {
+    font-size: 1.6rem;
   }
 }
