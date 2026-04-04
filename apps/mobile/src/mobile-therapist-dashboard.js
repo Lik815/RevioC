@@ -221,7 +221,7 @@ export function TherapistDashboardScreen(props) {
         </View>
       </View>
 
-      {(th.practices ?? []).length === 0 && (
+      {(th.practices ?? []).length === 0 && th.bookingMode !== 'FIRST_APPOINTMENT_REQUEST' && (
         <View style={[{ marginTop: 12, marginHorizontal: 0, borderRadius: RADIUS.md, borderWidth: 1, padding: 16, backgroundColor: c.mutedBg, borderColor: c.border }]}>
           <Text style={{ color: c.text, fontWeight: '600', fontSize: 14, marginBottom: 4 }}>Noch keine Praxis verbunden</Text>
           <Text style={{ color: c.muted, fontSize: 13, marginBottom: 12 }}>

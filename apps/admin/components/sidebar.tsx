@@ -34,8 +34,8 @@ export function Sidebar({
         <div className="brand-mark">R</div>
         <div>
           <div className="kicker">Revio</div>
-          <h1 className="sidebar-title">Control Center</h1>
-          <p className="sidebar-copy">Moderation, Freigaben und Qualitätssicherung in einer Oberfläche.</p>
+          <h1 className="sidebar-title">Admin</h1>
+          <p className="sidebar-copy">Reviews, Freigaben und Bereinigung.</p>
         </div>
       </div>
       <nav className="sidebar-nav">

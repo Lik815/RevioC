@@ -22,6 +22,47 @@ function summarizeReasons(reasons: string[]) {
   return rest.length > 0 ? `${first} +${rest.length}` : first;
 }
 
+function humanizeReason(reason: string) {
+  return blockingReasonLabel[reason] ?? reason.replace(/_/g, ' ');
+}
+
+function getVisibilityMeta(t: {
+  reviewStatus: string;
+  isVisible: boolean;
+  visibility: { visibilityState: string; blockingReasons: string[] };
+}) {
+  if (t.reviewStatus !== 'APPROVED') {
+    return 'Wird nach Freigabe öffentlich sichtbar.';
+  }
+  if (!t.isVisible) {
+    return 'Manuell versteckt.';
+  }
+  if (t.visibility.visibilityState === 'visible') {
+    return 'In der öffentlichen Suche sichtbar.';
+  }
+  const reasons = t.visibility.blockingReasons.map(humanizeReason);
+  return summarizeReasons(reasons) ?? 'Noch nicht sichtbar.';
+}
+
+function getRequestMeta(t: {
+  reviewStatus: string;
+  bookingMode?: string | null;
+  nextFreeSlotAt?: string | null;
+  requestability?: { requestable: boolean; blockingReasons: string[] };
+}) {
+  if (t.bookingMode !== 'FIRST_APPOINTMENT_REQUEST') {
+    return 'Keine Direktanfrage.';
+  }
+  if (t.requestability?.requestable) {
+    return t.nextFreeSlotAt ? `Nächster Termin ab ${formatDate(t.nextFreeSlotAt)}` : 'Direkt anfragbar.';
+  }
+  if (t.reviewStatus !== 'APPROVED') {
+    return 'Wird nach Freigabe anfragbar.';
+  }
+  const reasons = (t.requestability?.blockingReasons ?? []).map(humanizeReason);
+  return summarizeReasons(reasons) ?? 'Noch nicht anfragbar.';
+}
+
 const statusLabel: Record<string, string> = {
   PENDING_REVIEW: 'Ausstehend',
   APPROVED: 'Freigegeben',
@@ -29,18 +70,6 @@ const statusLabel: Record<string, string> = {
   CHANGES_REQUESTED: 'Änderungen',
   SUSPENDED: 'Gesperrt',
   DRAFT: 'Entwurf',
-};
-
-const visibilityLabel: Record<string, string> = {
-  visible: 'Sichtbar',
-  blocked: 'Blockiert',
-  not_approved: 'Nicht freigegeben',
-};
-
-const visibilityBadgeClass: Record<string, string> = {
-  visible: 'badge--APPROVED',
-  blocked: 'badge--CHANGES_REQUESTED',
-  not_approved: 'badge--DRAFT',
 };
 
 const blockingReasonLabel: Record<string, string> = {
@@ -131,25 +160,25 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
   return (
     <PageShell
       title="Therapeut:innen-Warteschlange"
-      description="Prüfe neu eingereichte Therapeut:innen, fordere Korrekturen bei unvollständigen Profildaten an und halte Freigaben bewusst und nachvollziehbar."
+      description="Klare Review-Liste für Profile, Sichtbarkeit und Ersttermin-Anfragen."
       eyebrow="Reviews"
       actions={<div className="hero-pill">{filtered.length} Ergebnisse</div>}
     >
       <div className="review-summary-grid">
         <article className="review-summary-card">
-          <div className="kicker">Jetzt prüfen</div>
+          <div className="kicker">Offen</div>
           <strong>{pendingCount}</strong>
-          <span>Therapeut:innen warten aktuell auf Erstreview</span>
+          <span>Profile warten aktuell auf Review</span>
         </article>
         <article className="review-summary-card review-summary-card--warning">
-          <div className="kicker">SLA-Risiko</div>
+          <div className="kicker">Überfällig</div>
           <strong>{overdueCount}</strong>
-          <span>Fälle liegen schon länger als 48 Stunden offen</span>
+          <span>Seit mehr als 48 Stunden offen</span>
         </article>
         <article className="review-summary-card">
-          <div className="kicker">Unvollständig</div>
+          <div className="kicker">Mit Lücken</div>
           <strong>{incompleteCount}</strong>
-          <span>Profile brauchen vermutlich Rückfragen oder Änderungen</span>
+          <span>Profile brauchen Rückfragen oder Änderungen</span>
         </article>
       </div>
 
@@ -174,15 +203,13 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
           <p>Versuche einen anderen Status, entferne Suchbegriffe oder prüfe die Warteschlange ohne Standortfilter.</p>
         </div>
       ) : (
-      <table className="table table--elevated">
+      <>
+      <p className="table-note">Die Liste zeigt nur die wichtigsten Prüfentscheidungen direkt. Fachdetails liegen auf der Detailseite.</p>
+      <table className="table table--elevated focus-table">
         <thead>
           <tr>
             <th>Name</th>
-            <th>Priorität</th>
-            <th>Ort</th>
-            <th>Fachliches</th>
-            <th>Eingereicht</th>
-            <th>Frist (48h)</th>
+            <th>Überblick</th>
             <th>Review</th>
             <th>Öffentlich</th>
             <th>Ersttermin</th>
@@ -229,35 +256,30 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
                     </div>
                   </div>
                 </td>
-                <td data-label="Priorität">
+                <td data-label="Überblick">
                   <div className="priority-stack">
-                    <span className={`badge ${priority.overdue ? 'badge--REJECTED' : 'badge--PENDING_REVIEW'}`}>{priority.label}</span>
-                    {priority.missingCount > 0 && (
-                      <span className="entity-meta">{priority.missingCount} Lücken</span>
-                    )}
-                  </div>
-                </td>
-                <td data-label="Ort">{t.city}</td>
-                <td data-label="Fachliches">
-                  <div className="priority-stack">
-                    <strong style={{ fontSize: 14 }}>{t.professionalTitle}</strong>
+                    <strong style={{ fontSize: 14 }}>{t.city}</strong>
+                    <span className="entity-meta">{t.professionalTitle}</span>
                     <div className="tag-list">
                       {t.specializations.slice(0, 2).map((spec) => <span key={spec} className="tag">{spec}</span>)}
                       {t.specializations.length > 2 && <span className="tag">+{t.specializations.length - 2}</span>}
                     </div>
+                    <span className="entity-meta">Eingereicht {formatDate(t.createdAt)}</span>
                   </div>
-                </td>
-                <td data-label="Eingereicht">{formatDate(t.createdAt)}</td>
-                <td data-label="Frist (48h)">
-                  <DeadlineTimer createdAt={t.createdAt} status={t.reviewStatus} />
                 </td>
                 <td data-label="Review">
                   <div className="priority-stack">
                     <span className={`badge badge--${t.reviewStatus}`}>
                       {statusLabel[t.reviewStatus] ?? t.reviewStatus}
                     </span>
-                    {priority.missingCount > 0 && t.reviewStatus !== 'APPROVED' ? (
+                    {priority.overdue ? (
+                      <span className="entity-meta">Seit über 48 Stunden offen</span>
+                    ) : t.reviewStatus === 'PENDING_REVIEW' ? (
+                      <DeadlineTimer createdAt={t.createdAt} status={t.reviewStatus} />
+                    ) : priority.missingCount > 0 && t.reviewStatus !== 'APPROVED' ? (
                       <span className="entity-meta">Profil braucht Ergänzungen</span>
+                    ) : t.reviewStatus === 'APPROVED' ? (
+                      <span className="entity-meta">Kein offener Review</span>
                     ) : null}
                   </div>
                 </td>
@@ -266,17 +288,9 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
                     <span className={publicVisibilityBadge.className}>
                       {publicVisibilityBadge.label}
                     </span>
-                    {isApprovedButNotVisible && visibilitySummary ? (
-                      <span className="entity-meta" title={blockerReasons.join(', ')}>
-                        {visibilitySummary}
-                      </span>
-                    ) : t.visibility.blockingReasons.length > 0 ? (
-                      <span className="entity-meta" title={blockerReasons.join(', ')}>
-                        {summarizeReasons(t.visibility.blockingReasons.map((r) => blockingReasonLabel[r] ?? r))}
-                      </span>
-                    ) : (
-                      <span className="entity-meta">In der öffentlichen Suche</span>
-                    )}
+                    <span className="entity-meta" title={blockerReasons.join(', ')}>
+                      {getVisibilityMeta(t)}
+                    </span>
                   </div>
                 </td>
                 <td data-label="Ersttermin">
@@ -284,17 +298,9 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
                     <span className={bookingModeBadge.className}>
                       {bookingModeBadge.label}
                     </span>
-                    {isRequestModeBlocked && requestSummary ? (
-                      <span className="entity-meta" title={requestBlockers.join(', ')}>
-                        {requestSummary}
-                      </span>
-                    ) : t.nextFreeSlotAt ? (
-                      <span className="entity-meta">Ab {formatDate(t.nextFreeSlotAt)}</span>
-                    ) : t.bookingMode === 'FIRST_APPOINTMENT_REQUEST' ? (
-                      <span className="entity-meta">Noch kein Terminfenster</span>
-                    ) : (
-                      <span className="entity-meta">Keine Direktanfrage</span>
-                    )}
+                    <span className="entity-meta" title={requestBlockers.join(', ')}>
+                      {getRequestMeta(t)}
+                    </span>
                   </div>
                 </td>
                 <td data-label="Aktionen">
@@ -315,6 +321,7 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
           ))}
         </tbody>
       </table>
+      </>
       )}
     </PageShell>
   );

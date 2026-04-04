@@ -20,18 +20,6 @@ const statusLabel: Record<string, string> = {
   DRAFT: 'Entwurf',
 };
 
-const visibilityLabel: Record<string, string> = {
-  visible: 'Sichtbar',
-  blocked: 'Blockiert',
-  not_approved: 'Nicht freigegeben',
-};
-
-const visibilityBadgeClass: Record<string, string> = {
-  visible: 'badge--APPROVED',
-  blocked: 'badge--CHANGES_REQUESTED',
-  not_approved: 'badge--DRAFT',
-};
-
 const blockingReasonLabel: Record<string, string> = {
   profile_incomplete: 'Profil unvollständig',
   manually_hidden: 'Manuell versteckt (isVisible = false)',
@@ -70,6 +58,49 @@ function summarizeReasons(reasons: string[]) {
   return rest.length > 0 ? `${first} +${rest.length}` : first;
 }
 
+function humanizeReason(reason: string) {
+  return blockingReasonLabel[reason] ?? reason.replace(/_/g, ' ');
+}
+
+function getVisibilityCopy(therapist: {
+  reviewStatus: string;
+  isVisible: boolean;
+  visibility: { visibilityState: string; blockingReasons: string[] };
+}) {
+  if (therapist.reviewStatus !== 'APPROVED') {
+    return 'Wird nach Freigabe öffentlich sichtbar, sobald keine weiteren Blocker bestehen.';
+  }
+  if (!therapist.isVisible) {
+    return 'Freigegeben, aber manuell versteckt.';
+  }
+  if (therapist.visibility.visibilityState === 'visible') {
+    return 'In der öffentlichen Suche sichtbar.';
+  }
+  const reasons = therapist.visibility.blockingReasons.map(humanizeReason);
+  return summarizeReasons(reasons) ?? 'Noch nicht öffentlich sichtbar.';
+}
+
+function getRequestCopy(therapist: {
+  reviewStatus: string;
+  bookingMode?: string | null;
+  nextFreeSlotAt?: string | null;
+  requestability?: { requestable: boolean; blockingReasons: string[] };
+}) {
+  if (therapist.bookingMode !== 'FIRST_APPOINTMENT_REQUEST') {
+    return 'Keine Direktanfrage über Revio.';
+  }
+  if (therapist.requestability?.requestable) {
+    return therapist.nextFreeSlotAt
+      ? `Nächster freier Termin: ${formatDate(therapist.nextFreeSlotAt)}`
+      : 'Direkt über Revio anfragbar.';
+  }
+  if (therapist.reviewStatus !== 'APPROVED') {
+    return 'Wird nach Freigabe für Ersttermin-Anfragen verfügbar.';
+  }
+  const reasons = (therapist.requestability?.blockingReasons ?? []).map(humanizeReason);
+  return summarizeReasons(reasons) ?? 'Noch nicht anfragbar.';
+}
+
 export default async function TherapistDetailPage({ params }: Props) {
   const { id } = await params;
 
@@ -98,10 +129,14 @@ export default async function TherapistDetailPage({ params }: Props) {
       : isApprovedButNotVisible
         ? ['manually_hidden']
       : []
-  ).map((reason) => blockingReasonLabel[reason] ?? reason);
-  const requestabilityBlockers = (therapist.requestability?.blockingReasons ?? []).map((reason) => blockingReasonLabel[reason] ?? reason);
+  ).map(humanizeReason);
+  const requestabilityBlockers = (therapist.requestability?.blockingReasons ?? []).map(humanizeReason);
   const visibilitySummary = summarizeReasons(blockerReasons);
   const requestabilitySummary = summarizeReasons(requestabilityBlockers);
+  const operationalNotes = [
+    isApprovedButNotVisible && visibilitySummary ? `Nicht sichtbar: ${visibilitySummary}` : null,
+    isRequestModeBlocked && requestabilitySummary ? `Nicht anfragbar: ${requestabilitySummary}` : null,
+  ].filter(Boolean) as string[];
 
   return (
     <PageShell
@@ -122,20 +157,11 @@ export default async function TherapistDetailPage({ params }: Props) {
         </div>
       }
     >
-      {isApprovedButNotVisible && (
+      {operationalNotes.length > 0 && (
         <div className="notice-box notice-box--warning">
           <div className="notice-box__icon">!</div>
           <div>
-            <strong>Nicht sichtbar weil:</strong> {blockerReasons.join(', ')}
-          </div>
-        </div>
-      )}
-
-      {isRequestModeBlocked && (
-        <div className="notice-box notice-box--warning">
-          <div className="notice-box__icon">!</div>
-          <div>
-            <strong>Nicht anfragbar weil:</strong> {requestabilityBlockers.join(', ')}
+            <strong>Aktuell blockiert:</strong> {operationalNotes.join(' · ')}
           </div>
         </div>
       )}
@@ -160,8 +186,8 @@ export default async function TherapistDetailPage({ params }: Props) {
           <div className={publicVisibilityBadge.className} style={{ width: 'fit-content', marginTop: 8 }}>
             {publicVisibilityBadge.label}
           </div>
-          <p style={{ margin: '12px 0 0', color: 'var(--muted)', fontSize: 13, lineHeight: 1.5 }}>
-            {visibilitySummary ?? 'Profil erscheint in der öffentlichen Suche.'}
+          <p className="status-copy">
+            {getVisibilityCopy(therapist)}
           </p>
         </article>
 
@@ -170,54 +196,11 @@ export default async function TherapistDetailPage({ params }: Props) {
           <div className={bookingModeBadge.className} style={{ width: 'fit-content', marginTop: 8 }}>
             {bookingModeBadge.label}
           </div>
-          <p style={{ margin: '12px 0 0', color: 'var(--muted)', fontSize: 13, lineHeight: 1.5 }}>
-            {requestabilitySummary
-              ?? (therapist.nextFreeSlotAt ? `Nächster freier Termin: ${formatDate(therapist.nextFreeSlotAt)}` : 'Aktuell ohne hinterlegten freien Termin.')}
+          <p className="status-copy">
+            {getRequestCopy(therapist)}
           </p>
         </article>
       </section>
-
-      {/* Visibility state */}
-      {(() => {
-        const vis = therapist.visibility;
-        const isBlocked = vis.visibilityState === 'blocked';
-        const isVisible = vis.visibilityState === 'visible';
-        return (
-          <div
-            className="card"
-            style={{
-              padding: '16px 20px',
-              marginBottom: 24,
-              borderLeft: `4px solid ${isVisible ? 'var(--success, #16a34a)' : isBlocked ? 'var(--warning, #d97706)' : 'var(--muted)'}`,
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 16,
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: vis.blockingReasons.length ? 8 : 0 }}>
-                <span className={`badge ${visibilityBadgeClass[vis.visibilityState] ?? 'badge--DRAFT'}`}>
-                  {visibilityLabel[vis.visibilityState] ?? vis.visibilityState}
-                </span>
-                <span style={{ color: 'var(--muted)', fontSize: 13 }}>
-                  {isVisible
-                    ? 'Therapeut:in erscheint in der öffentlichen Suche.'
-                    : isBlocked
-                      ? 'Profil ist freigegeben, aber in der öffentlichen Suche nicht sichtbar.'
-                      : 'Profil wurde noch nicht freigegeben.'}
-                </span>
-              </div>
-              {vis.blockingReasons.length > 0 && (
-                <ul style={{ margin: 0, paddingLeft: 20, color: 'var(--muted)', fontSize: 13 }}>
-                  {vis.blockingReasons.map((r) => (
-                    <li key={r}>{blockingReasonLabel[r] ?? r}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 32 }}>
@@ -250,6 +233,10 @@ export default async function TherapistDetailPage({ params }: Props) {
             <dd style={{ margin: 0 }}>{therapist.serviceRadiusKm ? `${therapist.serviceRadiusKm} km` : '–'}</dd>
             <dt style={{ color: 'var(--muted)', fontSize: 13 }}>Kassenart</dt>
             <dd style={{ margin: 0 }}>{therapist.kassenart || '–'}</dd>
+            <dt style={{ color: 'var(--muted)', fontSize: 13 }}>Buchungsmodus</dt>
+            <dd style={{ margin: 0 }}>{bookingModeLabel[therapist.bookingMode ?? 'DIRECTORY_ONLY'] ?? therapist.bookingMode ?? '–'}</dd>
+            <dt style={{ color: 'var(--muted)', fontSize: 13 }}>Nächster Termin</dt>
+            <dd style={{ margin: 0 }}>{therapist.nextFreeSlotAt ? formatDate(therapist.nextFreeSlotAt) : '–'}</dd>
             <dt style={{ color: 'var(--muted)', fontSize: 13 }}>Eingereicht</dt>
             <dd style={{ margin: 0 }}>{new Date(therapist.createdAt).toLocaleDateString('de-DE')}</dd>
           </dl>
@@ -337,7 +324,6 @@ export default async function TherapistDetailPage({ params }: Props) {
 
           {documents.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--muted)' }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📂</div>
               <div style={{ fontSize: 14 }}>Noch keine Dokumente hochgeladen</div>
             </div>
           ) : (

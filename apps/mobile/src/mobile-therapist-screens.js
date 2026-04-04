@@ -69,6 +69,8 @@ export function LoginScreen(props) {
             placeholderTextColor={c.muted}
             autoCapitalize="none"
             keyboardType="email-address"
+            textContentType="emailAddress"
+            autoComplete="email"
           />
         </View>
         <View>
@@ -81,6 +83,8 @@ export function LoginScreen(props) {
               placeholder="••••••••"
               placeholderTextColor={c.muted}
               secureTextEntry={!showPassword}
+              textContentType="password"
+              autoComplete="current-password"
             />
             <Pressable onPress={() => setShowPassword(v => !v)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />

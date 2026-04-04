@@ -1,7 +1,24 @@
 import Link from 'next/link';
 import { PageShell } from '../../components/page-shell';
-import { MilestoneModal } from '../../components/milestone-modal';
 import { api } from '../../lib/api';
+
+const visibilityReasonLabel: Record<string, string> = {
+  publication_incomplete: 'Freigabe noch unvollständig',
+  profile_incomplete: 'Profil unvollständig',
+  manually_hidden: 'Manuell versteckt',
+  publication_missing: 'Freigabe fehlt',
+  no_confirmed_link: 'Keine bestätigte Praxis',
+  pending_link_only: 'Praxis-Verknüpfung offen',
+  practice_not_approved: 'Praxis nicht freigegeben',
+  no_home_visit: 'Hausbesuch fehlt',
+  no_service_radius: 'Einzugsgebiet fehlt',
+  no_kassenart: 'Kassenart fehlt',
+  no_confirmed_practice_link: 'Keine bestätigte Praxis',
+};
+
+function formatVisibilityReason(reason: string) {
+  return visibilityReasonLabel[reason] ?? reason.replace(/_/g, ' ');
+}
 
 export default async function HomePage() {
   const [stats, visibilityIssues] = await Promise.all([
@@ -12,37 +29,35 @@ export default async function HomePage() {
   const totalTherapists = stats.therapists.approved + stats.therapists.pending_review + stats.therapists.draft + stats.therapists.rejected + stats.therapists.changes_requested + stats.therapists.suspended;
 
   const cards = [
-    { label: 'Therapeut:innen ausstehend', value: stats.therapists.pending_review, tone: 'warning', href: '/therapists?status=PENDING_REVIEW' },
-    { label: 'Praxen ausstehend', value: stats.practices.pending_review, tone: 'accent', href: '/practices?status=PENDING_REVIEW' },
-    { label: 'Umstrittene Verknüpfungen', value: stats.links.disputed, tone: 'danger', href: '/links?status=DISPUTED' },
-    { label: 'Freigegeben', value: stats.therapists.approved, tone: 'success', href: '/therapists?status=APPROVED' },
+    { kicker: 'Therapeut:innen', label: 'Offene Reviews', value: stats.therapists.pending_review, href: '/therapists?status=PENDING_REVIEW' },
+    { kicker: 'Praxen', label: 'Offene Freigaben', value: stats.practices.pending_review, href: '/practices?status=PENDING_REVIEW' },
+    { kicker: 'Sichtbarkeit', label: 'Profile mit Blockern', value: visibilityIssues.count, href: '/therapists?status=APPROVED' },
   ];
 
   return (
     <PageShell
       title="Übersicht"
       eyebrow="Dashboard"
-      actions={<div className="hero-pill">{totalTherapists} Therapeut:innen registriert</div>}
+      actions={<div className="hero-pill">{totalTherapists} Profile</div>}
     >
-      <MilestoneModal total={totalTherapists} />
-
-      <div className="card-grid">
+      <div className="review-summary-grid">
         {cards.map((item) => (
-          <Link key={item.label} href={item.href} style={{ textDecoration: 'none' }}>
-            <article className={`card stat-card stat-card--${item.tone} stat-card--clickable`}>
-              <div className="metric">{item.value}</div>
-              <div>{item.label}</div>
+          <Link key={item.label} href={item.href} className="summary-link">
+            <article className="review-summary-card review-summary-card--interactive">
+              <div className="kicker">{item.kicker}</div>
+              <strong>{item.value}</strong>
+              <span>{item.label}</span>
             </article>
           </Link>
         ))}
       </div>
 
       {visibilityIssues.count > 0 && (
-        <article className="panel" style={{ marginTop: '24px' }}>
+        <article className="panel">
           <div className="panel-header">
             <div>
               <div className="kicker">Öffentliche Sichtbarkeit</div>
-              <h3>Freigegebene Profile — trotzdem nicht sichtbar</h3>
+              <h3>Profile mit aktuellen Blockern</h3>
             </div>
             <div className="hero-pill">{visibilityIssues.count}</div>
           </div>
@@ -53,48 +68,19 @@ export default async function HomePage() {
                   <span className="task-dot task-dot--danger" />
                   <div style={{ flex: 1 }}>
                     <strong>{issue.therapistName}</strong>
-                    <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--muted)' }}>{issue.reason.replace(/_/g, ' ')}</p>
+                    <p className="table-note">{formatVisibilityReason(issue.reason)}</p>
                   </div>
                 </div>
               </Link>
             ))}
             {visibilityIssues.count > 5 && (
-              <div style={{ padding: '10px 16px', color: 'var(--muted)', fontSize: 13 }}>
+              <div className="table-note" style={{ padding: '8px 2px 0' }}>
                 + {visibilityIssues.count - 5} weitere — alle unter <Link href="/therapists?status=APPROVED">Therapeut:innen → Freigegeben</Link> prüfen
               </div>
             )}
           </div>
         </article>
       )}
-
-      <article className="panel" style={{ marginTop: '24px' }}>
-        <div className="panel-header">
-          <div>
-            <div className="kicker">Prioritäten</div>
-            <h3>Sofort prüfen</h3>
-          </div>
-        </div>
-        <div className="task-list">
-          <div className="task-item">
-            <span className="task-dot task-dot--warning" />
-            <div>
-              <strong>{stats.therapists.pending_review} Therapeut:innen warten auf Review</strong>
-            </div>
-          </div>
-          <div className="task-item">
-            <span className="task-dot task-dot--accent" />
-            <div>
-              <strong>{stats.practices.pending_review} Praxen sind noch offen</strong>
-            </div>
-          </div>
-          <div className="task-item">
-            <span className="task-dot task-dot--danger" />
-            <div>
-              <strong>{stats.links.disputed} Konflikte brauchen Klärung</strong>
-            </div>
-          </div>
-        </div>
-      </article>
     </PageShell>
   );
 }

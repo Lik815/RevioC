@@ -44,7 +44,7 @@ export function AdminShell({
           </button>
           <div>
             <div className="kicker">Revio</div>
-            <div className="mobile-topbar-title">Admin Control Center</div>
+            <div className="mobile-topbar-title">Admin</div>
           </div>
         </div>
         {children}

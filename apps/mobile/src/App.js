@@ -1981,214 +1981,240 @@ export default function App() {
 
   // ── Optionen tab ──────────────────────────────────────────────────────────
 
-  const renderOptions = () => (
-    <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.headerTitle, { color: c.text }]}>{t('optionsTitle')}</Text>
-            <Text style={[styles.headerSub, { color: c.muted }]}>{t('optionsSubtitle')}</Text>
-          </View>
+  const renderOptions = () => {
+    const SectionHeader = ({ title }) => (
+      <Text style={{ fontSize: 11, fontWeight: '700', color: c.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 20, marginBottom: 6, paddingHorizontal: 4 }}>{title}</Text>
+    );
+    const OptionRow = ({ label, value, onPress, icon, valueColor, last }) => (
+      <Pressable
+        onPress={onPress}
+        style={[styles.optionRow, { backgroundColor: c.card, borderColor: c.border, marginBottom: last ? 0 : 1, borderRadius: 0 }]}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {icon ? <Ionicons name={icon} size={18} color={c.muted} /> : null}
+          <Text style={[styles.optionLabel, { color: c.text }]}>{label}</Text>
         </View>
+        <Text style={[styles.optionValue, { color: valueColor ?? c.muted }]}>{value} ›</Text>
+      </Pressable>
+    );
+    const OptionGroup = ({ children }) => (
+      <View style={{ borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: c.border }}>{children}</View>
+    );
 
-        {(loggedInTherapist || loggedInManager) && (() => {
-          const isManager = accountType === 'manager' && loggedInManager;
-          const mgrTherapistProfile = isManager ? (loggedInManager.therapistProfile ?? null) : null;
+    const isManager = accountType === 'manager' && loggedInManager;
+    const mgrTherapistProfile = isManager ? (loggedInManager.therapistProfile ?? null) : null;
 
-          const ProfileCard = ({ name, sub, photo, status, statusColor, onPress }) => (
-            <View style={[styles.infoCard, { backgroundColor: c.card, borderColor: c.border }]}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <Text style={[styles.filterSectionTitle, { color: c.muted, marginBottom: 0 }]}>MEIN PROFIL</Text>
-                <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Ionicons name="eye-outline" size={15} color={c.primary} />
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: c.primary }}>Anzeigen</Text>
-                </Pressable>
-              </View>
-              <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ width: 56, height: 56, borderRadius: 999, backgroundColor: c.mutedBg, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
-                  {photo
-                    ? <Image source={{ uri: photo.startsWith('http') ? photo : `${getBaseUrl()}${photo}` }} style={{ width: 56, height: 56, borderRadius: 999 }} />
-                    : <Text style={{ fontSize: 22, fontWeight: '700', color: c.muted }}>{(name ?? '?')[0].toUpperCase()}</Text>
-                  }
-                </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={{ fontSize: 17, fontWeight: '600', color: c.text }}>{name}</Text>
-                  {sub ? <Text style={{ fontSize: 13, fontWeight: '500', color: c.muted }}>{sub}</Text> : null}
-                  <Text style={{ fontSize: 13, fontWeight: '500', color: statusColor }}>{status}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={c.muted} />
-              </Pressable>
+    return (
+      <View style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <View style={[styles.logoMark, { backgroundColor: c.primary }]}><Text style={styles.logoText}>R</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.headerTitle, { color: c.text }]}>{t('optionsTitle')}</Text>
+              <Text style={[styles.headerSub, { color: c.muted }]}>{t('optionsSubtitle')}</Text>
             </View>
-          );
+          </View>
 
-          return (
+          {/* ── Mein Profil ── */}
+          {(loggedInTherapist || isManager) && (
             <>
-              {/* Therapeuten-Profil */}
-              {loggedInTherapist && (
-                <ProfileCard
-                  name={loggedInTherapist.fullName ?? '—'}
-                  sub={loggedInTherapist.professionalTitle ?? 'Therapeut'}
-                  photo={loggedInTherapist.photo}
-                  status={loggedInTherapist.isVisible && loggedInTherapist.reviewStatus === 'APPROVED' ? 'Öffentlich sichtbar' : 'Noch nicht öffentlich'}
-                  statusColor={loggedInTherapist.isVisible && loggedInTherapist.reviewStatus === 'APPROVED' ? c.success : c.muted}
-                  onPress={() => setActiveTab('therapist')}
-                />
-              )}
-              {/* Manager hat auch Therapeuten-Profil */}
-              {isManager && mgrTherapistProfile && (
-                <ProfileCard
-                  name={mgrTherapistProfile.fullName ?? '—'}
-                  sub={mgrTherapistProfile.professionalTitle ?? 'Therapeut'}
-                  photo={mgrTherapistProfile.photo ?? null}
-                  status={mgrTherapistProfile.isVisible && mgrTherapistProfile.reviewStatus === 'APPROVED' ? 'Öffentlich sichtbar' : 'Noch nicht öffentlich'}
-                  statusColor={mgrTherapistProfile.isVisible && mgrTherapistProfile.reviewStatus === 'APPROVED' ? c.success : c.muted}
-                  onPress={() => setActiveTab('therapist')}
-                />
-              )}
+              <SectionHeader title="Mein Profil" />
+              <OptionGroup>
+                {loggedInTherapist && (
+                  <Pressable onPress={() => setActiveTab('therapist')} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <View style={{ width: 44, height: 44, borderRadius: 999, backgroundColor: c.mutedBg, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
+                        {loggedInTherapist.photo
+                          ? <Image source={{ uri: loggedInTherapist.photo.startsWith('http') ? loggedInTherapist.photo : `${getBaseUrl()}${loggedInTherapist.photo}` }} style={{ width: 44, height: 44, borderRadius: 999 }} />
+                          : <Text style={{ fontSize: 18, fontWeight: '700', color: c.muted }}>{(loggedInTherapist.fullName ?? '?')[0].toUpperCase()}</Text>
+                        }
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: c.text }}>{loggedInTherapist.fullName ?? '—'}</Text>
+                        <Text style={{ fontSize: 12, color: loggedInTherapist.isVisible && loggedInTherapist.reviewStatus === 'APPROVED' ? c.success : c.muted }}>
+                          {loggedInTherapist.isVisible && loggedInTherapist.reviewStatus === 'APPROVED' ? 'Öffentlich sichtbar' : 'Noch nicht öffentlich'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={c.muted} />
+                  </Pressable>
+                )}
+                {isManager && mgrTherapistProfile && (
+                  <Pressable onPress={() => setActiveTab('therapist')} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <View style={{ width: 44, height: 44, borderRadius: 999, backgroundColor: c.mutedBg, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
+                        {mgrTherapistProfile.photo
+                          ? <Image source={{ uri: mgrTherapistProfile.photo.startsWith('http') ? mgrTherapistProfile.photo : `${getBaseUrl()}${mgrTherapistProfile.photo}` }} style={{ width: 44, height: 44, borderRadius: 999 }} />
+                          : <Text style={{ fontSize: 18, fontWeight: '700', color: c.muted }}>{(mgrTherapistProfile.fullName ?? '?')[0].toUpperCase()}</Text>
+                        }
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: c.text }}>{mgrTherapistProfile.fullName ?? '—'}</Text>
+                        <Text style={{ fontSize: 12, color: mgrTherapistProfile.isVisible && mgrTherapistProfile.reviewStatus === 'APPROVED' ? c.success : c.muted }}>
+                          {mgrTherapistProfile.isVisible && mgrTherapistProfile.reviewStatus === 'APPROVED' ? 'Öffentlich sichtbar' : 'Noch nicht öffentlich'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={c.muted} />
+                  </Pressable>
+                )}
+                {loggedInTherapist && loggedInTherapist.adminPractice && (
+                  <Pressable onPress={() => { setAdminPracticeDetail(null); loadAdminPracticeDetail(); setShowPracticeAdmin(true); }} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Ionicons name="business-outline" size={18} color={c.muted} />
+                      <View>
+                        <Text style={[styles.optionLabel, { color: c.text }]}>{loggedInTherapist.adminPractice.name}</Text>
+                        <Text style={{ fontSize: 12, color: c.muted }}>{loggedInTherapist.adminPractice.city}</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.optionValue, { color: c.primary }]}>{t('managePractice')} ›</Text>
+                  </Pressable>
+                )}
+                {loggedInTherapist && !loggedInTherapist.adminPractice && loggedInTherapist.bookingMode !== 'FIRST_APPOINTMENT_REQUEST' && (
+                  <>
+                    <Pressable onPress={() => setShowCreatePractice(true)} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <Ionicons name="add-circle-outline" size={18} color={c.muted} />
+                        <Text style={[styles.optionLabel, { color: c.text }]}>{t('newPractice')}</Text>
+                      </View>
+                      <Text style={[styles.optionValue, { color: c.primary }]}>＋</Text>
+                    </Pressable>
+                    <Pressable onPress={() => { setPracticeSearchQuery(''); setPracticeSearchResults([]); setShowPracticeSearch(true); }} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <Ionicons name="link-outline" size={18} color={c.muted} />
+                        <Text style={[styles.optionLabel, { color: c.text }]}>{t('linkPractice')}</Text>
+                      </View>
+                      <Text style={[styles.optionValue, { color: c.primary }]}>›</Text>
+                    </Pressable>
+                  </>
+                )}
+                {isManager && (
+                  <Pressable onPress={() => { setMgrNewPracticeName(''); setMgrNewPracticeCity(''); setMgrNewPracticeAddress(''); setMgrNewPracticePhone(''); setAddPracticeStep(1); setShowAddPracticeScreen(true); }} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Ionicons name="add-circle-outline" size={18} color={c.muted} />
+                      <Text style={[styles.optionLabel, { color: c.text }]}>Weitere Praxis hinzufügen</Text>
+                    </View>
+                    <Text style={[styles.optionValue, { color: c.primary }]}>＋</Text>
+                  </Pressable>
+                )}
+              </OptionGroup>
             </>
-          );
-        })()}
+          )}
 
-        {[
-          { label: t('privacyOption'), value: t('comingSoon') },
-          { label: t('imprintOption'), value: t('comingSoon') },
-          { label: t('appVersionOption'), value: '0.1.0 MVP' }
-        ].map((item) => (
-          <Pressable key={item.label} style={[styles.optionRow, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={[styles.optionLabel, { color: c.text }]}>{item.label}</Text>
-            <Text style={[styles.optionValue, { color: c.muted }]}>{item.value} ›</Text>
-          </Pressable>
-        ))}
-
-        {/* Sprache toggle */}
-        <View style={[styles.optionRow, { backgroundColor: c.card, borderColor: c.border }]}>
-          <Text style={[styles.optionLabel, { color: c.text }]}>{t('languageOption')}</Text>
-          <View style={styles.themeToggleRow}>
-            {[
-              { key: 'de', label: 'DE' },
-              { key: 'en', label: 'EN' },
-            ].map(({ key, label }) => (
-              <Pressable
-                key={key}
-                onPress={() => {
-                  setAppLanguage(key);
-                  AsyncStorage.setItem('appLanguage', key);
-                }}
-                style={[
-                  styles.themeBtn,
-                  appLanguage === key
-                    ? { backgroundColor: c.primary, borderColor: c.primary }
-                    : { backgroundColor: c.mutedBg, borderColor: c.border }
-                ]}
-              >
-                <Text style={[styles.themeBtnText, { color: appLanguage === key ? '#FFFFFF' : c.muted }]}>
-                  {label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* Erscheinungsbild toggle */}
-        <View style={[styles.optionRow, { backgroundColor: c.card, borderColor: c.border }]}>
-          <Text style={[styles.optionLabel, { color: c.text }]}>{t('appearanceOption')}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.sm }}>
-            <Text style={[styles.optionValue, { color: c.muted }]}>
-              {themeMode === 'dark' ? t('themeDark') : t('themeLight')}
-            </Text>
-            <Switch
-              value={themeMode === 'dark'}
-              onValueChange={(value) => {
-                const nextThemeMode = value ? 'dark' : 'light';
-                setThemeMode(nextThemeMode);
-                AsyncStorage.setItem('themeMode', nextThemeMode);
-              }}
-              trackColor={{ false: c.border, true: c.primary }}
-              ios_backgroundColor={c.border}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </View>
-
-        {loggedInTherapist && (
-          <>
-            <Text style={[styles.filterSectionTitle, { color: c.muted, marginTop: 4 }]}>{t('myPractice')}</Text>
-            {loggedInTherapist.adminPractice ? (
-              <Pressable
-                onPress={() => { setAdminPracticeDetail(null); loadAdminPracticeDetail(); setShowPracticeAdmin(true); }}
-                style={[styles.optionRow, { backgroundColor: c.card, borderColor: c.border }]}
-              >
-                <View>
-                  <Text style={[styles.optionLabel, { color: c.text }]}>{loggedInTherapist.adminPractice.name}</Text>
-                  <Text style={[{ fontSize: 12, color: c.muted }]}>{loggedInTherapist.adminPractice.city}</Text>
-                </View>
-                <Text style={[styles.optionValue, { color: c.primary }]}>{t('managePractice')} ›</Text>
-              </Pressable>
-            ) : (
-              <>
-                <Pressable
-                  onPress={() => setShowCreatePractice(true)}
-                  style={[styles.optionRow, { backgroundColor: c.card, borderColor: c.border }]}
-                >
-                  <Text style={[styles.optionLabel, { color: c.text }]}>{t('newPractice')}</Text>
-                  <Text style={[styles.optionValue, { color: c.primary }]}>＋</Text>
+          {!loggedInTherapist && accountType !== 'manager' && (
+            <>
+              <SectionHeader title="Mein Profil" />
+              <OptionGroup>
+                <Pressable onPress={() => { setActiveTab('therapist'); setShowLogin(true); }} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
+                  <Text style={[styles.optionLabel, { color: c.muted }]}>{t('notLoggedIn')}</Text>
+                  <Text style={[styles.optionValue, { color: c.primary }]}>{t('loginAction')} ›</Text>
                 </Pressable>
-                <Pressable
-                  onPress={() => { setPracticeSearchQuery(''); setPracticeSearchResults([]); setShowPracticeSearch(true); }}
-                  style={[styles.optionRow, { backgroundColor: c.card, borderColor: c.border }]}
-                >
-                  <Text style={[styles.optionLabel, { color: c.text }]}>{t('linkPractice')}</Text>
-                  <Text style={[styles.optionValue, { color: c.primary }]}>🔗</Text>
-                </Pressable>
-              </>
-            )}
-          </>
-        )}
+              </OptionGroup>
+            </>
+          )}
 
-        {accountType === 'manager' && (
-          <>
-            <Text style={[styles.filterSectionTitle, { color: c.muted, marginTop: 4 }]}>PRAXEN</Text>
-            <Pressable
-              onPress={() => { setMgrNewPracticeName(''); setMgrNewPracticeCity(''); setMgrNewPracticeAddress(''); setMgrNewPracticePhone(''); setAddPracticeStep(1); setShowAddPracticeScreen(true); }}
-              style={[styles.optionRow, { backgroundColor: c.card, borderColor: c.border }]}
-            >
-              <Text style={[styles.optionLabel, { color: c.text }]}>Weitere Praxis hinzufügen</Text>
-              <Text style={[styles.optionValue, { color: c.primary }]}>＋</Text>
+          {/* ── App-Einstellungen ── */}
+          <SectionHeader title="App-Einstellungen" />
+          <OptionGroup>
+            <View style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="language-outline" size={18} color={c.muted} />
+                <Text style={[styles.optionLabel, { color: c.text }]}>{t('languageOption')}</Text>
+              </View>
+              <View style={styles.themeToggleRow}>
+                {[{ key: 'de', label: 'DE' }, { key: 'en', label: 'EN' }].map(({ key, label }) => (
+                  <Pressable key={key} onPress={() => { setAppLanguage(key); AsyncStorage.setItem('appLanguage', key); }}
+                    style={[styles.themeBtn, appLanguage === key ? { backgroundColor: c.primary, borderColor: c.primary } : { backgroundColor: c.mutedBg, borderColor: c.border }]}>
+                    <Text style={[styles.themeBtnText, { color: appLanguage === key ? '#FFFFFF' : c.muted }]}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <View style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="notifications-outline" size={18} color={c.muted} />
+                <Text style={[styles.optionLabel, { color: c.text }]}>Benachrichtigungen</Text>
+              </View>
+              <Text style={[styles.optionValue, { color: c.muted }]}>Bald verfügbar ›</Text>
+            </View>
+            <Pressable onPress={() => Linking.openSettings()} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="phone-portrait-outline" size={18} color={c.muted} />
+                <Text style={[styles.optionLabel, { color: c.text }]}>Geräteeinstellungen</Text>
+              </View>
+              <Text style={[styles.optionValue, { color: c.muted }]}>›</Text>
             </Pressable>
-          </>
-        )}
+            <View style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="contrast-outline" size={18} color={c.muted} />
+                <Text style={[styles.optionLabel, { color: c.text }]}>{t('appearanceOption')}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.sm }}>
+                <Text style={[styles.optionValue, { color: c.muted }]}>{themeMode === 'dark' ? t('themeDark') : t('themeLight')}</Text>
+                <Switch value={themeMode === 'dark'} onValueChange={(v) => { const m = v ? 'dark' : 'light'; setThemeMode(m); AsyncStorage.setItem('themeMode', m); }}
+                  trackColor={{ false: c.border, true: c.primary }} ios_backgroundColor={c.border} thumbColor="#FFFFFF" />
+              </View>
+            </View>
+          </OptionGroup>
 
-        {!loggedInTherapist && accountType !== 'manager' && (
-          <Pressable
-            onPress={() => { setActiveTab('therapist'); setShowLogin(true); }}
-            style={[styles.optionRow, { backgroundColor: c.card, borderColor: c.border }]}
-          >
-            <Text style={[styles.optionLabel, { color: c.muted }]}>{t('notLoggedIn')}</Text>
-            <Text style={[styles.optionValue, { color: c.primary }]}>{t('loginAction')} ›</Text>
-          </Pressable>
-        )}
-        {(loggedInTherapist || accountType === 'manager') && (
-          <View style={{ gap: 10, marginTop: 8 }}>
-            <Pressable
-              onPress={accountType === 'manager' ? handleManagerLogout : handleLogout}
-              style={{ borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: c.border, backgroundColor: c.card }}
-            >
-              <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{t('logoutBtn')}</Text>
+          {/* ── Hilfe & Support ── */}
+          <SectionHeader title="Hilfe & Support" />
+          <OptionGroup>
+            <Pressable style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="help-circle-outline" size={18} color={c.muted} />
+                <Text style={[styles.optionLabel, { color: c.text }]}>FAQ</Text>
+              </View>
+              <Text style={[styles.optionValue, { color: c.muted }]}>Bald verfügbar ›</Text>
             </Pressable>
-            {loggedInTherapist && (
-              <Pressable
-                onPress={handleDeleteAccount}
-                style={{ borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}
-              >
-                <Text style={{ color: c.muted, fontSize: 14 }}>{t('deleteAccount')}</Text>
+            <Pressable style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="chatbubble-outline" size={18} color={c.muted} />
+                <Text style={[styles.optionLabel, { color: c.text }]}>App-Feedback</Text>
+              </View>
+              <Text style={[styles.optionValue, { color: c.muted }]}>Bald verfügbar ›</Text>
+            </Pressable>
+          </OptionGroup>
+
+          {/* ── Rechtliches ── */}
+          <SectionHeader title="Rechtliches & Richtlinien" />
+          <OptionGroup>
+            <Pressable style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="document-text-outline" size={18} color={c.muted} />
+                <Text style={[styles.optionLabel, { color: c.text }]}>Allgemeine Geschäftsbedingungen</Text>
+              </View>
+              <Text style={[styles.optionValue, { color: c.muted }]}>›</Text>
+            </Pressable>
+            <Pressable style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="shield-outline" size={18} color={c.muted} />
+                <Text style={[styles.optionLabel, { color: c.text }]}>Datenschutz</Text>
+              </View>
+              <Text style={[styles.optionValue, { color: c.muted }]}>›</Text>
+            </Pressable>
+          </OptionGroup>
+
+          {/* ── App-Version & Logout ── */}
+          <Text style={{ fontSize: 12, color: c.muted, textAlign: 'center', marginTop: 20 }}>Version 0.1.0 MVP</Text>
+
+          {(loggedInTherapist || accountType === 'manager') && (
+            <View style={{ gap: 10, marginTop: 16 }}>
+              <Pressable onPress={accountType === 'manager' ? handleManagerLogout : handleLogout}
+                style={{ borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: c.border, backgroundColor: c.card }}>
+                <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{t('logoutBtn')}</Text>
               </Pressable>
-            )}
-          </View>
-        )}
-      </ScrollView>
-    </View>
-  );
+              {loggedInTherapist && (
+                <Pressable onPress={handleDeleteAccount} style={{ borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
+                  <Text style={{ color: c.muted, fontSize: 14 }}>{t('deleteAccount')}</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    );
+  };
 
   // ── Neue Praxis erstellen ─────────────────────────────────────────────────
 
@@ -2479,15 +2505,13 @@ export default function App() {
             <Pressable
               style={[styles.registerBtn, { backgroundColor: c.primary, marginTop: 24, paddingHorizontal: 32 }]}
               onPress={() => {
-                setShowRegister(false);
-                setRegSubmitted(false);
-                setRegStep(1);
-                setRegSpecSearch('');
-                setRegLangSearch('');
-                setShowRegFortbildungen(false);
+                Linking.openURL(Platform.OS === 'ios' ? 'message://' : 'mailto:').catch(() => {});
               }}
             >
-              <Text style={styles.registerBtnText}>Zur App</Text>
+              <Text style={styles.registerBtnText}>E-Mail bestätigen</Text>
+            </Pressable>
+            <Pressable onPress={() => { setShowRegister(false); setRegSubmitted(false); setRegStep(1); setRegSpecSearch(''); setRegLangSearch(''); setShowRegFortbildungen(false); }} style={{ marginTop: 12 }}>
+              <Text style={{ color: c.muted, fontSize: 13 }}>Später</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -2872,6 +2896,7 @@ export default function App() {
     };
 
     return (
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingBottom: 20, gap: SPACE.sm }]}
         showsVerticalScrollIndicator={false}
@@ -2963,6 +2988,7 @@ export default function App() {
           </Text>
         </Pressable>
       </ScrollView>
+      </KeyboardAvoidingView>
     );
   };
 

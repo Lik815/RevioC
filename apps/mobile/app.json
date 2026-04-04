@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Revio",
-    "slug": "revo",
+    "slug": "revio",
     "scheme": "revo",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -26,7 +26,9 @@
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "config": {
         "googleMaps": {
@@ -70,15 +72,15 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "453d86fe-08c1-4852-ae2a-a9991f64c845"
+        "projectId": "77125a37-7ed9-4354-9b2f-614fadd5eeb0"
       }
     },
-    "owner": "vucenovic",
+    "owner": "my-revio",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/453d86fe-08c1-4852-ae2a-a9991f64c845"
+      "url": "https://u.expo.dev/77125a37-7ed9-4354-9b2f-614fadd5eeb0"
     }
   }
 }
