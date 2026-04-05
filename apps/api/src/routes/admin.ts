@@ -110,9 +110,6 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
   const siteSettingsSchema = z.object({
     underConstruction: z.boolean(),
   });
-  const purgePracticeDataSchema = z.object({
-    confirmation: z.literal('PURGE_PRACTICES_AND_MANAGERS'),
-  });
 
   fastify.post('/login', async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
@@ -170,103 +167,6 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       success: true,
       underConstruction: parsed.data.underConstruction,
-    };
-  });
-
-  fastify.post('/maintenance/purge-practice-data', async (request, reply) => {
-    const parsed = purgePracticeDataSchema.safeParse(request.body);
-    if (!parsed.success) return reply.badRequest('Ungültige Bestätigung');
-
-    const affectedTherapists = await fastify.prisma.therapist.findMany({
-      where: {
-        OR: [
-          { invitedByPracticeId: { not: null } },
-          { onboardingStatus: { in: ['manager_onboarding', 'invited', 'claimed'] } },
-          { links: { some: {} } },
-          { managerAccount: { isNot: null } },
-        ],
-      },
-      select: { id: true },
-    });
-
-    const therapistIds = [...new Set(affectedTherapists.map((therapist) => therapist.id))];
-    const before = {
-      practices: await fastify.prisma.practice.count(),
-      practiceManagers: await fastify.prisma.practiceManager.count(),
-      managerUsers: await fastify.prisma.user.count({ where: { role: 'manager' } }),
-      links: await fastify.prisma.therapistPracticeLink.count(),
-      invitations: await fastify.prisma.invitation.count(),
-      practiceSuggestions: await fastify.prisma.searchSuggestion.count({ where: { type: 'PRACTICE_NAME' } }),
-      affectedTherapists: therapistIds.length,
-    };
-
-    const optionalCleanupResults = {
-      managerAssignments: 0,
-      therapistRemovalLogs: 0,
-      practiceDeletionLogs: 0,
-    };
-
-    await fastify.prisma.$transaction(async (tx) => {
-      if (therapistIds.length > 0) {
-        await tx.therapist.updateMany({
-          where: { id: { in: therapistIds } },
-          data: {
-            invitedByPracticeId: null,
-            onboardingStatus: 'complete',
-            isPublished: true,
-          },
-        });
-      }
-
-      await tx.invitation.deleteMany();
-      await tx.therapistPracticeLink.deleteMany();
-
-      const optionalCleanups = await Promise.allSettled([
-        tx.managerPracticeAssignment.deleteMany(),
-        tx.therapistRemovalLog.deleteMany(),
-        tx.practiceDeletionLog.deleteMany(),
-      ]);
-
-      const [managerAssignmentsResult, therapistRemovalLogsResult, practiceDeletionLogsResult] = optionalCleanups;
-
-      if (managerAssignmentsResult.status === 'fulfilled') {
-        optionalCleanupResults.managerAssignments = managerAssignmentsResult.value.count;
-      }
-      if (therapistRemovalLogsResult.status === 'fulfilled') {
-        optionalCleanupResults.therapistRemovalLogs = therapistRemovalLogsResult.value.count;
-      }
-      if (practiceDeletionLogsResult.status === 'fulfilled') {
-        optionalCleanupResults.practiceDeletionLogs = practiceDeletionLogsResult.value.count;
-      }
-
-      await tx.practiceManager.deleteMany();
-      await tx.user.deleteMany({ where: { role: 'manager' } });
-      await tx.searchSuggestion.deleteMany({ where: { type: 'PRACTICE_NAME' } });
-      await tx.practice.deleteMany();
-    });
-
-    const after = {
-      practices: await fastify.prisma.practice.count(),
-      practiceManagers: await fastify.prisma.practiceManager.count(),
-      managerUsers: await fastify.prisma.user.count({ where: { role: 'manager' } }),
-      links: await fastify.prisma.therapistPracticeLink.count(),
-      invitations: await fastify.prisma.invitation.count(),
-      practiceSuggestions: await fastify.prisma.searchSuggestion.count({ where: { type: 'PRACTICE_NAME' } }),
-      therapistsStillLinked: await fastify.prisma.therapist.count({
-        where: {
-          OR: [
-            { invitedByPracticeId: { not: null } },
-            { onboardingStatus: { in: ['manager_onboarding', 'invited', 'claimed'] } },
-          ],
-        },
-      }),
-    };
-
-    return {
-      success: true,
-      before,
-      after,
-      optionalCleanupResults,
     };
   });
 
