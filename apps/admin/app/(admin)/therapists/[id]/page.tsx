@@ -58,7 +58,7 @@ function getVisibilityCopy(therapist: {
   visibility: { visibilityState: string; blockingReasons: string[] };
 }) {
   if (therapist.reviewStatus !== 'APPROVED') {
-    return 'Wird nach Freigabe öffentlich sichtbar, sobald keine weiteren Blocker bestehen.';
+    return 'Wird nach Freigabe öffentlich sichtbar, sobald keine weiteren offenen Punkte bestehen.';
   }
   if (!therapist.isVisible) {
     return 'Freigegeben, aber manuell versteckt.';
@@ -116,7 +116,7 @@ export default async function TherapistDetailPage({ params }: Props) {
         <div className="notice-box notice-box--warning">
           <div className="notice-box__icon">!</div>
           <div>
-            <strong>Aktuell blockiert:</strong> {operationalNotes.join(' · ')}
+            <strong>Aktuell offen:</strong> {operationalNotes.join(' · ')}
           </div>
         </div>
       )}

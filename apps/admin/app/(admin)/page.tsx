@@ -26,7 +26,7 @@ export default async function HomePage() {
 
   const cards = [
     { kicker: 'Therapeut:innen', label: 'Offene Reviews', value: stats.therapists.pending_review, href: '/therapists?status=PENDING_REVIEW' },
-    { kicker: 'Sichtbarkeit', label: 'Profile mit Blockern', value: visibilityIssues.count, href: '/therapists?status=APPROVED' },
+    { kicker: 'Sichtbarkeit', label: 'Profile mit offenen Punkten', value: visibilityIssues.count, href: '/therapists?status=APPROVED' },
     { kicker: 'Review', label: 'Änderungen oder Ablehnung', value: stats.therapists.changes_requested + stats.therapists.rejected, href: '/therapists' },
   ];
 
@@ -54,7 +54,7 @@ export default async function HomePage() {
           <div className="panel-header">
             <div>
               <div className="kicker">Öffentliche Sichtbarkeit</div>
-              <h3>Aktuelle Blocker</h3>
+              <h3>Offene Punkte</h3>
             </div>
             <div className="hero-pill">{visibilityIssues.count}</div>
           </div>

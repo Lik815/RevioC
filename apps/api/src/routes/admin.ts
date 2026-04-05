@@ -21,6 +21,7 @@ const splitList = (value: string) =>
 type TherapistRow = {
   id: string; email: string; fullName: string; professionalTitle: string;
   city: string; bio: string | null; homeVisit: boolean; specializations: string;
+  isFreelancer: boolean;
   languages: string; certifications: string; reviewStatus: string;
   serviceRadiusKm: number | null; kassenart: string;
   isVisible: boolean; isPublished: boolean; onboardingStatus: string | null;
@@ -63,6 +64,7 @@ function mapTherapist(t: TherapistRow) {
     id: t.id, email: t.email, fullName: t.fullName,
     professionalTitle: t.professionalTitle, city: t.city,
     bio: t.bio ?? undefined, homeVisit: t.homeVisit,
+    isFreelancer: t.isFreelancer,
     serviceRadiusKm: t.serviceRadiusKm ?? undefined,
     kassenart: t.kassenart,
     specializations: splitList(t.specializations),
@@ -109,6 +111,9 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
   const siteSettingsSchema = z.object({
     underConstruction: z.boolean(),
+  });
+  const freelancerBackfillSchema = z.object({
+    confirmation: z.literal('MARK_ALL_THERAPISTS_AS_FREELANCER'),
   });
 
   fastify.post('/login', async (request, reply) => {
@@ -167,6 +172,32 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       success: true,
       underConstruction: parsed.data.underConstruction,
+    };
+  });
+
+  fastify.post('/maintenance/backfill-freelancers', async (request, reply) => {
+    const parsed = freelancerBackfillSchema.safeParse(request.body);
+    if (!parsed.success) return reply.badRequest('Bestätigung fehlt');
+
+    const totalTherapists = await fastify.prisma.therapist.count();
+    const beforeFalse = await fastify.prisma.therapist.count({
+      where: { isFreelancer: false },
+    });
+
+    const updated = await fastify.prisma.therapist.updateMany({
+      data: { isFreelancer: true },
+    });
+
+    const afterFalse = await fastify.prisma.therapist.count({
+      where: { isFreelancer: false },
+    });
+
+    return {
+      success: true,
+      totalTherapists,
+      updatedCount: updated.count,
+      beforeFalse,
+      afterFalse,
     };
   });
 

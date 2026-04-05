@@ -291,6 +291,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       email: therapist.email,
       fullName: therapist.fullName,
       professionalTitle: therapist.professionalTitle,
+      isFreelancer: therapist.isFreelancer,
       city: therapist.city,
       bio: therapist.bio,
       homeVisit: therapist.homeVisit,
@@ -418,6 +419,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       success: true,
       fullName: updated.fullName,
+      isFreelancer: updated.isFreelancer,
       isPublished: updated.isPublished,
       ...publication,
     };

@@ -74,6 +74,7 @@ model Therapist {
   city                  String
   bio                   String?
   homeVisit             Boolean      @default(false)
+  isFreelancer          Boolean      @default(true)
   specializations       String
   languages             String
   certifications        String       @default("")

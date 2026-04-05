@@ -17,6 +17,7 @@ export interface Therapist {
   email: string;
   fullName: string;
   professionalTitle: string;
+  isFreelancer: boolean;
   specializations: string[];
   languages: string[];
   certifications: string[];
@@ -87,6 +88,7 @@ export interface SearchTherapist {
   id: string;
   fullName: string;
   professionalTitle: string;
+  isFreelancer: boolean;
   specializations: string[];
   languages: string[];
   certifications: string[];

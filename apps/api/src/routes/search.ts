@@ -316,6 +316,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
         id: t.id,
         fullName: t.fullName,
         professionalTitle: t.professionalTitle,
+        isFreelancer: t.isFreelancer,
         specializations,
         languages: splitList(t.languages),
         certifications: splitList(t.certifications),
@@ -384,6 +385,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       therapist: {
         id: t.id, fullName: t.fullName, professionalTitle: t.professionalTitle,
+        isFreelancer: t.isFreelancer,
         specializations: splitList(t.specializations),
         languages: splitList(t.languages),
         certifications: splitList(t.certifications),

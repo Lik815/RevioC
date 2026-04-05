@@ -73,6 +73,7 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
         languages: data.languages.join(', '),
         certifications: data.certifications.join(', '),
         homeVisit: data.homeVisit ?? false,
+        isFreelancer: true,
         serviceRadiusKm: data.serviceRadiusKm ?? null,
         kassenart: data.kassenart ?? '',
         availability: data.availability ?? '',
