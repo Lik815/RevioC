@@ -106,12 +106,26 @@ export type SiteSettings = {
   underConstruction: boolean;
 };
 
+export type BlogPost = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  authorName: string;
+  isPublished: boolean;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export const api = {
   getStats: () => adminFetch<AdminStats>('/admin/stats'),
   getTherapists: () => adminFetch<TherapistWithLinks[]>('/admin/therapists'),
   getTherapist: (id: string) => adminFetch<TherapistWithLinks>(`/admin/therapists/${id}`),
   getVisibilityIssues: () => adminFetch<VisibilityIssues>('/admin/visibility-issues'),
   getSiteSettings: () => adminFetch<SiteSettings>('/admin/site-settings'),
+  getBlogPosts: () => adminFetch<BlogPost[]>('/admin/blog-posts'),
   getTherapistDocuments: (id: string) => adminFetch<TherapistDocument[]>(`/admin/therapists/${id}/documents`),
   getCertificationOptions: () => adminFetch<{ certifications: CertificationOption[] }>('/admin/certifications'),
 };

@@ -779,6 +779,71 @@ a {
   line-height: 1.55;
 }
 
+.blog-admin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.65fr);
+  gap: 18px;
+}
+
+.blog-admin-list {
+  display: grid;
+  gap: 18px;
+}
+
+.blog-admin-card {
+  display: grid;
+  gap: 18px;
+}
+
+.blog-admin-card__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.blog-form {
+  display: grid;
+  gap: 14px;
+}
+
+.blog-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 13px;
+  background: rgba(255,255,255,0.85);
+  font: inherit;
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+  min-height: 180px;
+}
+
+.field textarea:focus {
+  border-color: rgba(80,109,122,.35);
+  box-shadow: 0 0 0 4px rgba(80,109,122,.12);
+}
+
+.blog-admin-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.blog-inline-btn,
+.blog-open-link {
+  min-height: 44px;
+  padding: 0 16px;
+}
+
 @media (max-width: 1080px) {
   .layout,
   .hero-grid,
@@ -897,6 +962,11 @@ a {
   }
 
   .settings-feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-admin-layout,
+  .blog-form__grid {
     grid-template-columns: 1fr;
   }
 }

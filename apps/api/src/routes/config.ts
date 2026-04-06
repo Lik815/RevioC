@@ -7,6 +7,47 @@ export const configRoutes: FastifyPluginAsync = async (fastify) => {
     return getPublicSiteSettings(fastify.prisma);
   });
 
+  fastify.get('/config/blog-posts', async () => {
+    const posts = await fastify.prisma.blogPost.findMany({
+      where: { isPublished: true },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    return {
+      posts: posts.map((post) => ({
+        id: post.id,
+        slug: post.slug,
+        title: post.title,
+        excerpt: post.excerpt,
+        authorName: post.authorName,
+        publishedAt: post.publishedAt?.toISOString() ?? null,
+        createdAt: post.createdAt.toISOString(),
+        updatedAt: post.updatedAt.toISOString(),
+      })),
+    };
+  });
+
+  fastify.get('/config/blog-posts/:slug', async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    const post = await fastify.prisma.blogPost.findUnique({ where: { slug } });
+
+    if (!post || !post.isPublished) return reply.notFound('Blogpost nicht gefunden');
+
+    return {
+      post: {
+        id: post.id,
+        slug: post.slug,
+        title: post.title,
+        excerpt: post.excerpt,
+        content: post.content,
+        authorName: post.authorName,
+        publishedAt: post.publishedAt?.toISOString() ?? null,
+        createdAt: post.createdAt.toISOString(),
+        updatedAt: post.updatedAt.toISOString(),
+      },
+    };
+  });
+
   fastify.get('/config/options', async () => {
     await ensureDefaultCertificationOptions(fastify.prisma);
 

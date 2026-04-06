@@ -112,6 +112,13 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
   const siteSettingsSchema = z.object({
     underConstruction: z.boolean(),
   });
+  const blogPostSchema = z.object({
+    slug: z.string().trim().min(2).max(120).regex(/^[a-z0-9-]+$/, 'Ungültiger Slug'),
+    title: z.string().trim().min(4).max(180),
+    excerpt: z.string().trim().min(12).max(320),
+    content: z.string().trim().min(30),
+    authorName: z.string().trim().min(2).max(80).default('Revio Team'),
+  });
 
   fastify.post('/login', async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
@@ -170,6 +177,98 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
       success: true,
       underConstruction: parsed.data.underConstruction,
     };
+  });
+
+  fastify.get('/blog-posts', async () => {
+    const posts = await fastify.prisma.blogPost.findMany({
+      orderBy: [{ publishedAt: 'desc' }, { updatedAt: 'desc' }],
+    });
+
+    return posts.map((post) => ({
+      id: post.id,
+      slug: post.slug,
+      title: post.title,
+      excerpt: post.excerpt,
+      content: post.content,
+      authorName: post.authorName,
+      isPublished: post.isPublished,
+      publishedAt: post.publishedAt?.toISOString() ?? null,
+      createdAt: post.createdAt.toISOString(),
+      updatedAt: post.updatedAt.toISOString(),
+    }));
+  });
+
+  fastify.post('/blog-posts', async (request, reply) => {
+    const parsed = blogPostSchema.safeParse(request.body);
+    if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
+
+    const existing = await fastify.prisma.blogPost.findUnique({
+      where: { slug: parsed.data.slug },
+    });
+    if (existing) return reply.conflict('Ein Blogpost mit diesem Slug existiert bereits');
+
+    const post = await fastify.prisma.blogPost.create({
+      data: parsed.data,
+    });
+
+    return reply.status(201).send({
+      id: post.id,
+      slug: post.slug,
+      title: post.title,
+      isPublished: post.isPublished,
+    });
+  });
+
+  fastify.post('/blog-posts/:id/update', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = blogPostSchema.safeParse(request.body);
+    if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
+
+    const existing = await fastify.prisma.blogPost.findFirst({
+      where: { id: { not: id }, slug: parsed.data.slug },
+    });
+    if (existing) return reply.conflict('Ein Blogpost mit diesem Slug existiert bereits');
+
+    const post = await fastify.prisma.blogPost.update({
+      where: { id },
+      data: parsed.data,
+    }).catch(() => null);
+    if (!post) return reply.notFound('Blogpost nicht gefunden');
+
+    return {
+      id: post.id,
+      slug: post.slug,
+      title: post.title,
+      isPublished: post.isPublished,
+    };
+  });
+
+  fastify.post('/blog-posts/:id/toggle-publish', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const existing = await fastify.prisma.blogPost.findUnique({ where: { id } });
+    if (!existing) return reply.notFound('Blogpost nicht gefunden');
+
+    const nextPublished = !existing.isPublished;
+    const post = await fastify.prisma.blogPost.update({
+      where: { id },
+      data: {
+        isPublished: nextPublished,
+        publishedAt: nextPublished ? (existing.publishedAt ?? new Date()) : null,
+      },
+    });
+
+    return {
+      id: post.id,
+      isPublished: post.isPublished,
+      publishedAt: post.publishedAt?.toISOString() ?? null,
+    };
+  });
+
+  fastify.post('/blog-posts/:id/delete', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const deleted = await fastify.prisma.blogPost.delete({ where: { id } }).catch(() => null);
+    if (!deleted) return reply.notFound('Blogpost nicht gefunden');
+    return { success: true };
   });
 
   fastify.get('/certifications', async () => {

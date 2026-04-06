@@ -5,6 +5,7 @@ export const siteConfig = {
     { href: '/', label: 'Startseite' },
     { href: '/patients', label: 'Für Patient:innen' },
     { href: '/therapists', label: 'Für Therapeut:innen' },
+    { href: '/blog', label: 'Blog' },
     { href: '/about', label: 'Über Revio' },
     { href: '/contact', label: 'Kontakt' },
   ],

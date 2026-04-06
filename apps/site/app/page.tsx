@@ -2,9 +2,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Hero } from '../components/hero';
 import { Section } from '../components/section';
+import { getPublishedBlogPosts } from '../lib/blog';
 import { homeHighlights, patientBenefits, showcaseScreens, therapistBenefits } from '../lib/content';
 
-export default function HomePage() {
+export default async function HomePage() {
+  const blogPosts = await getPublishedBlogPosts();
+  const latestPosts = blogPosts.slice(0, 3);
+
   return (
     <>
       <Hero
@@ -132,6 +136,27 @@ export default function HomePage() {
           </div>
         </div>
       </Section>
+
+      {latestPosts.length > 0 ? (
+        <Section
+          eyebrow="Blog"
+          title="Neue Gedanken aus dem Revio Magazin"
+          body="Kurze, klare Texte zu moderner Physiotherapie, mobilem Arbeiten und dem Aufbau von Revio."
+        >
+          <div className="blog-grid">
+            {latestPosts.map((post) => (
+              <article key={post.id} className="blog-card">
+                <div className="eyebrow">Neu</div>
+                <h3>{post.title}</h3>
+                <p className="blog-card__excerpt">{post.excerpt}</p>
+                <Link href={`/blog/${post.slug}`} className="button button--ghost blog-card__link">
+                  Beitrag lesen
+                </Link>
+              </article>
+            ))}
+          </div>
+        </Section>
+      ) : null}
     </>
   );
 }

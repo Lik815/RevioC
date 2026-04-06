@@ -157,3 +157,45 @@ export async function updateSiteUnderConstruction(formData: FormData) {
 
   revalidatePath('/settings');
 }
+
+export async function createBlogPost(formData: FormData) {
+  const slug = String(formData.get('slug') ?? '').trim();
+  const title = String(formData.get('title') ?? '').trim();
+  const excerpt = String(formData.get('excerpt') ?? '').trim();
+  const content = String(formData.get('content') ?? '').trim();
+  const authorName = String(formData.get('authorName') ?? 'Revio Team').trim() || 'Revio Team';
+
+  if (!slug || !title || !excerpt || !content) return;
+
+  await adminRequest('/admin/blog-posts', {
+    body: { slug, title, excerpt, content, authorName },
+  });
+
+  revalidatePath('/blog');
+}
+
+export async function updateBlogPost(id: string, formData: FormData) {
+  const slug = String(formData.get('slug') ?? '').trim();
+  const title = String(formData.get('title') ?? '').trim();
+  const excerpt = String(formData.get('excerpt') ?? '').trim();
+  const content = String(formData.get('content') ?? '').trim();
+  const authorName = String(formData.get('authorName') ?? 'Revio Team').trim() || 'Revio Team';
+
+  if (!slug || !title || !excerpt || !content) return;
+
+  await adminRequest(`/admin/blog-posts/${id}/update`, {
+    body: { slug, title, excerpt, content, authorName },
+  });
+
+  revalidatePath('/blog');
+}
+
+export async function toggleBlogPostPublish(id: string) {
+  await adminRequest(`/admin/blog-posts/${id}/toggle-publish`);
+  revalidatePath('/blog');
+}
+
+export async function deleteBlogPost(id: string) {
+  await adminRequest(`/admin/blog-posts/${id}/delete`);
+  revalidatePath('/blog');
+}

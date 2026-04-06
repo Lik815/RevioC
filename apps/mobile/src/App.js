@@ -311,6 +311,7 @@ export default function App() {
   const [regLanguages, setRegLanguages] = useState(['de']);
   const [regFortbildungen, setRegFortbildungen] = useState([]);
   const regFreelance = true;
+  const [regIsFreelance, setRegIsFreelance] = useState(null); // null | true | false
   const [regHomeVisit, setRegHomeVisit] = useState(false);
   const [regServiceRadius, setRegServiceRadius] = useState(null);
   const [regKassenart, setRegKassenart] = useState([]);
@@ -1745,7 +1746,7 @@ export default function App() {
             >
               <Text style={styles.registerBtnText}>{t('verifyEmailBtn')}</Text>
             </Pressable>
-            <Pressable onPress={() => { setShowRegister(false); setRegSubmitted(false); setRegStep(1); setRegSpecSearch(''); setRegLangSearch(''); setShowRegFortbildungen(false); setRegDocument(null); }} style={{ marginTop: 12 }}>
+            <Pressable onPress={() => { setShowRegister(false); setRegSubmitted(false); setRegStep(1); setRegIsFreelance(null); setRegSpecSearch(''); setRegLangSearch(''); setShowRegFortbildungen(false); setRegDocument(null); }} style={{ marginTop: 12 }}>
               <Text style={{ color: c.muted, fontSize: 13 }}>{t('laterBtn')}</Text>
             </Pressable>
           </View>
@@ -1770,7 +1771,9 @@ export default function App() {
           return regEmail.length > 3 && regPassword.length >= 6 && regPassword === regPasswordConfirm;
         case 2:
           return regFirstName.trim().length > 0 && regLastName.trim().length > 0 && regCity.trim().length > 0;
-        case 4:
+        case 3:
+          return regIsFreelance === true;
+        case 5:
           return Boolean(regDocument);
         default:
           return true;
@@ -1870,7 +1873,50 @@ export default function App() {
               )}
             </>
           );
-        case 3: {
+        case 3:
+          return (
+            <>
+              <Text style={[styles.regStepTitle, { color: c.text }]}>{t('freelanceCheckTitle')}</Text>
+              <Text style={{ fontSize: 14, color: c.muted, marginBottom: SPACE.lg, lineHeight: 20 }}>
+                {t('freelanceCheckBody')}
+              </Text>
+              <View style={{ gap: 12 }}>
+                <Pressable
+                  onPress={() => setRegIsFreelance(true)}
+                  style={[styles.optionRow, {
+                    backgroundColor: regIsFreelance === true ? c.primaryBg : c.card,
+                    borderColor: regIsFreelance === true ? c.primary : c.border,
+                  }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.optionLabel, { color: c.text }]}>{t('yesLabel')}</Text>
+                    <Text style={[styles.optionValue, { color: c.muted, fontSize: 12 }]}>{t('freelanceCheckYesSub')}</Text>
+                  </View>
+                  {regIsFreelance === true && <Ionicons name="checkmark-circle" size={22} color={c.primary} />}
+                </Pressable>
+                <Pressable
+                  onPress={() => setRegIsFreelance(false)}
+                  style={[styles.optionRow, {
+                    backgroundColor: regIsFreelance === false ? '#FEF2F2' : c.card,
+                    borderColor: regIsFreelance === false ? c.error : c.border,
+                  }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.optionLabel, { color: c.text }]}>{t('noLabel')}</Text>
+                    <Text style={[styles.optionValue, { color: c.muted, fontSize: 12 }]}>{t('freelanceCheckNoSub')}</Text>
+                  </View>
+                  {regIsFreelance === false && <Ionicons name="close-circle" size={22} color={c.error} />}
+                </Pressable>
+              </View>
+              {regIsFreelance === false && (
+                <View style={[styles.noticeBox, { backgroundColor: '#FEF2F2', borderColor: c.error, marginTop: SPACE.md }]}>
+                  <Text style={styles.noticeIcon}>⚠️</Text>
+                  <Text style={[styles.noticeBody, { color: c.error }]}>{t('freelanceCheckBlockedMsg')}</Text>
+                </View>
+              )}
+            </>
+          );
+        case 4: {
           const langSuggestions4 = regLangSearch.length > 0
             ? languageOptions.filter(l => getLangLabel(l).toLowerCase().includes(regLangSearch.toLowerCase()) && !regLanguages.includes(l)).slice(0, 6)
             : [];
@@ -1983,7 +2029,7 @@ export default function App() {
             </>
           );
         }
-        case 4:
+        case 5:
           return (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
@@ -1995,7 +2041,7 @@ export default function App() {
               </View>
               {showRegStepInfo && (
                 <View style={{ backgroundColor: c.mutedBg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: c.border, marginBottom: SPACE.sm }}>
-                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[4]}</Text>
+                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[5]}</Text>
                 </View>
               )}
 
@@ -2036,7 +2082,7 @@ export default function App() {
               )}
             </>
           );
-        case 5:
+        case 6:
           return (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
@@ -2048,7 +2094,7 @@ export default function App() {
               </View>
               {showRegStepInfo && (
                 <View style={{ backgroundColor: c.mutedBg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: c.border }}>
-                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[5]}</Text>
+                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[6]}</Text>
                 </View>
               )}
               {[
@@ -2082,9 +2128,9 @@ export default function App() {
     const REG_STEP_INFO = {
       1: t('regStepInfoText1'),
       2: t('regStepInfoText2'),
-      3: t('regStepInfoText4'),
-      4: t('regStepInfoText5'),
-      5: t('regStepInfoText6'),
+      4: t('regStepInfoText4'),
+      5: t('regStepInfoText5'),
+      6: t('regStepInfoText6'),
     };
 
     return (
