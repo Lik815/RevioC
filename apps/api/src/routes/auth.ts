@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
+import type { LocationPrecision } from '@revio/shared';
 import { hashPassword, verifyPassword, getToken } from './auth-utils.js';
 import {
   getProfileStatus,
@@ -13,7 +14,11 @@ import {
   getTherapistCompliance,
   HEALTH_AUTHORITY_STATUS_VALUES,
 } from '../utils/compliance.js';
-import { geocodeAddress } from '../utils/geocode.js';
+import {
+  geocodeAddress,
+  geocodeTherapistLocation,
+  normalizeLocationPrecision,
+} from '../utils/geocode.js';
 
 export { hashPassword, verifyPassword, getToken };
 
@@ -22,11 +27,17 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const locationPrecisionSchema = z.enum(['exact', 'approximate'] satisfies [LocationPrecision, ...LocationPrecision[]]);
+
 const updateMeSchema = z.object({
   fullName: z.string().min(2).optional(),
   professionalTitle: z.string().min(2).optional(),
   bio: z.string().optional(),
   city: z.string().min(2).optional(),
+  postalCode: z.string().trim().regex(/^\d{5}$/).nullable().optional(),
+  street: z.string().trim().min(2).nullable().optional(),
+  houseNumber: z.string().trim().min(1).nullable().optional(),
+  locationPrecision: locationPrecisionSchema.optional(),
   homeVisit: z.boolean().optional(),
   serviceRadiusKm: z.number().min(1).max(200).nullable().optional(),
   isVisible: z.boolean().optional(),
@@ -320,6 +331,10 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       professionalTitle: therapist.professionalTitle,
       isFreelancer: therapist.isFreelancer,
       city: therapist.city,
+      postalCode: therapist.postalCode ?? null,
+      street: therapist.street ?? null,
+      houseNumber: therapist.houseNumber ?? null,
+      locationPrecision: (therapist as any).locationPrecision ?? 'approximate',
       bio: therapist.bio,
       homeVisit: therapist.homeVisit,
       serviceRadiusKm: (therapist as any).serviceRadiusKm ?? null,
@@ -384,6 +399,10 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (data.fullName !== undefined) updateData.fullName = data.fullName;
     if (data.professionalTitle !== undefined) updateData.professionalTitle = data.professionalTitle;
     if (data.bio !== undefined) updateData.bio = data.bio;
+    if (data.postalCode !== undefined) updateData.postalCode = data.postalCode ?? null;
+    if (data.street !== undefined) updateData.street = data.street ?? null;
+    if (data.houseNumber !== undefined) updateData.houseNumber = data.houseNumber ?? null;
+    if (data.locationPrecision !== undefined) updateData.locationPrecision = normalizeLocationPrecision(data.locationPrecision);
     if (data.homeVisit !== undefined) updateData.homeVisit = data.homeVisit;
     if (data.serviceRadiusKm !== undefined) updateData.serviceRadiusKm = data.serviceRadiusKm;
     if (data.isVisible !== undefined) updateData.isVisible = data.isVisible;
@@ -394,20 +413,35 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (data.certifications !== undefined) updateData.certifications = data.certifications.join(', ');
     if (data.photo !== undefined) updateData.photo = data.photo;
 
-    // Wenn city geändert: Stadt geocodieren → homeLat/homeLng setzen
-    if (data.city !== undefined) {
-      updateData.city = data.city;
-      const coords = await geocodeAddress('', data.city);
+    if (data.city !== undefined) updateData.city = data.city;
+
+    const locationChanged =
+      data.city !== undefined ||
+      data.postalCode !== undefined ||
+      data.street !== undefined ||
+      data.houseNumber !== undefined ||
+      data.locationPrecision !== undefined;
+
+    if (locationChanged) {
+      const nextLocation = {
+        city: data.city ?? therapist.city,
+        postalCode: data.postalCode !== undefined ? data.postalCode : (therapist as any).postalCode,
+        street: data.street !== undefined ? data.street : (therapist as any).street,
+        houseNumber: data.houseNumber !== undefined ? data.houseNumber : (therapist as any).houseNumber,
+        locationPrecision: data.locationPrecision ?? (therapist as any).locationPrecision,
+      };
+      const coords = await geocodeTherapistLocation(nextLocation);
+      updateData.locationPrecision = coords.locationPrecision;
+      updateData.latitude = coords.exactCoords?.lat ?? null;
+      updateData.longitude = coords.exactCoords?.lng ?? null;
+      updateData.homeLat = coords.publicCoords?.lat ?? 0;
+      updateData.homeLng = coords.publicCoords?.lng ?? 0;
+    } else if ((therapist as any).latitude == null && (therapist as any).longitude == null && therapist.city) {
+      // Legacy backfill for older therapists that only stored city/homeLat/homeLng
+      const coords = await geocodeAddress('', therapist.city, (therapist as any).postalCode ?? undefined);
       if (coords) {
-        updateData.homeLat = coords.lat;
-        updateData.homeLng = coords.lng;
-      }
-    } else if (therapist.homeLat === 0 && therapist.homeLng === 0 && therapist.city) {
-      // Einmalige Nachrüstung: bestehender Therapeut ohne Koordinaten
-      const coords = await geocodeAddress('', therapist.city);
-      if (coords) {
-        updateData.homeLat = coords.lat;
-        updateData.homeLng = coords.lng;
+        updateData.latitude = coords.lat;
+        updateData.longitude = coords.lng;
       }
     }
 
@@ -449,6 +483,11 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       success: true,
       fullName: updated.fullName,
       isFreelancer: updated.isFreelancer,
+      city: updated.city,
+      postalCode: (updated as any).postalCode ?? null,
+      street: (updated as any).street ?? null,
+      houseNumber: (updated as any).houseNumber ?? null,
+      locationPrecision: (updated as any).locationPrecision ?? 'approximate',
       isPublished: updated.isPublished,
       compliance: serializeCompliance(updated),
       profileStatus: getProfileStatus(updated),

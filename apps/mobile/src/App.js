@@ -47,7 +47,6 @@ import {
   resolveMediaUrl,
   softenErrorMessage,
   tabs,
-  GERMAN_CITIES,
 } from './mobile-utils';
 import { DiscoverScreen } from './mobile-discover-screen';
 import {
@@ -97,6 +96,7 @@ const REVIEW_NOTIFICATION_TYPES = new Set([
 const REGISTRATION_COMPLIANCE_DRAFT_KEY = 'revio_registration_compliance_draft';
 const COMPLIANCE_STATUS_VALUES = ['yes', 'no', 'in_progress'];
 const HEALTH_AUTHORITY_STATUS_VALUES = ['yes', 'no', 'in_progress', 'unknown'];
+const FREELANCE_HELP_URL = 'https://my-revio.de/blog/freiberuflich-als-physiotherapeut-starten';
 
 function normalizeComplianceValue(value, allowedValues) {
   return allowedValues.includes(value) ? value : null;
@@ -121,6 +121,17 @@ function parseComplianceDraft(rawValue) {
 
 function getTherapistComplianceDraftKey(therapistId) {
   return `revio_therapist_compliance_draft_${therapistId}`;
+}
+
+function formatTherapistLocationSummary({
+  city,
+  postalCode,
+  street,
+  houseNumber,
+}) {
+  const streetLine = [street, houseNumber].filter(Boolean).join(' ').trim();
+  const cityLine = [postalCode, city].filter(Boolean).join(' ').trim();
+  return [streetLine, cityLine].filter(Boolean).join(', ');
 }
 
 function formatDocumentSize(bytes) {
@@ -405,7 +416,10 @@ export default function App() {
   const [regFirstName, setRegFirstName] = useState('');
   const [regLastName, setRegLastName] = useState('');
   const [regCity, setRegCity] = useState('');
-  const [regCitySearch, setRegCitySearch] = useState('');
+  const [regPostalCode, setRegPostalCode] = useState('');
+  const [regStreet, setRegStreet] = useState('');
+  const [regHouseNumber, setRegHouseNumber] = useState('');
+  const [regLocationPrecision, setRegLocationPrecision] = useState('approximate');
   const [regSpecializations, setRegSpecializations] = useState([]);
   const [regLanguages, setRegLanguages] = useState(['de']);
   const [regFortbildungen, setRegFortbildungen] = useState([]);
@@ -794,6 +808,15 @@ export default function App() {
     }
     setDeleteNameInput('');
     setShowDeleteAccountModal(true);
+  };
+
+  const openFreelanceHelp = async () => {
+    try {
+      await Linking.openURL(FREELANCE_HELP_URL);
+    } catch {
+      if (Platform.OS === 'web') showWebAlert(t('freelanceCheckHelpOpenError'));
+      else Alert.alert(t('alertError'), t('freelanceCheckHelpOpenError'));
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -1977,7 +2000,12 @@ export default function App() {
         case 1:
           return regEmail.length > 3 && regPassword.length >= 6 && regPassword === regPasswordConfirm;
         case 2:
-          return regFirstName.trim().length > 0 && regLastName.trim().length > 0 && regCity.trim().length > 0;
+          return (
+            regFirstName.trim().length > 0 &&
+            regLastName.trim().length > 0 &&
+            regCity.trim().length > 0 &&
+            regPostalCode.trim().length === 5
+          );
         case 3:
           return regIsFreelance === true;
         case 6:
@@ -2045,39 +2073,88 @@ export default function App() {
               {regLastName.length > 0 && regLastName.trim().length === 0 && (
                 <Text style={{ color: c.saved, fontSize: 13, marginTop: -6 }}>{t('lastNameRequired')}</Text>
               )}
-              {regCity ? (
-                <View style={[styles.tagRow, { marginBottom: 8 }]}>
-                  <Pressable onPress={() => { setRegCity(''); setRegCitySearch(''); }} style={[styles.chip, { backgroundColor: c.primary, borderColor: c.primary }]}>
-                    <Text style={[styles.chipText, { color: '#FFFFFF' }]}>{regCity} ×</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ width: 110 }}>
                   <TextInput
-                    value={regCitySearch}
-                    onChangeText={setRegCitySearch}
-                    placeholder={t('searchCityPlaceholder')}
+                    value={regPostalCode}
+                    onChangeText={(value) => setRegPostalCode(value.replace(/\D/g, '').slice(0, 5))}
+                    placeholder={t('postalCodePlaceholder')}
                     placeholderTextColor={c.muted}
+                    keyboardType="number-pad"
+                    maxLength={5}
+                    style={[styles.regInput, { backgroundColor: c.card, borderColor: regPostalCode.length > 0 && regPostalCode.length !== 5 ? c.saved : c.border, color: c.text }]}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    value={regCity}
+                    onChangeText={setRegCity}
+                    placeholder={t('cityPlaceholder')}
+                    placeholderTextColor={c.muted}
+                    autoCapitalize="words"
+                    style={[styles.regInput, { backgroundColor: c.card, borderColor: regCity.length > 0 && regCity.trim().length === 0 ? c.saved : c.border, color: c.text }]}
+                  />
+                </View>
+              </View>
+              {regPostalCode.length > 0 && regPostalCode.length !== 5 && (
+                <Text style={{ color: c.saved, fontSize: 13, marginTop: -6 }}>{t('postalCodeInvalid')}</Text>
+              )}
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    value={regStreet}
+                    onChangeText={setRegStreet}
+                    placeholder={t('streetOptionalPlaceholder')}
+                    placeholderTextColor={c.muted}
+                    autoCapitalize="words"
                     style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]}
                   />
-                  {regCitySearch.length > 0 && (() => {
-                    const citySuggestions = GERMAN_CITIES.filter(ci => ci.toLowerCase().includes(regCitySearch.toLowerCase())).slice(0, 6);
-                    return citySuggestions.length > 0 ? (
-                      <View style={{ backgroundColor: c.card, borderRadius: 8, borderWidth: 1, borderColor: c.border, marginTop: -8, marginBottom: 8 }}>
-                        {citySuggestions.map((ci) => (
-                          <Pressable
-                            key={ci}
-                            onPress={() => { setRegCity(ci); setRegCitySearch(''); }}
-                            style={{ paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border }}
-                          >
-                            <Text style={{ color: c.text, fontSize: 14 }}>{ci}</Text>
-                          </Pressable>
-                        ))}
+                </View>
+                <View style={{ width: 118 }}>
+                  <TextInput
+                    value={regHouseNumber}
+                    onChangeText={setRegHouseNumber}
+                    placeholder={t('houseNumberOptionalPlaceholder')}
+                    placeholderTextColor={c.muted}
+                    autoCapitalize="characters"
+                    style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]}
+                  />
+                </View>
+              </View>
+              <View style={{ marginTop: 2, gap: 10 }}>
+                <Text style={{ fontSize: 13, color: c.muted, lineHeight: 18 }}>
+                  {t('locationPrecisionQuestion')}
+                </Text>
+                <View style={{ gap: 10 }}>
+                  {[
+                    {
+                      key: 'approximate',
+                      label: t('locationPrecisionApproximate'),
+                      sub: t('locationPrecisionApproximateSub'),
+                    },
+                    {
+                      key: 'exact',
+                      label: t('locationPrecisionExact'),
+                      sub: t('locationPrecisionExactSub'),
+                    },
+                  ].map((option) => (
+                    <Pressable
+                      key={option.key}
+                      onPress={() => setRegLocationPrecision(option.key)}
+                      style={[styles.optionRow, {
+                        backgroundColor: regLocationPrecision === option.key ? c.primaryBg : c.card,
+                        borderColor: regLocationPrecision === option.key ? c.primary : c.border,
+                      }]}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.optionLabel, { color: c.text }]}>{option.label}</Text>
+                        <Text style={[styles.optionValue, { color: c.muted, fontSize: 12 }]}>{option.sub}</Text>
                       </View>
-                    ) : null;
-                  })()}
-                </>
-              )}
+                      {regLocationPrecision === option.key && <Ionicons name="checkmark-circle" size={22} color={c.primary} />}
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
             </>
           );
         case 3:
@@ -2087,6 +2164,16 @@ export default function App() {
               <Text style={{ fontSize: 14, color: c.muted, marginBottom: SPACE.lg, lineHeight: 20 }}>
                 {t('freelanceCheckBody')}
               </Text>
+              <View style={{ marginTop: -4, marginBottom: SPACE.lg, gap: 4 }}>
+                <Text style={{ fontSize: 13, color: c.muted, lineHeight: 18 }}>
+                  {t('freelanceCheckHelpTitle')}
+                </Text>
+                <Pressable onPress={openFreelanceHelp} hitSlop={8} style={{ alignSelf: 'flex-start' }}>
+                  <Text style={{ fontSize: 13, color: c.primary, fontWeight: '600', lineHeight: 18 }}>
+                    {t('freelanceCheckHelpLink')}
+                  </Text>
+                </Pressable>
+              </View>
               <View style={{ gap: 12 }}>
                 <Pressable
                   onPress={() => setRegIsFreelance(true)}
@@ -2332,7 +2419,15 @@ export default function App() {
               {[
                 { label: t('nameLabel'), value: `${regFirstName} ${regLastName}`.trim() || '—' },
                 { label: t('emailLabel'), value: regEmail || '—' },
-                { label: t('cityLabel'), value: regCity || '—' },
+                {
+                  label: t('locationSummaryLabel'),
+                  value: formatTherapistLocationSummary({
+                    city: regCity,
+                    postalCode: regPostalCode,
+                    street: regStreet,
+                    houseNumber: regHouseNumber,
+                  }) || '—',
+                },
                 { label: t('activityLabel'), value: t('freelanceLabel') },
                 { label: t('specsLabel'), value: regSpecializations.join(', ') || '—' },
                 { label: t('languagesLabel'), value: regLanguages.map(getLangLabel).join(', ') || '—' },
@@ -2418,6 +2513,10 @@ export default function App() {
                     password: regPassword,
                     fullName: `${regFirstName} ${regLastName}`.trim(),
                     city: regCity || undefined,
+                    postalCode: regPostalCode || undefined,
+                    street: regStreet.trim() || undefined,
+                    houseNumber: regHouseNumber.trim() || undefined,
+                    locationPrecision: regLocationPrecision,
                     specializations: regSpecializations,
                     languages: regLanguages.map(l => l.toLowerCase()),
                     certifications: regFortbildungen,
@@ -2482,6 +2581,10 @@ export default function App() {
                   setRegLangSearch('');
                   setShowRegFortbildungen(false);
                   setRegDocument(null);
+                  setRegPostalCode('');
+                  setRegStreet('');
+                  setRegHouseNumber('');
+                  setRegLocationPrecision('approximate');
                   setRegTaxRegistrationStatus(null);
                   setRegHealthAuthorityStatus(null);
                   return;

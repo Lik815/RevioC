@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { prisma } from '../src/plugins/prisma.js';
 import { getProfileStatus } from '../src/utils/profile-completeness.js';
@@ -10,12 +10,56 @@ const AUTH = { authorization: 'Bearer test-token' };
 
 type App = Awaited<ReturnType<typeof buildApp>>;
 let app: App;
+let fetchSpy: { mockRestore: () => void } | null = null;
 
 beforeAll(async () => {
+  fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    const url = typeof input === 'string'
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+    if (url.includes('nominatim.openstreetmap.org/search')) {
+      const query = new URL(url).searchParams.get('q') ?? '';
+
+      if (query.includes('Komoedienstrasse 12') && query.includes('50667')) {
+        return new Response(JSON.stringify([{ lat: '50.9418', lon: '6.9582' }]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (query.includes('50667 Koeln') || query.includes('50667 Köln')) {
+        return new Response(JSON.stringify([{ lat: '50.9375', lon: '6.9603' }]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (query.includes('Köln') || query.includes('Koeln')) {
+        return new Response(JSON.stringify([{ lat: '50.9333', lon: '6.9500' }]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify([{ lat: '52.5200', lon: '13.4050' }]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(JSON.stringify([]), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
   app = await buildApp();
 });
 
 afterAll(async () => {
+  fetchSpy?.mockRestore();
   await app.close();
 });
 
@@ -615,6 +659,10 @@ describe('POST /register/therapist', () => {
     fullName: 'New Therapist',
     professionalTitle: 'Physiotherapeut',
     city: 'Köln',
+    postalCode: '50667',
+    street: 'Komoedienstrasse',
+    houseNumber: '12',
+    locationPrecision: 'approximate',
     homeVisit: false,
     specializations: ['back pain'],
     languages: ['de'],
@@ -678,6 +726,27 @@ describe('POST /register/therapist', () => {
     });
     // Always PROPOSED — admin must confirm the link
     expect(link?.status).toBe('PROPOSED');
+  });
+
+  it('stores structured location fields and keeps public coords approximate', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/register/therapist',
+      payload: { ...validPayload, email: 'location-register@test.com', homeVisit: true },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const { therapistId } = res.json();
+    const therapist = await prisma.therapist.findUnique({ where: { id: therapistId } }) as any;
+
+    expect(therapist?.postalCode).toBe('50667');
+    expect(therapist?.street).toBe('Komoedienstrasse');
+    expect(therapist?.houseNumber).toBe('12');
+    expect(therapist?.locationPrecision).toBe('approximate');
+    expect(therapist?.latitude).toBeCloseTo(50.9418, 3);
+    expect(therapist?.longitude).toBeCloseTo(6.9582, 3);
+    expect(therapist?.homeLat).toBeCloseTo(50.9375, 3);
+    expect(therapist?.homeLng).toBeCloseTo(6.9603, 3);
   });
 
   it('stores optional self-reported compliance fields', async () => {
@@ -826,6 +895,59 @@ describe('PATCH /auth/me/compliance', () => {
       healthAuthorityStatus: 'yes',
     });
     expect(meRes.json().profileStatus).toBe('ready_for_review');
+  });
+});
+
+describe('PATCH /auth/me location fields', () => {
+  it('updates structured location fields and geocodes exact/public coordinates', async () => {
+    const sessionToken = 'location-session-token';
+    await prisma.user.create({
+      data: {
+        email: 'location-auth@test.de',
+        passwordHash: 'hash',
+        role: 'therapist',
+        sessionToken,
+      },
+    });
+    const therapist = await prisma.therapist.create({
+      data: {
+        email: 'location-auth@test.de',
+        fullName: 'Location Test',
+        professionalTitle: 'Physiotherapeut',
+        city: 'Köln',
+        specializations: 'Rücken',
+        languages: 'de',
+        certifications: '',
+        sessionToken,
+      } as any,
+    });
+
+    const patchRes = await app.inject({
+      method: 'PATCH',
+      url: '/auth/me',
+      headers: { authorization: `Bearer ${sessionToken}` },
+      payload: {
+        city: 'Köln',
+        postalCode: '50667',
+        street: 'Komoedienstrasse',
+        houseNumber: '12',
+        locationPrecision: 'exact',
+      },
+    });
+
+    expect(patchRes.statusCode).toBe(200);
+    expect(patchRes.json().locationPrecision).toBe('exact');
+    expect(patchRes.json().postalCode).toBe('50667');
+
+    const updated = await prisma.therapist.findUnique({ where: { id: therapist.id } }) as any;
+    expect(updated?.postalCode).toBe('50667');
+    expect(updated?.street).toBe('Komoedienstrasse');
+    expect(updated?.houseNumber).toBe('12');
+    expect(updated?.locationPrecision).toBe('exact');
+    expect(updated?.latitude).toBeCloseTo(50.9418, 3);
+    expect(updated?.longitude).toBeCloseTo(6.9582, 3);
+    expect(updated?.homeLat).toBeCloseTo(50.9418, 3);
+    expect(updated?.homeLng).toBeCloseTo(6.9582, 3);
   });
 });
 

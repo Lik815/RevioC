@@ -256,9 +256,25 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Distanz für mobile Therapeuten ohne Praxis (homeLat/homeLng)
       const tAny = t as any;
+      const hasExactTherapistCoords =
+        Number.isFinite(tAny.latitude) &&
+        Number.isFinite(tAny.longitude);
+      const hasStructuredLocation =
+        Boolean(tAny.postalCode) ||
+        Boolean(tAny.street) ||
+        Boolean(tAny.houseNumber) ||
+        Boolean(tAny.locationPrecision);
+      const hasLegacyHomeCoords =
+        !hasStructuredLocation &&
+        Number.isFinite(tAny.homeLat) &&
+        Number.isFinite(tAny.homeLng) &&
+        tAny.homeLat !== 0 &&
+        tAny.homeLng !== 0;
+      const therapistSearchLat = hasExactTherapistCoords ? tAny.latitude : hasLegacyHomeCoords ? tAny.homeLat : null;
+      const therapistSearchLng = hasExactTherapistCoords ? tAny.longitude : hasLegacyHomeCoords ? tAny.homeLng : null;
       const therapistDistKm =
-        input.origin && tAny.homeLat && tAny.homeLat !== 0
-          ? haversine(input.origin.lat, input.origin.lng, tAny.homeLat, tAny.homeLng)
+        input.origin && therapistSearchLat != null && therapistSearchLng != null
+          ? haversine(input.origin.lat, input.origin.lng, therapistSearchLat, therapistSearchLng)
           : undefined;
 
       const practices: SearchPractice[] = t.links
@@ -331,7 +347,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
         practices,
         // Neue Felder für mobile Therapeuten
         ...(tAny.serviceRadiusKm != null ? { serviceRadiusKm: tAny.serviceRadiusKm } : {}),
-        ...(practices.length === 0 && t.homeVisit && tAny.homeLat && tAny.homeLat !== 0
+        ...(practices.length === 0 && t.homeVisit && tAny.homeLat && tAny.homeLat !== 0 && tAny.homeLng && tAny.homeLng !== 0
           ? { homeLat: tAny.homeLat, homeLng: tAny.homeLng }
           : {}),
       } as SearchTherapist & { serviceRadiusKm?: number; homeLat?: number; homeLng?: number });

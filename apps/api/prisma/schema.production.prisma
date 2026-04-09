@@ -72,6 +72,10 @@ model Therapist {
   fullName              String
   professionalTitle     String
   city                  String
+  postalCode            String?
+  street                String?
+  houseNumber           String?
+  locationPrecision     String       @default("approximate")
   bio                   String?
   homeVisit             Boolean      @default(false)
   isFreelancer          Boolean      @default(true)
@@ -81,6 +85,8 @@ model Therapist {
   kassenart             String       @default("")
   availability          String       @default("")
   serviceRadiusKm       Float?
+  latitude              Float?
+  longitude             Float?
   homeLat               Float        @default(0)
   homeLng               Float        @default(0)
   isVisible             Boolean      @default(true)

@@ -271,6 +271,10 @@ const normalizeTherapistProfile = (therapist) => {
   return {
     ...therapist,
     languages: normalizeLanguageCodes(therapist.languages),
+    postalCode: typeof therapist?.postalCode === 'string' ? therapist.postalCode : null,
+    street: typeof therapist?.street === 'string' ? therapist.street : null,
+    houseNumber: typeof therapist?.houseNumber === 'string' ? therapist.houseNumber : null,
+    locationPrecision: therapist?.locationPrecision === 'exact' ? 'exact' : 'approximate',
     compliance: {
       taxRegistrationStatus: COMPLIANCE_STATUS_VALUES.includes(therapist?.compliance?.taxRegistrationStatus)
         ? therapist.compliance.taxRegistrationStatus

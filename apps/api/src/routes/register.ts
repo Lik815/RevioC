@@ -2,23 +2,30 @@ import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import { hashPassword } from './auth.js';
+import type { LocationPrecision } from '@revio/shared';
 import {
   buildComplianceUpdateData,
   COMPLIANCE_STATUS_VALUES,
   HEALTH_AUTHORITY_STATUS_VALUES,
 } from '../utils/compliance.js';
-import { geocodeAddress } from '../utils/geocode.js';
+import { geocodeAddress, geocodeTherapistLocation, normalizeLocationPrecision } from '../utils/geocode.js';
 
 const complianceSchema = z.object({
   taxRegistrationStatus: z.enum(COMPLIANCE_STATUS_VALUES).optional(),
   healthAuthorityStatus: z.enum(HEALTH_AUTHORITY_STATUS_VALUES).optional(),
 });
 
+const locationPrecisionSchema = z.enum(['exact', 'approximate'] satisfies [LocationPrecision, ...LocationPrecision[]]);
+
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6).optional(),
   fullName: z.string().min(2),
   city: z.string().optional(),
+  postalCode: z.string().trim().regex(/^\d{5}$/).optional(),
+  street: z.string().trim().min(2).optional(),
+  houseNumber: z.string().trim().min(1).optional(),
+  locationPrecision: locationPrecisionSchema.optional(),
   specializations: z.array(z.string()).default([]),
   languages: z.array(z.string()).min(1),
   certifications: z.array(z.string()).default([]),
@@ -62,6 +69,13 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const passwordHash = data.password ? await hashPassword(data.password) : undefined;
+    const therapistLocation = await geocodeTherapistLocation({
+      city: data.city,
+      postalCode: data.postalCode,
+      street: data.street,
+      houseNumber: data.houseNumber,
+      locationPrecision: data.locationPrecision,
+    });
 
     const user = await fastify.prisma.user.create({
       data: {
@@ -80,12 +94,20 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
         fullName: data.fullName,
         professionalTitle: 'Physiotherapeut/in',
         city: data.city ?? '',
+        postalCode: data.postalCode ?? null,
+        street: data.street ?? null,
+        houseNumber: data.houseNumber ?? null,
+        locationPrecision: normalizeLocationPrecision(data.locationPrecision),
         specializations: data.specializations.join(', '),
         languages: data.languages.join(', '),
         certifications: data.certifications.join(', '),
         homeVisit: data.homeVisit ?? false,
         isFreelancer: true,
         serviceRadiusKm: data.serviceRadiusKm ?? null,
+        latitude: therapistLocation.exactCoords?.lat ?? null,
+        longitude: therapistLocation.exactCoords?.lng ?? null,
+        homeLat: therapistLocation.publicCoords?.lat ?? 0,
+        homeLng: therapistLocation.publicCoords?.lng ?? 0,
         kassenart: data.kassenart ?? '',
         availability: data.availability ?? '',
         ...buildComplianceUpdateData(data.compliance ?? {}),
