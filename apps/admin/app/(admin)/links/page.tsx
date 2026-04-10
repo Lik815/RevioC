@@ -42,8 +42,8 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
   const brokenChains = links.filter(
     (l) =>
       l.status !== 'CONFIRMED' &&
-      (l.therapist as unknown as { reviewStatus?: string } & typeof l.therapist).reviewStatus === 'APPROVED' &&
-      (l.practice as unknown as { reviewStatus?: string } & typeof l.practice).reviewStatus === 'APPROVED',
+      l.therapist.reviewStatus === 'APPROVED' &&
+      l.practice.reviewStatus === 'APPROVED',
   );
 
   const filtered = links
@@ -132,8 +132,8 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
         </thead>
         <tbody>
           {filtered.map((l) => {
-            const tStatus = (l.therapist as unknown as { reviewStatus?: string } & typeof l.therapist).reviewStatus;
-            const pStatus = (l.practice as unknown as { reviewStatus?: string } & typeof l.practice).reviewStatus;
+            const tStatus = l.therapist.reviewStatus;
+            const pStatus = l.practice.reviewStatus;
             const isBroken = l.status !== 'CONFIRMED' && tStatus === 'APPROVED' && pStatus === 'APPROVED';
 
             return (

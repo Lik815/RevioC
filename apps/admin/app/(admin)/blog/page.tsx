@@ -12,9 +12,16 @@ function formatDate(value: string | null) {
   });
 }
 
+function getPublicPostUrl(slug: string) {
+  return `https://my-revio.de/blog/${slug}`;
+}
+
 export default async function BlogPage() {
   const posts = await api.getBlogPosts();
   const publishedCount = posts.filter((post) => post.isPublished).length;
+  const publishedPosts = posts
+    .filter((post) => post.isPublished)
+    .sort((a, b) => new Date(b.publishedAt ?? 0).getTime() - new Date(a.publishedAt ?? 0).getTime());
 
   return (
     <PageShell
@@ -90,67 +97,148 @@ export default async function BlogPage() {
           </div>
         </div>
       ) : (
-        <div className="blog-admin-list">
-          {posts.map((post) => (
-            <article key={post.id} className="panel panel--compact blog-admin-card">
-              <div className="blog-admin-card__top">
+        <>
+          <section className="blog-admin-section">
+            <div className="panel panel--compact">
+              <div className="panel-header">
                 <div>
-                  <div className="kicker">{post.slug}</div>
-                  <h3>{post.title}</h3>
-                  <p className="table-note">
-                    {post.authorName} · {post.isPublished ? `Live seit ${formatDate(post.publishedAt)}` : 'Entwurf'}
-                  </p>
+                  <div className="kicker">Live</div>
+                  <h3>Veröffentlichte Beiträge</h3>
                 </div>
-                <span className={`badge ${post.isPublished ? 'badge--APPROVED' : 'badge--DRAFT'}`}>
-                  {post.isPublished ? 'Live' : 'Entwurf'}
-                </span>
               </div>
+              {publishedPosts.length === 0 ? (
+                <p className="table-note">Noch ist kein Beitrag live. Veröffentliche einen Entwurf, damit er hier wie in einer klassischen WordPress-Liste auftaucht.</p>
+              ) : (
+                <>
+                  <p className="table-note blog-admin-table-copy">Die Übersicht zeigt alle live geschalteten Beiträge mit Direktlink und Schnellaktionen.</p>
+                  <table className="table table--elevated">
+                    <thead>
+                      <tr>
+                        <th>Beitrag</th>
+                        <th>Status</th>
+                        <th>Veröffentlicht</th>
+                        <th>Link</th>
+                        <th>Aktionen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {publishedPosts.map((post) => (
+                        <tr key={`published-${post.id}`}>
+                          <td data-label="Beitrag">
+                            <div className="priority-stack">
+                              <Link href={`#blog-post-${post.id}`} style={{ fontWeight: 600 }}>{post.title}</Link>
+                              <span className="entity-meta">/{post.slug}</span>
+                              <span className="table-note">{post.excerpt}</span>
+                            </div>
+                          </td>
+                          <td data-label="Status">
+                            <span className="badge badge--APPROVED">Live</span>
+                          </td>
+                          <td data-label="Veröffentlicht">
+                            <div className="priority-stack">
+                              <strong style={{ fontSize: 14 }}>{formatDate(post.publishedAt)}</strong>
+                              <span className="entity-meta">{post.authorName}</span>
+                            </div>
+                          </td>
+                          <td data-label="Link">
+                            <Link href={getPublicPostUrl(post.slug)} target="_blank" className="blog-open-link blog-admin-link-inline">
+                              Öffnen
+                            </Link>
+                          </td>
+                          <td data-label="Aktionen">
+                            <div className="blog-admin-actions">
+                              <Link href={`#blog-post-${post.id}`} className="secondary-btn blog-inline-btn">
+                                Bearbeiten
+                              </Link>
+                              <form action={toggleBlogPostPublish.bind(null, post.id)}>
+                                <button className="secondary-btn blog-inline-btn" type="submit">
+                                  Als Entwurf
+                                </button>
+                              </form>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+            </div>
+          </section>
 
-              <form action={updateBlogPost.bind(null, post.id)} className="blog-form">
-                <div className="blog-form__grid">
-                  <label className="field">
-                    <span>Titel</span>
-                    <input name="title" defaultValue={post.title} required />
-                  </label>
-                  <label className="field">
-                    <span>Slug</span>
-                    <input name="slug" defaultValue={post.slug} required />
-                  </label>
-                </div>
-
-                <label className="field">
-                  <span>Excerpt</span>
-                  <input name="excerpt" defaultValue={post.excerpt} required />
-                </label>
-
-                <label className="field">
-                  <span>Autor:in</span>
-                  <input name="authorName" defaultValue={post.authorName} required />
-                </label>
-
-                <label className="field">
-                  <span>Inhalt</span>
-                  <textarea name="content" rows={12} defaultValue={post.content} required />
-                </label>
-
-                <div className="blog-admin-actions">
-                  <button className="primary-btn primary-btn--muted" type="submit">Änderungen speichern</button>
-                </div>
-              </form>
-
-              <div className="blog-admin-actions">
-                <form action={toggleBlogPostPublish.bind(null, post.id)}>
-                  <button className="secondary-btn blog-inline-btn" type="submit">
-                    {post.isPublished ? 'Als Entwurf zurücksetzen' : 'Veröffentlichen'}
-                  </button>
-                </form>
-                <form action={deleteBlogPost.bind(null, post.id)}>
-                  <button className="action-btn action-btn--reject" type="submit">Löschen</button>
-                </form>
+          <section className="blog-admin-section">
+            <div className="panel-header">
+              <div>
+                <div className="kicker">Editor</div>
+                <h3>Beiträge bearbeiten</h3>
               </div>
-            </article>
-          ))}
-        </div>
+            </div>
+            <div className="blog-admin-list">
+              {posts.map((post) => (
+                <article key={post.id} id={`blog-post-${post.id}`} className="panel panel--compact blog-admin-card">
+                  <div className="blog-admin-card__top">
+                    <div>
+                      <div className="kicker">{post.slug}</div>
+                      <h3>{post.title}</h3>
+                      <p className="table-note">
+                        {post.authorName} · {post.isPublished ? `Live seit ${formatDate(post.publishedAt)}` : 'Entwurf'}
+                      </p>
+                    </div>
+                    <span className={`badge ${post.isPublished ? 'badge--APPROVED' : 'badge--DRAFT'}`}>
+                      {post.isPublished ? 'Live' : 'Entwurf'}
+                    </span>
+                  </div>
+
+                  <form action={updateBlogPost.bind(null, post.id)} className="blog-form">
+                    <div className="blog-form__grid">
+                      <label className="field">
+                        <span>Titel</span>
+                        <input name="title" defaultValue={post.title} required />
+                      </label>
+                      <label className="field">
+                        <span>Slug</span>
+                        <input name="slug" defaultValue={post.slug} required />
+                      </label>
+                    </div>
+
+                    <label className="field">
+                      <span>Excerpt</span>
+                      <input name="excerpt" defaultValue={post.excerpt} required />
+                    </label>
+
+                    <label className="field">
+                      <span>Autor:in</span>
+                      <input name="authorName" defaultValue={post.authorName} required />
+                    </label>
+
+                    <label className="field">
+                      <span>Inhalt</span>
+                      <textarea name="content" rows={12} defaultValue={post.content} required />
+                    </label>
+
+                    <div className="blog-admin-actions">
+                      <button className="primary-btn primary-btn--muted" type="submit">Änderungen speichern</button>
+                    </div>
+                  </form>
+
+                  <div className="blog-admin-actions">
+                    <form action={toggleBlogPostPublish.bind(null, post.id)}>
+                      <button className="secondary-btn blog-inline-btn" type="submit">
+                        {post.isPublished ? 'Als Entwurf zurücksetzen' : 'Veröffentlichen'}
+                      </button>
+                    </form>
+                    <Link href={getPublicPostUrl(post.slug)} target="_blank" className="secondary-btn blog-inline-btn">
+                      Vorschau öffnen
+                    </Link>
+                    <form action={deleteBlogPost.bind(null, post.id)}>
+                      <button className="action-btn action-btn--reject" type="submit">Löschen</button>
+                    </form>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        </>
       )}
     </PageShell>
   );

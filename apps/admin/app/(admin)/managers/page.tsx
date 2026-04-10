@@ -42,8 +42,14 @@ export default async function ManagersPage() {
                 </div>
               </td>
               <td data-label="Praxis">
-                <strong>{m.practice.name}</strong>
-                <div className="entity-meta">{m.practice.city}</div>
+                {m.practice ? (
+                  <>
+                    <strong>{m.practice.name}</strong>
+                    <div className="entity-meta">{m.practice.city}</div>
+                  </>
+                ) : (
+                  <span className="entity-meta">Noch keiner Praxis zugewiesen</span>
+                )}
               </td>
               <td data-label="Rolle">
                 {m.therapistId ? 'Manager + Therapeut' : 'Nur Manager'}
@@ -52,9 +58,13 @@ export default async function ManagersPage() {
                 {m.therapist ? m.therapist.fullName : '—'}
               </td>
               <td data-label="Praxis-Status">
-                <span className={`badge badge--${m.practice.reviewStatus}`}>
-                  {statusLabel[m.practice.reviewStatus] ?? m.practice.reviewStatus}
-                </span>
+                {m.practice ? (
+                  <span className={`badge badge--${m.practice.reviewStatus}`}>
+                    {statusLabel[m.practice.reviewStatus] ?? m.practice.reviewStatus}
+                  </span>
+                ) : (
+                  '—'
+                )}
               </td>
             </tr>
           ))}

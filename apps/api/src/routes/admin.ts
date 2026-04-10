@@ -603,8 +603,8 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const links = await fastify.prisma.therapistPracticeLink.findMany({
       where: status ? { status: status as never } : undefined,
       include: {
-        therapist: { select: { id: true, fullName: true, professionalTitle: true } },
-        practice: { select: { id: true, name: true, city: true } },
+        therapist: { select: { id: true, fullName: true, professionalTitle: true, reviewStatus: true } },
+        practice: { select: { id: true, name: true, city: true, reviewStatus: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

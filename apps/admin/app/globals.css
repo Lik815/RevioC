@@ -785,6 +785,12 @@ a {
   gap: 18px;
 }
 
+.blog-admin-section {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
 .blog-admin-list {
   display: grid;
   gap: 18px;
@@ -793,6 +799,7 @@ a {
 .blog-admin-card {
   display: grid;
   gap: 18px;
+  scroll-margin-top: 110px;
 }
 
 .blog-admin-card__top {
@@ -831,6 +838,10 @@ a {
   box-shadow: 0 0 0 4px rgba(80,109,122,.12);
 }
 
+.blog-admin-table-copy {
+  margin-bottom: 14px;
+}
+
 .blog-admin-actions {
   display: flex;
   gap: 10px;
@@ -842,6 +853,13 @@ a {
 .blog-open-link {
   min-height: 44px;
   padding: 0 16px;
+}
+
+.blog-admin-link-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 @media (max-width: 1080px) {
