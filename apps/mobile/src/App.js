@@ -858,6 +858,12 @@ export default function App() {
     }
   };
 
+  const scrollRegistrationToBottom = () => {
+    setTimeout(() => {
+      registerScrollRef.current?.scrollToEnd?.({ animated: true });
+    }, Platform.OS === 'ios' ? 140 : 220);
+  };
+
   const handleSaveProfile = async () => {
     if (!authToken || !loggedInTherapist?.id) return;
     setProfileSaving(true);
@@ -1065,6 +1071,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
   const [mapScrollEnabled, setMapScrollEnabled] = useState(true);
   const discoverScrollRef = React.useRef(null);
+  const registerScrollRef = React.useRef(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationPollRef = React.useRef(null);
@@ -2303,6 +2310,7 @@ export default function App() {
               <TextInput
                 value={regLangSearch}
                 onChangeText={setRegLangSearch}
+                onFocus={scrollRegistrationToBottom}
                 placeholder={t('addLangPlaceholder')}
                 placeholderTextColor={c.muted}
                 style={[styles.regInput, { backgroundColor: c.card, borderColor: regLanguages.length > 0 ? c.primary : c.border, color: c.text }]}
@@ -2314,6 +2322,7 @@ export default function App() {
               <TextInput
                 value={regSpecSearch}
                 onChangeText={setRegSpecSearch}
+                onFocus={scrollRegistrationToBottom}
                 placeholder={t('searchSpecPlaceholder')}
                 placeholderTextColor={c.muted}
                 style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]}
@@ -2506,11 +2515,14 @@ export default function App() {
     };
 
     return (
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingBottom: 20, gap: SPACE.sm }]}
+        ref={registerScrollRef}
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingBottom: 56, gap: SPACE.sm }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         <Pressable
           onPress={() => {

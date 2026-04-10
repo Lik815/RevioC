@@ -486,7 +486,7 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string };
     const t = await fastify.prisma.therapist.update({
       where: { id },
-      data: { reviewStatus: 'APPROVED' },
+      data: { reviewStatus: 'APPROVED', isVisible: true },
       include: { links: { include: { practice: true } } },
     }).catch(() => null);
     if (!t) return reply.notFound('Therapist not found');

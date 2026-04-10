@@ -90,7 +90,7 @@ model Therapist {
   longitude             Float?
   homeLat               Float        @default(0)
   homeLng               Float        @default(0)
-  isVisible             Boolean      @default(true)
+  isVisible             Boolean      @default(false)
   reviewStatus          ReviewStatus @default(PENDING_REVIEW)
   passwordHash          String?
   sessionToken          String?      @unique
