@@ -89,6 +89,8 @@ export function DiscoverScreen(props) {
     setFortbildungen,
     setHomeVisit,
     setKassenart,
+    gender,
+    setGender,
     setLocationSheetCity,
     setMapScrollEnabled,
     setQuery,
@@ -142,6 +144,7 @@ export function DiscoverScreen(props) {
   const resetFilters = () => {
     setHomeVisit(false);
     setKassenart(null);
+    setGender(null);
     setFortbildungen([]);
     setFortbildungQuery('');
   };
@@ -217,6 +220,33 @@ export function DiscoverScreen(props) {
           <Text style={[styles.filterCompactChipText, { color: homeVisit ? c.success : c.text }]}>Hausbesuch</Text>
           {homeVisit ? <Ionicons name="checkmark" size={12} color={c.success} /> : null}
         </Pressable>
+      </View>
+
+      <View style={styles.filterCompactSection}>
+        <Text style={[styles.filterCompactSectionTitle, { color: c.muted }]}>Geschlecht</Text>
+        <View style={[styles.kassenartCompactToggle, { backgroundColor: c.mutedBg, borderColor: c.border }]}>
+          {[{ key: null, label: 'Alle' }, { key: 'female', label: 'Therapeutin' }, { key: 'male', label: 'Therapeut' }].map((option) => {
+            const active = gender === option.key;
+            return (
+              <Pressable
+                key={option.key ?? 'all'}
+                onPress={() => setGender(option.key)}
+                style={[
+                  styles.kassenartCompactToggleBtn,
+                  {
+                    borderColor: active ? c.primary : 'transparent',
+                    backgroundColor: active ? c.card : 'transparent',
+                  },
+                ]}
+              >
+                <Text style={[styles.kassenartCompactToggleText, { color: active ? c.primary : c.textMuted ?? c.muted }]}>
+                  {option.label}
+                </Text>
+                {active && option.key ? <Ionicons name="checkmark" size={12} color={c.primary} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.filterCompactSection}>

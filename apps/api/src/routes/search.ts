@@ -180,6 +180,7 @@ const searchBodySchema = z.object({
   homeVisit: z.boolean().optional(),
   specialization: z.string().optional(),
   kassenart: z.string().optional(),
+  gender: z.enum(['female', 'male']).optional(),
 }).refine((data) => Boolean(data.city) || Boolean(data.origin), {
   message: 'city oder origin ist erforderlich',
 });
@@ -232,6 +233,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
       if (typeof input.homeVisit === 'boolean' && t.homeVisit !== input.homeVisit) return false;
       if (input.specialization && !specializations.includes(input.specialization.toLowerCase())) return false;
       if (input.kassenart && (t as any).kassenart && (t as any).kassenart !== input.kassenart) return false;
+      if (input.gender && (t as any).gender !== input.gender) return false;
 
       return true;
     };

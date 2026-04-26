@@ -52,6 +52,7 @@ export function TherapistDashboardScreen(props) {
     editBio,
     editHomeVisit,
     editIsVisible,
+    editGender,
     editKassenart,
     editLanguages,
     editHealthAuthorityStatus,
@@ -69,6 +70,7 @@ export function TherapistDashboardScreen(props) {
     setEditBio,
     setEditHomeVisit,
     setEditIsVisible,
+    setEditGender,
     setEditKassenart,
     setEditLanguages,
     setEditHealthAuthorityStatus,
@@ -187,6 +189,26 @@ export function TherapistDashboardScreen(props) {
               </View>
             </View>
           )}
+          <Text style={[styles.filterSectionTitle, { color: c.muted, marginTop: 12 }]}>Geschlecht</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 6, marginBottom: 12 }}>
+            {[{ key: 'female', label: 'Therapeutin' }, { key: 'male', label: 'Therapeut' }].map((opt) => {
+              const active = editGender === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => setEditGender(active ? null : opt.key)}
+                  style={[styles.kassenartBtn, {
+                    flexDirection: 'row', alignItems: 'center', gap: 5,
+                    backgroundColor: active ? c.primary : c.mutedBg,
+                    borderColor: active ? c.primary : c.border,
+                  }]}
+                >
+                  <Ionicons name={opt.key === 'female' ? 'female-outline' : 'male-outline'} size={13} color={active ? '#fff' : c.muted} />
+                  <Text style={[styles.kassenartText, { color: active ? '#fff' : c.text }]}>{opt.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <Text style={[styles.filterSectionTitle, { color: c.muted, marginTop: 12 }]}>{t('kassenartLabel')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
             {[

@@ -43,6 +43,7 @@ export interface Therapist {
   longitude?: number | null;
   bio?: string;
   reviewStatus: ReviewStatus;
+  gender?: 'female' | 'male' | null;
   isVisible: boolean;
   isPublished: boolean;
   onboardingStatus: string | null;

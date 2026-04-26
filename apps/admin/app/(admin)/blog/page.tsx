@@ -124,11 +124,10 @@ export default async function BlogPage() {
                     <tbody>
                       {publishedPosts.map((post) => (
                         <tr key={`published-${post.id}`}>
-                          <td data-label="Beitrag">
+                          <td data-label="Beitrag" style={{ minWidth: 260 }}>
                             <div className="priority-stack">
-                              <Link href={`#blog-post-${post.id}`} style={{ fontWeight: 600 }}>{post.title}</Link>
+                              <Link href={`#blog-post-${post.id}`} style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 360, display: 'block' }}>{post.title}</Link>
                               <span className="entity-meta">/{post.slug}</span>
-                              <span className="table-note">{post.excerpt}</span>
                             </div>
                           </td>
                           <td data-label="Status">

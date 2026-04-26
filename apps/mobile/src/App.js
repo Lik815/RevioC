@@ -428,6 +428,7 @@ export default function App() {
   const [regHomeVisit, setRegHomeVisit] = useState(false);
   const [regServiceRadius, setRegServiceRadius] = useState(null);
   const [regKassenart, setRegKassenart] = useState([]);
+  const [regGender, setRegGender] = useState(null);
   const [regSpecSearch, setRegSpecSearch] = useState('');
   const [regLangSearch, setRegLangSearch] = useState('');
   const [regDocument, setRegDocument] = useState(null);
@@ -437,6 +438,11 @@ export default function App() {
   const [showRegFortbildungen, setShowRegFortbildungen] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegPasswordConfirm, setShowRegPasswordConfirm] = useState(false);
+  const [regEmailVerified, setRegEmailVerified] = useState(false);
+  const [regOtpSent, setRegOtpSent] = useState(false);
+  const [regOtpCode, setRegOtpCode] = useState('');
+  const [regOtpError, setRegOtpError] = useState('');
+  const [regOtpLoading, setRegOtpLoading] = useState(false);
   const [showRegStepInfo, setShowRegStepInfo] = useState(false);
 
   const toggleRegSpec = (s) => setRegSpecializations(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
@@ -461,6 +467,7 @@ export default function App() {
   const [editHomeVisit, setEditHomeVisit] = useState(false);
   const [editServiceRadius, setEditServiceRadius] = useState(null);
   const [editKassenart, setEditKassenart] = useState('');
+  const [editGender, setEditGender] = useState(null);
   const [editIsVisible, setEditIsVisible] = useState(true);
   const [editAvailability, setEditAvailability] = useState('');
   const [editTaxRegistrationStatus, setEditTaxRegistrationStatus] = useState(null);
@@ -887,6 +894,7 @@ export default function App() {
           homeVisit: editHomeVisit,
           serviceRadiusKm: editHomeVisit ? (editServiceRadius ?? null) : null,
           kassenart: editKassenart,
+          gender: editGender,
           isVisible: editIsVisible,
           availability: editAvailability,
         }),
@@ -1059,6 +1067,7 @@ export default function App() {
   const [userCoords, setUserCoords] = useState(null);
   const [homeVisit, setHomeVisit] = useState(false);
   const [kassenart, setKassenart] = useState(null);
+  const [gender, setGender] = useState(null);
   const [fortbildungen, setFortbildungen] = useState([]);
   const [certificationOptions, setCertificationOptions] = useState(() => normalizeCertificationOptions(fortbildungOptions));
   const [searchRadius, setSearchRadius] = useState(5);
@@ -1119,7 +1128,7 @@ export default function App() {
     };
   }, [query]);
 
-  const activeFilterCount = (homeVisit ? 1 : 0) + (kassenart ? 1 : 0) + fortbildungen.length;
+  const activeFilterCount = (homeVisit ? 1 : 0) + (kassenart ? 1 : 0) + (gender ? 1 : 0) + fortbildungen.length;
   const getCertificationLabel = (key) => certificationOptions.find((option) => option.key === key)?.label ?? key;
 
   const toggleFortbildung = (key) => {
@@ -1155,7 +1164,7 @@ export default function App() {
   useEffect(() => {
     if (!searchedRef.current) return;
     runSearchWith(query, userCoords);
-  }, [homeVisit, kassenart, fortbildungen]);
+  }, [homeVisit, kassenart, gender, fortbildungen]);
 
   // Radius changes should trigger a fresh nearby search when an origin is active,
   // otherwise widening the radius would never load new results from the backend.
@@ -1175,6 +1184,7 @@ export default function App() {
     return safeList.filter(t => {
       if (homeVisit && !t.homeVisit) return false;
       if (kassenart && t.kassenart && t.kassenart !== kassenart) return false;
+      if (gender && t.gender !== gender) return false;
       if (fortbildungen.length > 0) {
         const certs = Array.isArray(t?.fortbildungen)
           ? t.fortbildungen
@@ -1221,6 +1231,7 @@ export default function App() {
         radiusKm: origin ? searchRadius : undefined,
         homeVisit: homeVisit || undefined,
         kassenart: kassenart || undefined,
+        gender: gender || undefined,
       }),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1597,6 +1608,8 @@ export default function App() {
       setFortbildungen={setFortbildungen}
       setHomeVisit={setHomeVisit}
       setKassenart={setKassenart}
+      gender={gender}
+      setGender={setGender}
       setLocationSheetCity={setLocationSheetCity}
       setMapScrollEnabled={setMapScrollEnabled}
       setQuery={setQuery}
@@ -1695,6 +1708,7 @@ export default function App() {
       setEditHomeVisit(th.homeVisit ?? false);
       setEditServiceRadius(th.serviceRadiusKm ?? null);
       setEditKassenart(th.kassenart ?? '');
+      setEditGender(th.gender ?? null);
       setEditIsVisible(th.isVisible ?? true);
       setEditAvailability(th.availability ?? '');
       setEditTaxRegistrationStatus(nextCompliance.taxRegistrationStatus);
@@ -1730,6 +1744,8 @@ export default function App() {
         setEditHomeVisit={setEditHomeVisit}
         setEditIsVisible={setEditIsVisible}
         setEditKassenart={setEditKassenart}
+        editGender={editGender}
+        setEditGender={setEditGender}
         setEditHealthAuthorityStatus={setEditHealthAuthorityStatus}
         setEditLanguages={setEditLanguages}
         setEditMode={setEditMode}
@@ -2019,14 +2035,9 @@ export default function App() {
             </Text>
             <Pressable
               style={[styles.registerBtn, { backgroundColor: c.primary, marginTop: 24, paddingHorizontal: 32 }]}
-              onPress={() => {
-                Linking.openURL(Platform.OS === 'ios' ? 'message://' : 'mailto:').catch(() => {});
-              }}
+              onPress={() => { setShowRegister(false); setRegSubmitted(false); setRegStep(1); setRegIsFreelance(null); setRegSpecSearch(''); setRegLangSearch(''); setShowRegFortbildungen(false); setRegDocument(null); }}
             >
               <Text style={styles.registerBtnText}>{t('verifyEmailBtn')}</Text>
-            </Pressable>
-            <Pressable onPress={() => { setShowRegister(false); setRegSubmitted(false); setRegStep(1); setRegIsFreelance(null); setRegSpecSearch(''); setRegLangSearch(''); setShowRegFortbildungen(false); setRegDocument(null); }} style={{ marginTop: 12 }}>
-              <Text style={{ color: c.muted, fontSize: 13 }}>{t('laterBtn')}</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -2047,7 +2058,7 @@ export default function App() {
     const canProceed = () => {
       switch (regStep) {
         case 1:
-          return regEmail.length > 3 && regPassword.length >= 6 && regPassword === regPasswordConfirm;
+          return regEmailVerified && regPassword.length >= 6 && regPassword === regPasswordConfirm;
         case 2:
           return (
             regFirstName.trim().length > 0 &&
@@ -2081,21 +2092,118 @@ export default function App() {
                   <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[1]}</Text>
                 </View>
               )}
-              <TextInput value={regEmail} onChangeText={setRegEmail} placeholder={t('emailLabel')} placeholderTextColor={c.muted} keyboardType="email-address" autoCapitalize="none" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]} />
-              <View style={{ position: 'relative' }}>
-                <TextInput value={regPassword} onChangeText={setRegPassword} placeholder={t('passwordPlaceholder')} placeholderTextColor={c.muted} secureTextEntry={!showRegPassword} textContentType="newPassword" autoComplete="new-password" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
-                <Pressable onPress={() => setShowRegPassword(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
-                  <Ionicons name={showRegPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
-                </Pressable>
+              {/* Email + OTP verification */}
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  value={regEmail}
+                  onChangeText={(v) => { setRegEmail(v); setRegEmailVerified(false); setRegOtpSent(false); setRegOtpCode(''); setRegOtpError(''); }}
+                  placeholder={t('emailLabel')}
+                  placeholderTextColor={c.muted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!regOtpSent}
+                  style={[styles.regInput, { flex: 1, backgroundColor: c.card, borderColor: regEmailVerified ? c.success : c.border, color: c.text }]}
+                />
+                {regEmailVerified ? (
+                  <View style={{ justifyContent: 'center', paddingHorizontal: 4 }}>
+                    <Ionicons name="checkmark-circle" size={26} color={c.success} />
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={async () => {
+                      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) { setRegOtpError('Bitte gib eine gültige E-Mail ein.'); return; }
+                      setRegOtpLoading(true); setRegOtpError('');
+                      try {
+                        const res = await fetch(`${getBaseUrl()}/register/send-otp`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email: regEmail }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) { setRegOtpError(data.message ?? 'Fehler beim Senden.'); return; }
+                        setRegOtpSent(true);
+                      } catch { setRegOtpError('Verbindungsfehler.'); }
+                      finally { setRegOtpLoading(false); }
+                    }}
+                    disabled={regOtpLoading || regEmail.length < 5}
+                    style={[styles.regInput, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 14, backgroundColor: regEmail.length >= 5 ? c.primary : c.border }]}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>{regOtpLoading ? '...' : 'Code senden'}</Text>
+                  </Pressable>
+                )}
               </View>
-              <View style={{ position: 'relative' }}>
-                <TextInput value={regPasswordConfirm} onChangeText={setRegPasswordConfirm} placeholder={t('passwordConfirmPlaceholder')} placeholderTextColor={c.muted} secureTextEntry={!showRegPasswordConfirm} textContentType="newPassword" autoComplete="new-password" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
-                <Pressable onPress={() => setShowRegPasswordConfirm(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
-                  <Ionicons name={showRegPasswordConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
-                </Pressable>
-              </View>
-              {regPasswordConfirm.length > 0 && regPassword !== regPasswordConfirm && (
-                <Text style={{ color: c.saved, fontSize: 13, marginTop: -6 }}>{t('passwordsMismatch')}</Text>
+
+              {regOtpSent && !regEmailVerified && (
+                <View style={{ gap: 8 }}>
+                  <Text style={{ color: c.muted, fontSize: 13 }}>Wir haben einen 6-stelligen Code an <Text style={{ color: c.text, fontWeight: '600' }}>{regEmail}</Text> gesendet.</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TextInput
+                      value={regOtpCode}
+                      onChangeText={(v) => { setRegOtpCode(v.replace(/\D/g, '').slice(0, 6)); setRegOtpError(''); }}
+                      placeholder="000000"
+                      placeholderTextColor={c.muted}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      style={[styles.regInput, { flex: 1, backgroundColor: c.card, borderColor: c.border, color: c.text, letterSpacing: 6, fontSize: 20, textAlign: 'center' }]}
+                    />
+                    <Pressable
+                      onPress={async () => {
+                        if (regOtpCode.length !== 6) return;
+                        setRegOtpLoading(true); setRegOtpError('');
+                        try {
+                          const res = await fetch(`${getBaseUrl()}/register/confirm-otp`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: regEmail, code: regOtpCode }),
+                          });
+                          const data = await res.json().catch(() => ({}));
+                          if (!res.ok) { setRegOtpError(data.message ?? 'Falscher Code.'); return; }
+                          setRegEmailVerified(true);
+                        } catch { setRegOtpError('Verbindungsfehler.'); }
+                        finally { setRegOtpLoading(false); }
+                      }}
+                      disabled={regOtpCode.length !== 6 || regOtpLoading}
+                      style={[styles.regInput, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 14, backgroundColor: regOtpCode.length === 6 ? c.primary : c.border }]}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>{regOtpLoading ? '...' : 'Bestätigen'}</Text>
+                    </Pressable>
+                  </View>
+                  <Pressable onPress={async () => {
+                    setRegOtpLoading(true); setRegOtpError('');
+                    try {
+                      await fetch(`${getBaseUrl()}/register/send-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: regEmail }) });
+                    } finally { setRegOtpLoading(false); }
+                  }}>
+                    <Text style={{ color: c.primary, fontSize: 13 }}>Code erneut senden</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {regOtpError ? <Text style={{ color: c.saved, fontSize: 13 }}>{regOtpError}</Text> : null}
+
+              {/* Password fields — only shown after email verified */}
+              {regEmailVerified && (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                    <Ionicons name="checkmark-circle" size={16} color={c.success} />
+                    <Text style={{ color: c.success, fontSize: 13, fontWeight: '600' }}>E-Mail bestätigt</Text>
+                  </View>
+                  <View style={{ position: 'relative' }}>
+                    <TextInput value={regPassword} onChangeText={setRegPassword} placeholder={t('passwordPlaceholder')} placeholderTextColor={c.muted} secureTextEntry={!showRegPassword} textContentType="newPassword" autoComplete="new-password" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
+                    <Pressable onPress={() => setShowRegPassword(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
+                      <Ionicons name={showRegPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
+                    </Pressable>
+                  </View>
+                  <View style={{ position: 'relative' }}>
+                    <TextInput value={regPasswordConfirm} onChangeText={setRegPasswordConfirm} placeholder={t('passwordConfirmPlaceholder')} placeholderTextColor={c.muted} secureTextEntry={!showRegPasswordConfirm} textContentType="newPassword" autoComplete="new-password" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
+                    <Pressable onPress={() => setShowRegPasswordConfirm(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
+                      <Ionicons name={showRegPasswordConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
+                    </Pressable>
+                  </View>
+                  {regPasswordConfirm.length > 0 && regPassword !== regPasswordConfirm && (
+                    <Text style={{ color: c.saved, fontSize: 13, marginTop: -6 }}>{t('passwordsMismatch')}</Text>
+                  )}
+                </>
               )}
             </>
           );
@@ -2114,6 +2222,21 @@ export default function App() {
                   <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[2]}</Text>
                 </View>
               )}
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 2 }}>
+                {[{ key: 'female', label: 'Therapeutin' }, { key: 'male', label: 'Therapeut' }].map((opt) => {
+                  const active = regGender === opt.key;
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      onPress={() => setRegGender(active ? null : opt.key)}
+                      style={[styles.regInput, { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: active ? c.primaryBg ?? c.mutedBg : c.card, borderColor: active ? c.primary : c.border }]}
+                    >
+                      <Ionicons name={opt.key === 'female' ? 'female-outline' : 'male-outline'} size={15} color={active ? c.primary : c.muted} />
+                      <Text style={{ color: active ? c.primary : c.text, fontWeight: active ? '600' : '400', fontSize: 14 }}>{opt.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
               <TextInput value={regFirstName} onChangeText={setRegFirstName} placeholder={t('firstNamePlaceholder')} placeholderTextColor={c.muted} style={[styles.regInput, { backgroundColor: c.card, borderColor: regFirstName.length > 0 && regFirstName.trim().length === 0 ? c.saved : c.border, color: c.text }]} />
               {regFirstName.length > 0 && regFirstName.trim().length === 0 && (
                 <Text style={{ color: c.saved, fontSize: 13, marginTop: -6 }}>{t('firstNameRequired')}</Text>
@@ -2577,6 +2700,7 @@ export default function App() {
                     homeVisit: regHomeVisit === true,
                     serviceRadiusKm: regHomeVisit === true ? (regServiceRadius ?? null) : null,
                     kassenart: regKassenart.length ? regKassenart.join(',') : undefined,
+                    gender: regGender ?? undefined,
                     compliance: {
                       taxRegistrationStatus: regTaxRegistrationStatus ?? undefined,
                       healthAuthorityStatus: regHealthAuthorityStatus ?? undefined,

@@ -223,6 +223,7 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
                       {t.specializations.slice(0, 2).map((spec) => <span key={spec} className="tag">{spec}</span>)}
                       {t.specializations.length > 2 && <span className="tag">+{t.specializations.length - 2}</span>}
                     </div>
+                    {t.gender && <span className="badge">{t.gender === 'female' ? 'Therapeutin' : 'Therapeut'}</span>}
                     <span className="entity-meta">Eingereicht {formatDate(t.createdAt)}</span>
                   </div>
                 </td>

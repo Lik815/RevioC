@@ -907,6 +907,39 @@ describe('Password reset', () => {
     expect(loginRes.statusCode).toBe(200);
   });
 
+  it('returns a generic success response for manager accounts without issuing a reset token', async () => {
+    const passwordHash = await hashPassword('manager-pass-123');
+    const managerUser = await prisma.user.create({
+      data: {
+        email: 'manager-reset@test.de',
+        passwordHash,
+        role: 'manager',
+      },
+    });
+    await prisma.practiceManager.create({
+      data: {
+        email: managerUser.email,
+        userId: managerUser.id,
+        passwordHash,
+      },
+    });
+
+    const forgotRes = await app.inject({
+      method: 'POST',
+      url: '/auth/forgot-password',
+      payload: { email: managerUser.email },
+    });
+    expect(forgotRes.statusCode).toBe(200);
+    expect(forgotRes.json()).toEqual({
+      success: true,
+      message: 'Wenn ein Konto mit dieser E-Mail-Adresse existiert, haben wir dir einen Link zum Zurücksetzen geschickt.',
+    });
+
+    const userAfterRequest = await prisma.user.findUnique({ where: { email: managerUser.email } });
+    expect(userAfterRequest?.passwordResetToken).toBeNull();
+    expect(userAfterRequest?.passwordResetExpiresAt).toBeNull();
+  });
+
   it('rejects expired reset tokens', async () => {
     const passwordHash = await hashPassword('expired-pass-123');
     const user = await prisma.user.create({
@@ -948,6 +981,128 @@ describe('Password reset', () => {
     });
     expect(pageRes.statusCode).toBe(400);
     expect(pageRes.body).toContain('Link nicht mehr gültig');
+  });
+});
+
+describe('Email verification', () => {
+  it('verifies a therapist account via the browser confirmation route', async () => {
+    const registrationPayload = {
+      email: 'verify-browser@test.de',
+      password: 'secret123',
+      fullName: 'Verify Browser',
+      city: 'Köln',
+      postalCode: '50667',
+      street: 'Komoedienstrasse',
+      houseNumber: '12',
+      specializations: ['back pain'],
+      languages: ['de'],
+    };
+
+    const registerRes = await app.inject({
+      method: 'POST',
+      url: '/register/therapist',
+      payload: registrationPayload,
+      headers: {
+        host: 'api.my-revio.de',
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': 'api.my-revio.de',
+      },
+    });
+    expect(registerRes.statusCode).toBe(201);
+
+    const userBeforeVerification = await prisma.user.findUnique({
+      where: { email: registrationPayload.email },
+    });
+    expect(userBeforeVerification?.emailVerificationToken).toBeTruthy();
+    expect(userBeforeVerification?.emailVerifiedAt).toBeNull();
+
+    const verifyRes = await app.inject({
+      method: 'GET',
+      url: `/auth/verify-email?token=${encodeURIComponent(userBeforeVerification!.emailVerificationToken!)}`,
+    });
+    expect(verifyRes.statusCode).toBe(200);
+    expect(verifyRes.body).toContain('E-Mail bestätigt');
+
+    const userAfterVerification = await prisma.user.findUnique({
+      where: { email: registrationPayload.email },
+    });
+    expect(userAfterVerification?.emailVerificationToken).toBeNull();
+    expect(userAfterVerification?.emailVerifiedAt).toBeTruthy();
+  });
+});
+
+describe('Therapist-only auth scope', () => {
+  it('rejects legacy manager login via /auth/login', async () => {
+    const passwordHash = await hashPassword('manager-login-123');
+    await prisma.practiceManager.create({
+      data: {
+        email: 'manager-login@test.de',
+        passwordHash,
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: 'manager-login@test.de', password: 'manager-login-123' },
+    });
+
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('rejects manager session tokens for therapist profile updates', async () => {
+    const therapistPasswordHash = await hashPassword('therapist-pass-123');
+    const therapistUser = await prisma.user.create({
+      data: {
+        email: 'therapist-scope@test.de',
+        passwordHash: therapistPasswordHash,
+        role: 'therapist',
+      },
+    });
+    const therapist = await prisma.therapist.create({
+      data: {
+        email: therapistUser.email,
+        userId: therapistUser.id,
+        fullName: 'Therapist Scope',
+        professionalTitle: 'Physiotherapeut',
+        city: 'Köln',
+        specializations: 'Rücken',
+        languages: 'de',
+        certifications: '',
+        passwordHash: therapistPasswordHash,
+      },
+    });
+
+    const managerPasswordHash = await hashPassword('manager-pass-123');
+    const managerUser = await prisma.user.create({
+      data: {
+        email: 'manager-scope@test.de',
+        passwordHash: managerPasswordHash,
+        role: 'manager',
+        sessionToken: 'manager-token',
+      },
+    });
+    await prisma.practiceManager.create({
+      data: {
+        email: managerUser.email,
+        userId: managerUser.id,
+        passwordHash: managerPasswordHash,
+        sessionToken: 'manager-token',
+        therapistId: therapist.id,
+      },
+    });
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/auth/me',
+      headers: { authorization: 'Bearer manager-token' },
+      payload: { bio: 'Neue Bio' },
+    });
+
+    expect(res.statusCode).toBe(401);
+
+    const therapistAfterPatch = await prisma.therapist.findUnique({ where: { id: therapist.id } });
+    expect(therapistAfterPatch?.bio).toBeNull();
   });
 });
 

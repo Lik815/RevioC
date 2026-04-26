@@ -57,6 +57,8 @@ model User {
   emailVerificationToken      String?
   emailVerifiedAt             DateTime?
   requiresEmailVerification   Boolean   @default(false)
+  emailOtpCode                String?
+  emailOtpExpiresAt           DateTime?
   passwordResetToken          String?
   passwordResetExpiresAt      DateTime?
   createdAt              DateTime                @default(now())
@@ -90,6 +92,7 @@ model Therapist {
   longitude             Float?
   homeLat               Float        @default(0)
   homeLng               Float        @default(0)
+  gender                String?
   isVisible             Boolean      @default(false)
   reviewStatus          ReviewStatus @default(PENDING_REVIEW)
   passwordHash          String?

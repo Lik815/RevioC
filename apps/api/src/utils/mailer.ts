@@ -9,6 +9,28 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
 }
 
+export async function sendEmailOtpEmail(opts: { to: string; code: string }) {
+  const { to, code } = opts;
+  await getResend().emails.send({
+    from: FROM,
+    to,
+    subject: `${code} – dein Revio-Bestätigungscode`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#1a1a1a">
+        <h2 style="color:#6F8793">E-Mail bestätigen</h2>
+        <p>Gib diesen Code in der Revio-App ein, um deine E-Mail-Adresse zu bestätigen:</p>
+        <div style="margin:28px 0;text-align:center">
+          <span style="font-size:40px;font-weight:800;letter-spacing:10px;color:#1E2D39">${code}</span>
+        </div>
+        <p style="color:#6b7280;font-size:13px">Der Code ist 10 Minuten gültig. Wenn du diese E-Mail nicht erwartet hast, kannst du sie ignorieren.</p>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0"/>
+        <p style="color:#9ca3af;font-size:12px">Revio · noreply@my-revio.de</p>
+      </div>
+    `,
+    text: `Dein Revio-Bestätigungscode: ${code}\n\nDer Code ist 10 Minuten gültig.`,
+  });
+}
+
 export async function sendInviteEmail(opts: {
   to: string;
   therapistName: string;
@@ -59,10 +81,11 @@ export async function sendVerificationEmail(opts: {
   browserFallbackLink?: string;
 }) {
   const { to, name, verifyLink, browserFallbackLink } = opts;
-  const fallbackSection = browserFallbackLink
-    ? `<p style="color:#6b7280;font-size:13px;margin-top:24px">
-        Button funktioniert nicht?
-        <a href="${browserFallbackLink}" style="color:#2563eb">Im Browser bestätigen</a>
+  const primaryLink = browserFallbackLink || verifyLink;
+  const appLinkSection = browserFallbackLink
+    ? `<p style="color:#6b7280;font-size:13px;margin-top:16px">
+        Revio schon installiert?
+        <a href="${verifyLink}" style="color:#2563eb">Direkt in der App öffnen</a>
        </p>`
     : '';
   await getResend().emails.send({
@@ -73,15 +96,15 @@ export async function sendVerificationEmail(opts: {
       <div style="font-family:sans-serif;max-width:540px;margin:0 auto;color:#1a1a1a">
         <h2 style="color:#2563eb">E-Mail bestätigen</h2>
         <p>Hallo ${name},</p>
-        <p>Danke für deine Registrierung bei Revio. Tippe auf den Button, um dein Konto in der App zu aktivieren:</p>
+        <p>Danke für deine Registrierung bei Revio. Tippe auf den Button, um deine E-Mail-Adresse zu bestätigen und dein Konto zu aktivieren:</p>
         <p style="margin:32px 0">
-          <a href="${verifyLink}"
+          <a href="${primaryLink}"
              style="background:#2563eb;color:#fff;padding:14px 28px;border-radius:8px;
                     text-decoration:none;font-weight:600;font-size:16px">
             E-Mail bestätigen
           </a>
         </p>
-        ${fallbackSection}
+        ${appLinkSection}
         <p style="color:#6b7280;font-size:13px;margin-top:16px">
           Dieser Link ist 48 Stunden gültig. Wenn du diese E-Mail nicht erwartet hast, kannst du sie ignorieren.
         </p>
@@ -89,7 +112,7 @@ export async function sendVerificationEmail(opts: {
         <p style="color:#9ca3af;font-size:12px">Revio · noreply@my-revio.de</p>
       </div>
     `,
-    text: `Hallo ${name},\n\nBitte bestätige deine E-Mail-Adresse:\n${verifyLink}\n\n${browserFallbackLink ? `Alternativ im Browser: ${browserFallbackLink}\n\n` : ''}Dieser Link ist 48 Stunden gültig.`,
+    text: `Hallo ${name},\n\nBitte bestätige deine E-Mail-Adresse:\n${primaryLink}\n\n${browserFallbackLink ? `Direkt in der App öffnen: ${verifyLink}\n\n` : ''}Dieser Link ist 48 Stunden gültig.`,
   });
 }
 
