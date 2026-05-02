@@ -300,99 +300,6 @@ const syncPasswordReset = async (
 };
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.post('/auth/login', async (request, reply) => {
-    const parsed = loginSchema.safeParse(request.body);
-    if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
-
-    const { email, password } = parsed.data;
-
-    const user = await fastify.prisma.user.findUnique({
-      where: { email },
-      include: { therapistProfile: true },
-    });
-
-    if (user?.passwordHash) {
-      const validUserPassword = await verifyPassword(password, user.passwordHash);
-      if (!validUserPassword) return reply.unauthorized('Ungültige Zugangsdaten');
-
-      // Block self-registered therapists who have not verified their email yet
-      if (user.role === 'therapist' && user.requiresEmailVerification && !user.emailVerifiedAt) {
-        return reply.unauthorized('Bitte bestätige zunächst deine E-Mail-Adresse. Überprüfe deinen Posteingang.');
-      }
-
-      const token = randomBytes(32).toString('hex');
-      await fastify.prisma.user.update({
-        where: { id: user.id },
-        data: { sessionToken: token },
-      });
-
-      let therapist = user.therapistProfile ?? await fastify.prisma.therapist.findFirst({
-        where: {
-          OR: [
-            { userId: user.id },
-            { email },
-          ],
-        },
-      });
-      if (!therapist) return reply.unauthorized('Therapeuten-Profil nicht gefunden');
-
-      if (therapist.userId !== user.id) {
-        therapist = await fastify.prisma.therapist.update({
-          where: { id: therapist.id },
-          data: { userId: user.id },
-        });
-      }
-
-      await fastify.prisma.therapist.update({
-        where: { id: therapist.id },
-        data: { sessionToken: token },
-      });
-      return {
-        token,
-        userId: user.id,
-        accountType: 'therapist',
-        therapistId: therapist.id,
-        fullName: therapist.fullName,
-      };
-    }
-
-    // Legacy fallback: therapist credentials without a migrated User row.
-    const therapist = await fastify.prisma.therapist.findUnique({ where: { email } });
-    if (therapist?.passwordHash) {
-      const validTherapist = await verifyPassword(password, therapist.passwordHash);
-      if (validTherapist) {
-        const existingUser = await fastify.prisma.user.findUnique({ where: { email } });
-        const ensuredUser = existingUser ?? await fastify.prisma.user.create({
-          data: {
-            email,
-            passwordHash: therapist.passwordHash,
-            role: 'therapist',
-          },
-        });
-
-        const token = randomBytes(32).toString('hex');
-        await fastify.prisma.user.update({
-          where: { id: ensuredUser.id },
-          data: { sessionToken: token },
-        });
-        await fastify.prisma.therapist.update({
-          where: { id: therapist.id },
-          data: { sessionToken: token, userId: therapist.userId ?? ensuredUser.id },
-        });
-
-        return {
-          token,
-          userId: ensuredUser.id,
-          accountType: 'therapist',
-          therapistId: therapist.id,
-          fullName: therapist.fullName,
-        };
-      }
-    }
-
-    return reply.unauthorized('Ungültige Zugangsdaten');
-  });
-
   fastify.post('/auth/forgot-password', async (request, reply) => {
     const parsed = forgotPasswordSchema.safeParse(request.body);
     if (!parsed.success) return reply.badRequest('Bitte gib eine gültige E-Mail-Adresse ein.');
@@ -525,40 +432,6 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // App-friendly verification: verifies token and returns a session token for auto-login
-  fastify.post('/auth/verify-email', async (request, reply) => {
-    const { token } = request.body as { token?: string };
-    if (!token) return reply.badRequest('Token fehlt.');
-
-    const user = await fastify.prisma.user.findFirst({
-      where: { emailVerificationToken: token },
-      include: { therapistProfile: true },
-    });
-    if (!user) return reply.badRequest('Ungültiger oder abgelaufener Bestätigungslink.');
-
-    const sessionToken = randomBytes(32).toString('hex');
-    await fastify.prisma.user.update({
-      where: { id: user.id },
-      data: { emailVerifiedAt: new Date(), emailVerificationToken: null, sessionToken },
-    });
-
-    const therapist = user.therapistProfile ?? await fastify.prisma.therapist.findFirst({
-      where: { userId: user.id },
-    });
-    if (!therapist) return reply.badRequest('Kein Therapeutenprofil gefunden.');
-
-    await fastify.prisma.therapist.update({
-      where: { id: therapist.id },
-      data: { sessionToken },
-    });
-
-    return reply.status(200).send({
-      token: sessionToken,
-      therapistId: therapist.id,
-      fullName: therapist.fullName,
-      accountType: 'therapist',
-    });
-  });
-
   fastify.get('/auth/me', async (request, reply) => {
     const token = getToken(request);
     if (!token) return reply.unauthorized('Kein Token');
@@ -872,35 +745,4 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     }));
   });
 
-  fastify.post('/auth/logout', async (request, reply) => {
-    const token = getToken(request);
-    if (!token) return { success: true };
-
-    const user = await fastify.prisma.user.findUnique({ where: { sessionToken: token } });
-    if (user) {
-      await fastify.prisma.user.update({
-        where: { id: user.id },
-        data: { sessionToken: null },
-      });
-      if (user.role === 'therapist') {
-        await fastify.prisma.therapist.updateMany({
-          where: { userId: user.id },
-          data: { sessionToken: null },
-        });
-      }
-      return { success: true };
-    }
-
-    const therapist = await fastify.prisma.therapist.findUnique({
-      where: { sessionToken: token },
-    });
-    if (therapist) {
-      await fastify.prisma.therapist.update({
-        where: { id: therapist.id },
-        data: { sessionToken: null },
-      });
-    }
-
-    return { success: true };
-  });
 };
