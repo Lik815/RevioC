@@ -60,6 +60,8 @@ model User {
   requiresEmailVerification   Boolean   @default(false)
   passwordResetToken          String?
   passwordResetExpiresAt      DateTime?
+  emailOtpCode                String?
+  emailOtpExpiresAt           DateTime?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   therapistProfile       Therapist?              @relation("TherapistUser")
@@ -85,6 +87,7 @@ model Therapist {
   languages             String
   certifications        String       @default("")
   kassenart             String       @default("")
+  gender                String?
   availability          String       @default("")
   serviceRadiusKm       Float?
   latitude              Float?
