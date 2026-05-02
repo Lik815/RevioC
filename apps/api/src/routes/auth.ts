@@ -673,7 +673,8 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (data.locationPrecision !== undefined) updateData.locationPrecision = normalizeLocationPrecision(data.locationPrecision);
     if (data.homeVisit !== undefined) updateData.homeVisit = data.homeVisit;
     if (data.serviceRadiusKm !== undefined) updateData.serviceRadiusKm = data.serviceRadiusKm;
-    if (data.isVisible !== undefined) updateData.isVisible = data.isVisible;
+    // Only approved therapists can change their visibility
+    if (data.isVisible !== undefined && therapist.reviewStatus === 'APPROVED') updateData.isVisible = data.isVisible;
     if (data.availability !== undefined) updateData.availability = data.availability;
     if (data.kassenart !== undefined) updateData.kassenart = data.kassenart;
     if (data.specializations !== undefined) updateData.specializations = data.specializations.join(', ');

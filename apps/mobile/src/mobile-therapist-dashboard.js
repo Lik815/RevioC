@@ -231,8 +231,18 @@ export function TherapistDashboardScreen(props) {
           </View>
           <View style={[styles.detailInfoRow, { marginTop: 12 }]}>
             <Text style={[styles.detailInfoLabel, { color: c.text, flex: 1 }]}>{t('searchVisibleLabel')}</Text>
-            <Switch value={editIsVisible} onValueChange={setEditIsVisible} trackColor={{ true: c.primary }} />
+            <Switch
+              value={editIsVisible}
+              onValueChange={setEditIsVisible}
+              trackColor={{ true: c.primary }}
+              disabled={loggedInTherapist?.reviewStatus !== 'APPROVED'}
+            />
           </View>
+          {loggedInTherapist?.reviewStatus !== 'APPROVED' && (
+            <Text style={{ fontSize: 12, color: c.muted, marginTop: 4, marginBottom: 4 }}>
+              Sichtbarkeit wird nach der Freigabe durch Revio aktiviert.
+            </Text>
+          )}
           <Text style={[styles.detailInfoLabel, { color: c.muted, marginTop: 14, marginBottom: 4 }]}>{t('availabilityLabel')}</Text>
           <TextInput
             style={[styles.registerInput, { color: c.text, borderColor: c.border, backgroundColor: c.card }]}
