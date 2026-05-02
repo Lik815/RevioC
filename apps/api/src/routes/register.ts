@@ -168,8 +168,16 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
+    // Generate session token so the user is automatically logged in
+    const sessionToken = randomBytes(32).toString('hex');
+    await (fastify.prisma as any).user.update({
+      where: { id: user.id },
+      data: { sessionToken },
+    });
+
     return reply.status(201).send({
       therapistId: therapist.id,
+      token: sessionToken,
       message: 'Registration submitted. Awaiting admin review.',
       requiresEmailVerification: false,
     });
