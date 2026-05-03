@@ -50,8 +50,8 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const validUserPassword = await verifyPassword(password, user.passwordHash);
       if (!validUserPassword) return reply.unauthorized('Ungültige Zugangsdaten');
 
-      // Block self-registered therapists who have not verified their email yet
-      if (user.role === 'therapist' && user.requiresEmailVerification && !user.emailVerifiedAt) {
+      // Block users who have not verified their email yet
+      if (user.requiresEmailVerification && !user.emailVerifiedAt) {
         return reply.unauthorized('Bitte bestätige zunächst deine E-Mail-Adresse. Überprüfe deinen Posteingang.');
       }
 
@@ -60,6 +60,14 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         where: { id: user.id },
         data: { sessionToken: token },
       });
+
+      if (user.role === 'patient') {
+        return {
+          token,
+          userId: user.id,
+          accountType: 'patient',
+        };
+      }
 
       if (user.role === 'manager') {
         const manager = user.managerProfile ?? await fastify.prisma.practiceManager.findFirst({
@@ -264,6 +272,18 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         },
       },
     });
+
+    // Patient profile — return directly without therapist lookup
+    if (user?.role === 'patient') {
+      return {
+        id: user.id,
+        email: user.email,
+        role: 'patient',
+        firstName: (user as any).firstName ?? '',
+        lastName: (user as any).lastName ?? '',
+      };
+    }
+
     if (user?.therapistProfile) therapist = user.therapistProfile;
 
     if (!therapist) {

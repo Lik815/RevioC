@@ -36,6 +36,52 @@ const registerSchema = z.object({
 });
 
 export const registerRoutes: FastifyPluginAsync = async (fastify) => {
+  // ── POST /auth/register — patient registration ─────────────────────────────
+  fastify.post('/auth/register', {
+    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+  }, async (request, reply) => {
+    const parsed = z.object({
+      email: z.string().email(),
+      password: z.string().min(8),
+      role: z.literal('patient'),
+      firstName: z.string().min(1),
+      lastName: z.string().min(1),
+    }).safeParse(request.body);
+    if (!parsed.success) {
+      const msg = parsed.error.flatten().fieldErrors;
+      return reply.badRequest(Object.entries(msg).map(([k, v]) => `${k}: ${(v as string[]).join(', ')}`).join('; ') || 'Ungültige Eingabe');
+    }
+
+    const { password, firstName, lastName } = parsed.data;
+    const email = parsed.data.email.trim().toLowerCase();
+
+    const existing = await fastify.prisma.user.findUnique({ where: { email } });
+    if (existing) return reply.conflict('A user with this email already exists.');
+
+    const passwordHash = await hashPassword(password);
+    const sessionToken = randomBytes(32).toString('hex');
+    const user = await fastify.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        role: 'patient',
+        firstName,
+        lastName,
+        emailVerifiedAt: new Date(),
+        requiresEmailVerification: false,
+        sessionToken,
+      },
+    });
+
+    return reply.status(201).send({
+      token: sessionToken,
+      userId: user.id,
+      accountType: 'patient',
+      firstName,
+      lastName,
+    });
+  });
+
   // ── POST /register/send-otp ────────────────────────────────────────────────
   fastify.post('/register/send-otp', {
     config: { rateLimit: { max: 6, timeWindow: '1 minute' } },
@@ -148,7 +194,14 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
       orderBy: { verifiedAt: 'desc' },
     });
     if (!confirmedOtp) {
-      return reply.badRequest('E-Mail-Adresse nicht bestätigt. Bitte starte die Registrierung erneut.');
+      // Check if an OTP was verified but the 2-hour window has since expired
+      const expiredOtp = await fastify.prisma.emailOtp.findFirst({
+        where: { email: data.email, verifiedAt: { not: null } },
+      });
+      const message = expiredOtp
+        ? 'Der Bestätigungscode ist abgelaufen. Bitte gehe zurück zu Schritt 1 und sende einen neuen Code.'
+        : 'E-Mail-Adresse nicht bestätigt. Bitte starte die Registrierung erneut.';
+      return reply.badRequest(message);
     }
 
     const passwordHash = data.password ? await hashPassword(data.password) : undefined;

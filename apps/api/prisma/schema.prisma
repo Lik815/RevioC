@@ -34,6 +34,7 @@ enum Role {
   therapist
   manager
   admin
+  patient
 }
 
 enum BookingMode {
@@ -54,6 +55,8 @@ model User {
   passwordHash           String?
   sessionToken           String?                 @unique
   role                   Role
+  firstName                   String?
+  lastName                    String?
   emailVerificationToken      String?
   emailVerifiedAt             DateTime?
   requiresEmailVerification   Boolean   @default(false)

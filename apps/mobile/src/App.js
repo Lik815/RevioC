@@ -33,6 +33,7 @@ import {
   SPACE,
   TYPE,
   fortbildungOptions,
+  kassenartOptions,
   formatMissingProfileFields,
   getBaseUrl,
   TUNNEL_HEADERS,
@@ -449,6 +450,47 @@ export default function App() {
   const toggleRegSpec = (s) => setRegSpecializations(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
   const toggleRegLang = (l) => setRegLanguages(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l]);
   const toggleRegFort = (f) => setRegFortbildungen(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
+  const toggleRegKassenart = (k) => setRegKassenart(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]);
+
+  const resetRegState = () => {
+    setRegStep(1);
+    setRegSubmitted(false);
+    setRegEmail('');
+    setRegPassword('');
+    setRegPasswordConfirm('');
+    setRegFirstName('');
+    setRegLastName('');
+    setRegCity('');
+    setRegPostalCode('');
+    setRegStreet('');
+    setRegHouseNumber('');
+    setRegLocationPrecision('approximate');
+    setRegGender(null);
+    setRegSpecializations([]);
+    setRegLanguages(['de']);
+    setRegFortbildungen([]);
+    setRegHomeVisit(false);
+    setRegServiceRadius(null);
+    setRegKassenart([]);
+    setRegSpecSearch('');
+    setRegLangSearch('');
+    setRegDocument(null);
+    setRegTaxRegistrationStatus(null);
+    setRegHealthAuthorityStatus(null);
+    setRegComplianceDraftReady(false);
+    setShowRegFortbildungen(false);
+    setShowRegPassword(false);
+    setShowRegPasswordConfirm(false);
+    setShowRegStepInfo(false);
+    setRegEmailVerified(false);
+    setRegIsFreelance(null);
+    setRegOtpSent(false);
+    setRegOtpCode('');
+    setRegOtpError('');
+    setRegOtpLoading(false);
+    setShowEmailVerify(false);
+    setEmailVerifyStatus('idle');
+  };
 
   // Auth state
   const [authToken, setAuthToken] = useState(null);
@@ -462,14 +504,10 @@ export default function App() {
   const [signupTerms, setSignupTerms] = useState(false);
   const [signupError, setSignupError] = useState('');
   const [showPatientName, setShowPatientName] = useState(false);
-  const [showPatientRegister, setShowPatientRegister] = useState(false);
-  const [patientRegEmail, setPatientRegEmail] = useState('');
-  const [patientRegPassword, setPatientRegPassword] = useState('');
   const [patientRegFirstName, setPatientRegFirstName] = useState('');
   const [patientRegLastName, setPatientRegLastName] = useState('');
   const [patientRegLoading, setPatientRegLoading] = useState(false);
   const [patientRegError, setPatientRegError] = useState('');
-  const [patientRegDone, setPatientRegDone] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -587,11 +625,21 @@ export default function App() {
     setEmailVerifyStatus('verifying');
     setShowEmailVerify(true);
     try {
-      const res = await fetch(`${getBaseUrl()}/auth/verify-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS },
-        body: JSON.stringify({ token }),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => {
+        controller.abort();
+      }, 30000);
+      let res;
+      try {
+        res = await fetch(`${getBaseUrl()}/auth/verify-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS },
+          body: JSON.stringify({ token }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setEmailVerifyError(err.message ?? t('alertVerifyFailed'));
@@ -1814,7 +1862,13 @@ export default function App() {
 
   const renderRoleSelect = () => (
     <View style={{ flex: 1, paddingHorizontal: 20 }}>
-      <View style={{ paddingTop: 24, paddingBottom: 20 }}>
+      <Pressable
+        onPress={() => { setShowRoleSelect(false); setShowSignup(true); }}
+        style={{ paddingTop: 16, paddingBottom: 4, alignSelf: 'flex-start' }}
+      >
+        <Text style={{ fontSize: 15, color: c.primary }}>‹ {t('backBtn')}</Text>
+      </Pressable>
+      <View style={{ paddingTop: 8, paddingBottom: 20 }}>
         <Text style={{ fontSize: 22, fontWeight: '800', color: c.text }}>{t('registerRoleTitle')}</Text>
         <Text style={{ fontSize: 14, color: c.muted, marginTop: 4 }}>{t('registerRoleBody')}</Text>
       </View>
@@ -1822,7 +1876,7 @@ export default function App() {
       <View style={{ gap: 12 }}>
         {/* Patient — filled/primary */}
         <Pressable
-          onPress={() => { setShowRoleSelect(false); setShowPatientName(true); }}
+          onPress={() => { setShowRoleSelect(false); setShowEmailVerify(false); setEmailVerifyStatus('idle'); setShowPatientName(true); }}
           style={({ pressed }) => [{
             backgroundColor: c.primary,
             borderRadius: 16,
@@ -1845,7 +1899,14 @@ export default function App() {
 
         {/* Therapeut — outlined */}
         <Pressable
-          onPress={() => { setShowRoleSelect(false); setRegEmail(signupEmail); setRegPassword(signupPassword); setRegPasswordConfirm(signupPassword); setRegStep(2); setRegSubmitted(false); setShowRegister(true); }}
+          onPress={() => {
+            resetRegState();
+            setShowRoleSelect(false);
+            setRegEmail(signupEmail);
+            setRegPassword(signupPassword);
+            setRegPasswordConfirm(signupPassword);
+            setShowRegister(true);
+          }}
           style={({ pressed }) => [{
             backgroundColor: c.card,
             borderRadius: 16,
@@ -1895,7 +1956,21 @@ export default function App() {
         setPatientRegError(err.message ?? t('alertConnectionError'));
         return;
       }
-      // Registration successful — show email verification notice, reset state
+      // Auto-login with the session token returned by registration
+      const data = await res.json().catch(() => ({}));
+      if (data.token) {
+        await AsyncStorage.setItem('revio_auth_token', data.token);
+        await AsyncStorage.setItem('revio_account_type', 'patient');
+        setAuthToken(data.token);
+        setAccountType('patient');
+        setLoggedInPatient({
+          id: data.userId,
+          email: signupEmail.trim().toLowerCase(),
+          role: 'patient',
+          firstName: patientRegFirstName.trim(),
+          lastName: patientRegLastName.trim(),
+        });
+      }
       setShowPatientName(false);
       setShowRoleSelect(false);
       setShowSignup(false);
@@ -1905,8 +1980,6 @@ export default function App() {
       setSignupError('');
       setPatientRegFirstName('');
       setPatientRegLastName('');
-      setPatientRegDone(true);
-      setShowPatientRegister(true); // reuse the "done" screen from old flow
     } catch {
       setPatientRegError(t('alertConnectionError') + '. ' + t('alertConnectionErrorBody'));
     } finally {
@@ -1965,126 +2038,6 @@ export default function App() {
     </ScrollView>
   );
 
-  const handlePatientRegister = async () => {
-    setPatientRegError('');
-    if (!patientRegFirstName.trim() || !patientRegLastName.trim()) {
-      setPatientRegError(t('patientRegNameRequired'));
-      return;
-    }
-    if (!patientRegEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientRegEmail.trim())) {
-      setPatientRegError(t('patientRegEmailInvalid'));
-      return;
-    }
-    if (patientRegPassword.length < 8) {
-      setPatientRegError(t('patientRegPasswordTooShort'));
-      return;
-    }
-    setPatientRegLoading(true);
-    try {
-      const res = await fetch(`${getBaseUrl()}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: patientRegEmail.trim().toLowerCase(),
-          password: patientRegPassword,
-          role: 'patient',
-          firstName: patientRegFirstName.trim(),
-          lastName: patientRegLastName.trim(),
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setPatientRegError(err.message ?? t('alertConnectionError'));
-        return;
-      }
-      setPatientRegDone(true);
-    } catch {
-      setPatientRegError(t('alertConnectionError') + '. ' + t('alertConnectionErrorBody'));
-    } finally {
-      setPatientRegLoading(false);
-    }
-  };
-
-  const renderPatientRegister = () => (
-    <ScrollView contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 8 }]} keyboardShouldPersistTaps="handled">
-      {patientRegDone ? (
-        <View style={{ alignItems: 'center', paddingTop: 40, gap: 16 }}>
-          <Ionicons name="mail-outline" size={48} color={c.primary} />
-          <Text style={{ fontSize: 20, fontWeight: '700', color: c.text, textAlign: 'center' }}>{t('patientRegDoneTitle')}</Text>
-          <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 20 }}>{t('patientRegDoneBody')}</Text>
-          <Pressable
-            style={[styles.registerBtn, { backgroundColor: c.card, borderWidth: 1, borderColor: c.border, marginTop: 8 }]}
-            onPress={() => { setShowPatientRegister(false); setShowLogin(true); setPatientRegDone(false); setPatientRegEmail(''); setPatientRegPassword(''); setPatientRegFirstName(''); setPatientRegLastName(''); setPatientRegError(''); }}
-          >
-            <Text style={{ fontSize: 15, fontWeight: '600', color: c.text }}>{t('loginAction')}</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: c.text, marginBottom: 4, marginTop: 8 }}>{t('patientRegTitle')}</Text>
-          <Text style={{ fontSize: 13, color: c.muted, marginBottom: 20 }}>{t('patientRegSubtitle')}</Text>
-
-          <View style={{ gap: 10, marginBottom: 16 }}>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TextInput
-                style={[styles.input, { flex: 1, color: c.text, backgroundColor: c.card, borderColor: c.border }]}
-                placeholder={t('firstName')}
-                placeholderTextColor={c.muted}
-                value={patientRegFirstName}
-                onChangeText={setPatientRegFirstName}
-                autoCapitalize="words"
-              />
-              <TextInput
-                style={[styles.input, { flex: 1, color: c.text, backgroundColor: c.card, borderColor: c.border }]}
-                placeholder={t('lastName')}
-                placeholderTextColor={c.muted}
-                value={patientRegLastName}
-                onChangeText={setPatientRegLastName}
-                autoCapitalize="words"
-              />
-            </View>
-            <TextInput
-              style={[styles.input, { color: c.text, backgroundColor: c.card, borderColor: c.border }]}
-              placeholder="E-Mail"
-              placeholderTextColor={c.muted}
-              value={patientRegEmail}
-              onChangeText={setPatientRegEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-            <TextInput
-              style={[styles.input, { color: c.text, backgroundColor: c.card, borderColor: c.border }]}
-              placeholder={t('password')}
-              placeholderTextColor={c.muted}
-              value={patientRegPassword}
-              onChangeText={setPatientRegPassword}
-              secureTextEntry
-            />
-          </View>
-
-          {!!patientRegError && (
-            <Text style={{ color: c.error, fontSize: 13, marginBottom: 12 }}>{patientRegError}</Text>
-          )}
-
-          <Pressable
-            style={[styles.registerBtn, { backgroundColor: patientRegLoading ? c.border : c.primary }]}
-            onPress={handlePatientRegister}
-            disabled={patientRegLoading}
-          >
-            <Text style={styles.registerBtnText}>{patientRegLoading ? '…' : t('patientRegSubmit')}</Text>
-          </Pressable>
-
-          <Pressable
-            style={{ marginTop: 12, alignItems: 'center', paddingVertical: 10 }}
-            onPress={() => { setShowPatientRegister(false); setPatientRegError(''); }}
-          >
-            <Text style={{ fontSize: 14, color: c.muted }}>{t('backBtn')}</Text>
-          </Pressable>
-        </>
-      )}
-    </ScrollView>
-  );
 
   const renderPatientDashboard = () => (
     <ScrollView contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingBottom: 40 }]} showsVerticalScrollIndicator={false}>
@@ -2426,7 +2379,7 @@ export default function App() {
             </Text>
             <Pressable
               style={[styles.registerBtn, { backgroundColor: c.primary, marginTop: 24, paddingHorizontal: 32 }]}
-              onPress={() => { setShowRegister(false); setRegSubmitted(false); setRegStep(1); setRegIsFreelance(null); setRegSpecSearch(''); setRegLangSearch(''); setShowRegFortbildungen(false); setRegDocument(null); }}
+              onPress={() => { setShowRegister(false); resetRegState(); }}
             >
               <Text style={styles.registerBtnText}>{t('verifyEmailBtn')}</Text>
             </Pressable>
@@ -2559,18 +2512,28 @@ export default function App() {
                       <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>{regOtpLoading ? '...' : 'Bestätigen'}</Text>
                     </Pressable>
                   </View>
-                  <Pressable onPress={async () => {
-                    setRegOtpLoading(true); setRegOtpError('');
-                    try {
-                      await fetch(`${getBaseUrl()}/register/send-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: regEmail }) });
-                    } finally { setRegOtpLoading(false); }
-                  }}>
-                    <Text style={{ color: c.primary, fontSize: 13 }}>Code erneut senden</Text>
-                  </Pressable>
+                  <View style={{ flexDirection: 'row', gap: 16 }}>
+                    <Pressable onPress={async () => {
+                      setRegOtpLoading(true); setRegOtpError('');
+                      try {
+                        const res = await fetch(`${getBaseUrl()}/register/send-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: regEmail }) });
+                        if (!res.ok) {
+                          const d = await res.json().catch(() => ({}));
+                          setRegOtpError(d.message ?? 'Fehler beim Senden.');
+                        }
+                      } catch { setRegOtpError('Verbindungsfehler.'); }
+                      finally { setRegOtpLoading(false); }
+                    }}>
+                      <Text style={{ color: c.primary, fontSize: 13 }}>Code erneut senden</Text>
+                    </Pressable>
+                    <Pressable onPress={() => { setRegOtpSent(false); setRegOtpCode(''); setRegOtpError(''); setRegEmailVerified(false); }}>
+                      <Text style={{ color: c.muted, fontSize: 13 }}>Andere E-Mail</Text>
+                    </Pressable>
+                  </View>
                 </View>
               )}
 
-              {regOtpError ? <Text style={{ color: c.saved, fontSize: 13 }}>{regOtpError}</Text> : null}
+              {regOtpError ? <Text style={{ color: c.error, fontSize: 13 }}>{regOtpError}</Text> : null}
 
               {/* Password fields — only shown after email verified */}
               {regEmailVerified && (
@@ -2885,6 +2848,54 @@ export default function App() {
                 placeholderTextColor={c.muted}
                 style={[styles.regInput, { backgroundColor: c.card, borderColor: regLanguages.length > 0 ? c.primary : c.border, color: c.text }]}
               />
+
+              {/* Hausbesuche */}
+              <View style={[styles.detailInfoRow, { marginTop: 16 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('homeVisitOffer')}</Text>
+                  <Text style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>{t('homeVisitOfferSub')}</Text>
+                </View>
+                <Switch value={regHomeVisit} onValueChange={(v) => { setRegHomeVisit(v); if (!v) setRegServiceRadius(null); }} trackColor={{ true: c.success }} />
+              </View>
+              {regHomeVisit && (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('serviceAreaQuestion')}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                    {[5, 10, 15, 20, 30, 50].map((km) => (
+                      <Pressable
+                        key={km}
+                        onPress={() => setRegServiceRadius(km)}
+                        style={[styles.kassenartBtn, {
+                          backgroundColor: regServiceRadius === km ? c.success : c.mutedBg,
+                          borderColor: regServiceRadius === km ? c.success : c.border,
+                        }]}
+                      >
+                        <Text style={[styles.kassenartText, { color: regServiceRadius === km ? '#fff' : c.text }]}>{km} km</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Kassenzulassung */}
+              <Text style={[styles.filterSectionTitle, { color: c.muted, marginTop: 16 }]}>{t('kassenartLabel')}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                {kassenartOptions.filter(o => o.key !== null).map((option) => {
+                  const active = regKassenart.includes(option.key);
+                  return (
+                    <Pressable
+                      key={option.key}
+                      onPress={() => toggleRegKassenart(option.key)}
+                      style={[styles.kassenartBtn, {
+                        backgroundColor: active ? c.primary : c.mutedBg,
+                        borderColor: active ? c.primary : c.border,
+                      }]}
+                    >
+                      <Text style={[styles.kassenartText, { color: active ? '#fff' : c.text }]}>{option.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </>
           );
         }
@@ -2997,6 +3008,8 @@ export default function App() {
                 { label: t('specsLabel'), value: regSpecializations.join(', ') || '—' },
                 { label: t('languagesLabel'), value: regLanguages.map(getLangLabel).join(', ') || '—' },
                 { label: t('certificationsShort'), value: regFortbildungen.map(getCertificationLabel).join(', ') || '—' },
+                { label: t('homeVisitOffer'), value: regHomeVisit ? (regServiceRadius ? `Ja, ${regServiceRadius} km` : 'Ja') : 'Nein' },
+                { label: t('kassenartLabel'), value: regKassenart.length ? regKassenart.join(', ') : '—' },
                 { label: t('taxRegistrationLabel'), value: getComplianceStatusLabel(regTaxRegistrationStatus, t) },
                 { label: t('healthAuthorityLabel'), value: getComplianceStatusLabel(regHealthAuthorityStatus, t) },
                 { label: t('documentLabel'), value: regDocument?.name || '—' },
@@ -3042,8 +3055,7 @@ export default function App() {
           onPress={() => {
             if (regStep === 1) {
               setShowRegister(false);
-              setShowRegFortbildungen(false);
-              setRegDocument(null);
+              resetRegState();
             } else {
               setRegStep(s => s - 1);
               setShowRegStepInfo(false);
@@ -3080,7 +3092,7 @@ export default function App() {
                     email: regEmail,
                     password: regPassword,
                     fullName: `${regFirstName} ${regLastName}`.trim(),
-                    city: regCity || undefined,
+                    city: regCity.trim() || undefined,
                     postalCode: regPostalCode || undefined,
                     street: regStreet.trim() || undefined,
                     houseNumber: regHouseNumber.trim() || undefined,
@@ -3101,6 +3113,15 @@ export default function App() {
                 const resData = await res.json().catch(() => ({}));
                 if (!res.ok) {
                   const msg = typeof resData.message === 'string' ? resData.message : (resData.error ?? `Fehler ${res.status}`);
+                  // OTP window expired → send user back to step 1 with the error pre-filled
+                  if (msg.includes('abgelaufen') || msg.includes('nicht bestätigt')) {
+                    setRegStep(1);
+                    setRegEmailVerified(false);
+                    setRegOtpSent(false);
+                    setRegOtpCode('');
+                    setRegOtpError(msg);
+                    return;
+                  }
                   showWebAlert(msg);
                   return;
                 }
@@ -3145,17 +3166,7 @@ export default function App() {
                   if (profileRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await profileRes.json()));
                   await AsyncStorage.removeItem(REGISTRATION_COMPLIANCE_DRAFT_KEY);
                   setShowRegister(false);
-                  setRegStep(1);
-                  setRegSpecSearch('');
-                  setRegLangSearch('');
-                  setShowRegFortbildungen(false);
-                  setRegDocument(null);
-                  setRegPostalCode('');
-                  setRegStreet('');
-                  setRegHouseNumber('');
-                  setRegLocationPrecision('approximate');
-                  setRegTaxRegistrationStatus(null);
-                  setRegHealthAuthorityStatus(null);
+                  resetRegState();
                   return;
                 }
               } catch {
@@ -3228,6 +3239,12 @@ export default function App() {
             <Text style={{ fontSize: 40, marginBottom: 16 }}>⏳</Text>
             <Text style={[styles.infoTitle, { color: c.text, textAlign: 'center' }]}>{t('emailBeingVerified')}</Text>
             <Text style={[styles.infoBody, { color: c.muted, textAlign: 'center', marginTop: 8 }]}>{t('pleaseWait')}</Text>
+            <Pressable
+              style={{ marginTop: 24, padding: 12 }}
+              onPress={() => { setShowEmailVerify(false); setEmailVerifyStatus('idle'); setEmailVerifyError(''); }}
+            >
+              <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center' }}>{t('cancelBtn')}</Text>
+            </Pressable>
           </>
         )}
         {emailVerifyStatus === 'success' && (
@@ -3399,8 +3416,8 @@ export default function App() {
     if (selectedTherapist) return renderTherapistProfile(selectedTherapist);
     if (activeTab === 'favorites') return renderFavorites();
     if (activeTab === 'therapist') {
-      if (showEmailVerify) return renderEmailVerifyScreen();
       if (loggedInPatient) return renderPatientDashboard();
+      if (showEmailVerify) return renderEmailVerifyScreen();
       if (loggedInTherapist) return renderTherapistDashboard();
       return (
         <View style={{ flex: 1 }}>
@@ -3411,7 +3428,7 @@ export default function App() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            {showLogin ? renderLogin() : showRegister ? renderRegister() : showRoleSelect ? renderRoleSelect() : showPatientName ? renderPatientName() : showSignup ? renderSignup() : showPatientRegister ? renderPatientRegister() : renderTherapist()}
+            {showLogin ? renderLogin() : showRegister ? renderRegister() : showRoleSelect ? renderRoleSelect() : showPatientName ? renderPatientName() : showSignup ? renderSignup() : renderTherapist()}
           </View>
         </View>
       );
