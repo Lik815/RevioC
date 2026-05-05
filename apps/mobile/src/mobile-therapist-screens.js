@@ -187,6 +187,7 @@ export function TherapistLandingScreen(props) {
   );
 }
 
+// SignupScreen removed — replaced by inline OTP+Password pre-step in App.js
 export function SignupScreen(props) {
   const {
     c,

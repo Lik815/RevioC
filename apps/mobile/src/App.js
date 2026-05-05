@@ -56,7 +56,6 @@ import {
 } from './mobile-public-profiles';
 import {
   LoginScreen,
-  SignupScreen,
   TherapistLandingScreen,
 } from './mobile-therapist-screens';
 import {
@@ -447,6 +446,21 @@ export default function App() {
   const [regOtpLoading, setRegOtpLoading] = useState(false);
   const [showRegStepInfo, setShowRegStepInfo] = useState(false);
 
+  const resetSignupState = () => {
+    setSignupEmail('');
+    setSignupOtpSent(false);
+    setSignupOtpCode('');
+    setSignupOtpError('');
+    setSignupOtpLoading(false);
+    setSignupEmailVerified(false);
+    setSignupPassword('');
+    setSignupPasswordConfirm('');
+    setShowSignupPassword(false);
+    setShowSignupPasswordConfirm(false);
+    setSignupTerms(false);
+    setSignupError('');
+  };
+
   const toggleRegSpec = (s) => setRegSpecializations(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
   const toggleRegLang = (l) => setRegLanguages(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l]);
   const toggleRegFort = (f) => setRegFortbildungen(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
@@ -500,7 +514,15 @@ export default function App() {
   const [showRoleSelect, setShowRoleSelect] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
+  const [signupOtpSent, setSignupOtpSent] = useState(false);
+  const [signupOtpCode, setSignupOtpCode] = useState('');
+  const [signupOtpError, setSignupOtpError] = useState('');
+  const [signupOtpLoading, setSignupOtpLoading] = useState(false);
+  const [signupEmailVerified, setSignupEmailVerified] = useState(false);
   const [signupPassword, setSignupPassword] = useState('');
+  const [signupPasswordConfirm, setSignupPasswordConfirm] = useState('');
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showSignupPasswordConfirm, setShowSignupPasswordConfirm] = useState(false);
   const [signupTerms, setSignupTerms] = useState(false);
   const [signupError, setSignupError] = useState('');
   const [showPatientName, setShowPatientName] = useState(false);
@@ -1905,7 +1927,9 @@ export default function App() {
             setRegEmail(signupEmail);
             setRegPassword(signupPassword);
             setRegPasswordConfirm(signupPassword);
+            setRegEmailVerified(true);
             setShowRegister(true);
+            resetSignupState();
           }}
           style={({ pressed }) => [{
             backgroundColor: c.card,
@@ -2068,22 +2092,208 @@ export default function App() {
   // ── Therapist tab ─────────────────────────────────────────────────────────
 
   const renderSignup = () => (
-    <SignupScreen
-      c={c}
-      styles={styles}
-      t={t}
-      setShowLogin={setShowLogin}
-      setShowSignup={setShowSignup}
-      setShowRoleSelect={setShowRoleSelect}
-      signupEmail={signupEmail}
-      setSignupEmail={setSignupEmail}
-      signupPassword={signupPassword}
-      setSignupPassword={setSignupPassword}
-      signupTerms={signupTerms}
-      setSignupTerms={setSignupTerms}
-      signupError={signupError}
-      setSignupError={setSignupError}
-    />
+    <ScrollView contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 24, paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
+      {/* Back / cancel */}
+      <Pressable
+        onPress={() => {
+          if (signupEmailVerified) {
+            setSignupEmailVerified(false);
+            setSignupOtpSent(false);
+          } else {
+            setShowSignup(false);
+            resetSignupState();
+          }
+        }}
+        style={{ paddingTop: 16, paddingBottom: 4, alignSelf: 'flex-start' }}
+      >
+        <Text style={{ fontSize: 15, color: c.primary }}>‹ {signupEmailVerified ? t('backBtn') : t('cancelBtn')}</Text>
+      </Pressable>
+
+      <View style={{ paddingTop: 8, paddingBottom: 20 }}>
+        <Text style={{ fontSize: 26, fontWeight: '800', color: c.text }}>
+          {signupEmailVerified ? t('createPasswordTitle') : t('createAccountTitle')}
+        </Text>
+        <Text style={{ fontSize: 14, color: c.muted, marginTop: 6, lineHeight: 20 }}>
+          {signupEmailVerified
+            ? `${t('passwordForEmail')} ${signupEmail}`
+            : t('emailVerificationSubtitle')}
+        </Text>
+      </View>
+
+      {/* ── Phase A: OTP ─────────────────────────────────────────────── */}
+      {!signupEmailVerified && (
+        <View style={{ gap: 12 }}>
+          {/* Email + Send button */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput
+              value={signupEmail}
+              onChangeText={(v) => { setSignupEmail(v); setSignupOtpSent(false); setSignupOtpCode(''); setSignupOtpError(''); }}
+              placeholder={t('emailLabel')}
+              placeholderTextColor={c.muted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!signupOtpSent}
+              style={[styles.regInput, { flex: 1, backgroundColor: c.card, borderColor: c.border, color: c.text }]}
+            />
+            <Pressable
+              onPress={async () => {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupEmail)) { setSignupOtpError('Bitte gib eine gültige E-Mail ein.'); return; }
+                setSignupOtpLoading(true); setSignupOtpError('');
+                try {
+                  const res = await fetch(`${getBaseUrl()}/register/send-otp`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: signupEmail.trim().toLowerCase() }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) { setSignupOtpError(data.message ?? 'Fehler beim Senden.'); return; }
+                  setSignupOtpSent(true);
+                } catch { setSignupOtpError('Verbindungsfehler.'); }
+                finally { setSignupOtpLoading(false); }
+              }}
+              disabled={signupOtpLoading || signupOtpSent || signupEmail.length < 5}
+              style={[styles.regInput, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 14, backgroundColor: signupOtpSent ? c.border : (signupEmail.length >= 5 ? c.primary : c.border) }]}
+            >
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>{signupOtpLoading ? '...' : 'Code senden'}</Text>
+            </Pressable>
+          </View>
+
+          {/* OTP input */}
+          {signupOtpSent && (
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: c.muted, fontSize: 13 }}>
+                Wir haben einen 6-stelligen Code an <Text style={{ color: c.text, fontWeight: '600' }}>{signupEmail}</Text> gesendet.
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  value={signupOtpCode}
+                  onChangeText={(v) => { setSignupOtpCode(v.replace(/\D/g, '').slice(0, 6)); setSignupOtpError(''); }}
+                  placeholder="000000"
+                  placeholderTextColor={c.muted}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  style={[styles.regInput, { flex: 1, backgroundColor: c.card, borderColor: c.border, color: c.text, letterSpacing: 6, fontSize: 20, textAlign: 'center' }]}
+                />
+                <Pressable
+                  onPress={async () => {
+                    if (signupOtpCode.length !== 6) return;
+                    setSignupOtpLoading(true); setSignupOtpError('');
+                    try {
+                      const res = await fetch(`${getBaseUrl()}/register/confirm-otp`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: signupEmail.trim().toLowerCase(), code: signupOtpCode }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) { setSignupOtpError(data.message ?? 'Falscher Code.'); return; }
+                      setSignupEmailVerified(true);
+                    } catch { setSignupOtpError('Verbindungsfehler.'); }
+                    finally { setSignupOtpLoading(false); }
+                  }}
+                  disabled={signupOtpCode.length !== 6 || signupOtpLoading}
+                  style={[styles.regInput, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 14, backgroundColor: signupOtpCode.length === 6 ? c.primary : c.border }]}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>{signupOtpLoading ? '...' : 'Bestätigen'}</Text>
+                </Pressable>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 16 }}>
+                <Pressable onPress={async () => {
+                  setSignupOtpLoading(true); setSignupOtpError('');
+                  try {
+                    const res = await fetch(`${getBaseUrl()}/register/send-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: signupEmail.trim().toLowerCase() }) });
+                    if (!res.ok) { const d = await res.json().catch(() => ({})); setSignupOtpError(d.message ?? 'Fehler beim Senden.'); }
+                  } catch { setSignupOtpError('Verbindungsfehler.'); }
+                  finally { setSignupOtpLoading(false); }
+                }}>
+                  <Text style={{ color: c.primary, fontSize: 13 }}>Code erneut senden</Text>
+                </Pressable>
+                <Pressable onPress={() => { setSignupOtpSent(false); setSignupOtpCode(''); setSignupOtpError(''); }}>
+                  <Text style={{ color: c.muted, fontSize: 13 }}>Andere E-Mail</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {!!signupOtpError && <Text style={{ color: c.error, fontSize: 13 }}>{signupOtpError}</Text>}
+
+          <Pressable style={{ marginTop: 8, alignSelf: 'flex-end' }} onPress={() => { setShowSignup(false); setShowLogin(true); resetSignupState(); }}>
+            <Text style={{ color: c.muted, fontSize: 13 }}>{t('alreadyHaveAccount')} {t('loginAction')}</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* ── Phase B: Password + Terms ────────────────────────────────── */}
+      {signupEmailVerified && (
+        <View style={{ gap: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="checkmark-circle" size={16} color={c.success} />
+            <Text style={{ color: c.success, fontSize: 13, fontWeight: '600' }}>E-Mail bestätigt</Text>
+          </View>
+
+          <View style={{ position: 'relative' }}>
+            <TextInput
+              value={signupPassword}
+              onChangeText={setSignupPassword}
+              placeholder={t('passwordPlaceholder')}
+              placeholderTextColor={c.muted}
+              secureTextEntry={!showSignupPassword}
+              textContentType="newPassword"
+              autoComplete="new-password"
+              style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]}
+            />
+            <Pressable onPress={() => setShowSignupPassword(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
+              <Ionicons name={showSignupPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
+            </Pressable>
+          </View>
+
+          <View style={{ position: 'relative' }}>
+            <TextInput
+              value={signupPasswordConfirm}
+              onChangeText={setSignupPasswordConfirm}
+              placeholder={t('passwordConfirmPlaceholder')}
+              placeholderTextColor={c.muted}
+              secureTextEntry={!showSignupPasswordConfirm}
+              textContentType="newPassword"
+              autoComplete="new-password"
+              style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]}
+            />
+            <Pressable onPress={() => setShowSignupPasswordConfirm(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
+              <Ionicons name={showSignupPasswordConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
+            </Pressable>
+          </View>
+
+          {signupPasswordConfirm.length > 0 && signupPassword !== signupPasswordConfirm && (
+            <Text style={{ color: c.error, fontSize: 13 }}>{t('passwordsMismatch')}</Text>
+          )}
+
+          {signupPassword.length > 0 && signupPassword.length < 8 && (
+            <Text style={{ color: c.error, fontSize: 13 }}>Mindestens 8 Zeichen.</Text>
+          )}
+
+          {/* Terms */}
+          <Pressable onPress={() => setSignupTerms(v => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 }}>
+            <View style={{ width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: signupTerms ? c.primary : c.border, backgroundColor: signupTerms ? c.primary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+              {signupTerms && <Ionicons name="checkmark" size={14} color="#fff" />}
+            </View>
+            <Text style={{ flex: 1, fontSize: 13, color: c.muted }}>{t('termsCheckbox')}</Text>
+          </Pressable>
+
+          {!!signupError && <Text style={{ color: c.error, fontSize: 13 }}>{signupError}</Text>}
+
+          <Pressable
+            onPress={() => {
+              if (signupPassword.length < 8) { setSignupError('Passwort muss mindestens 8 Zeichen haben.'); return; }
+              if (signupPassword !== signupPasswordConfirm) { setSignupError(t('passwordsMismatch')); return; }
+              if (!signupTerms) { setSignupError(t('termsRequired')); return; }
+              setSignupError('');
+              setShowSignup(false);
+              setShowRoleSelect(true);
+            }}
+            style={[styles.registerBtn, { backgroundColor: (signupPassword.length >= 8 && signupPassword === signupPasswordConfirm && signupTerms) ? c.primary : c.border, marginTop: 8 }]}
+          >
+            <Text style={styles.registerBtnText}>Weiter →</Text>
+          </Pressable>
+        </View>
+      )}
+    </ScrollView>
   );
 
   const renderTherapist = () => (
@@ -2402,17 +2612,15 @@ export default function App() {
     const canProceed = () => {
       switch (regStep) {
         case 1:
-          return regEmailVerified && regPassword.length >= 6 && regPassword === regPasswordConfirm;
-        case 2:
           return (
             regFirstName.trim().length > 0 &&
             regLastName.trim().length > 0 &&
             regCity.trim().length > 0 &&
             regPostalCode.trim().length === 5
           );
-        case 3:
+        case 2:
           return regIsFreelance === true;
-        case 6:
+        case 5:
           return Boolean(regDocument);
         default:
           return true;
@@ -2425,146 +2633,6 @@ export default function App() {
           return (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                <Text style={[styles.regStepTitle, { color: c.text, marginBottom: 0 }]}>{t('createAccountTitle')}</Text>
-                <Pressable onPress={() => setShowRegStepInfo(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                  <Text style={{ fontSize: 12, color: c.muted }}>{t('infoLabel')}</Text>
-                  <Ionicons name={showRegStepInfo ? 'chevron-up' : 'chevron-down'} size={13} color={c.muted} />
-                </Pressable>
-              </View>
-              {showRegStepInfo && (
-                <View style={{ backgroundColor: c.mutedBg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: c.border }}>
-                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[1]}</Text>
-                </View>
-              )}
-              {/* Email + OTP verification */}
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TextInput
-                  value={regEmail}
-                  onChangeText={(v) => { setRegEmail(v); setRegEmailVerified(false); setRegOtpSent(false); setRegOtpCode(''); setRegOtpError(''); }}
-                  placeholder={t('emailLabel')}
-                  placeholderTextColor={c.muted}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  editable={!regOtpSent}
-                  style={[styles.regInput, { flex: 1, backgroundColor: c.card, borderColor: regEmailVerified ? c.success : c.border, color: c.text }]}
-                />
-                {regEmailVerified ? (
-                  <View style={{ justifyContent: 'center', paddingHorizontal: 4 }}>
-                    <Ionicons name="checkmark-circle" size={26} color={c.success} />
-                  </View>
-                ) : (
-                  <Pressable
-                    onPress={async () => {
-                      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) { setRegOtpError('Bitte gib eine gültige E-Mail ein.'); return; }
-                      setRegOtpLoading(true); setRegOtpError('');
-                      try {
-                        const res = await fetch(`${getBaseUrl()}/register/send-otp`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ email: regEmail }),
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok) { setRegOtpError(data.message ?? 'Fehler beim Senden.'); return; }
-                        setRegOtpSent(true);
-                      } catch { setRegOtpError('Verbindungsfehler.'); }
-                      finally { setRegOtpLoading(false); }
-                    }}
-                    disabled={regOtpLoading || regEmail.length < 5}
-                    style={[styles.regInput, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 14, backgroundColor: regEmail.length >= 5 ? c.primary : c.border }]}
-                  >
-                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>{regOtpLoading ? '...' : 'Code senden'}</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              {regOtpSent && !regEmailVerified && (
-                <View style={{ gap: 8 }}>
-                  <Text style={{ color: c.muted, fontSize: 13 }}>Wir haben einen 6-stelligen Code an <Text style={{ color: c.text, fontWeight: '600' }}>{regEmail}</Text> gesendet.</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TextInput
-                      value={regOtpCode}
-                      onChangeText={(v) => { setRegOtpCode(v.replace(/\D/g, '').slice(0, 6)); setRegOtpError(''); }}
-                      placeholder="000000"
-                      placeholderTextColor={c.muted}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      style={[styles.regInput, { flex: 1, backgroundColor: c.card, borderColor: c.border, color: c.text, letterSpacing: 6, fontSize: 20, textAlign: 'center' }]}
-                    />
-                    <Pressable
-                      onPress={async () => {
-                        if (regOtpCode.length !== 6) return;
-                        setRegOtpLoading(true); setRegOtpError('');
-                        try {
-                          const res = await fetch(`${getBaseUrl()}/register/confirm-otp`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email: regEmail, code: regOtpCode }),
-                          });
-                          const data = await res.json().catch(() => ({}));
-                          if (!res.ok) { setRegOtpError(data.message ?? 'Falscher Code.'); return; }
-                          setRegEmailVerified(true);
-                        } catch { setRegOtpError('Verbindungsfehler.'); }
-                        finally { setRegOtpLoading(false); }
-                      }}
-                      disabled={regOtpCode.length !== 6 || regOtpLoading}
-                      style={[styles.regInput, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 14, backgroundColor: regOtpCode.length === 6 ? c.primary : c.border }]}
-                    >
-                      <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>{regOtpLoading ? '...' : 'Bestätigen'}</Text>
-                    </Pressable>
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 16 }}>
-                    <Pressable onPress={async () => {
-                      setRegOtpLoading(true); setRegOtpError('');
-                      try {
-                        const res = await fetch(`${getBaseUrl()}/register/send-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: regEmail }) });
-                        if (!res.ok) {
-                          const d = await res.json().catch(() => ({}));
-                          setRegOtpError(d.message ?? 'Fehler beim Senden.');
-                        }
-                      } catch { setRegOtpError('Verbindungsfehler.'); }
-                      finally { setRegOtpLoading(false); }
-                    }}>
-                      <Text style={{ color: c.primary, fontSize: 13 }}>Code erneut senden</Text>
-                    </Pressable>
-                    <Pressable onPress={() => { setRegOtpSent(false); setRegOtpCode(''); setRegOtpError(''); setRegEmailVerified(false); }}>
-                      <Text style={{ color: c.muted, fontSize: 13 }}>Andere E-Mail</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              )}
-
-              {regOtpError ? <Text style={{ color: c.error, fontSize: 13 }}>{regOtpError}</Text> : null}
-
-              {/* Password fields — only shown after email verified */}
-              {regEmailVerified && (
-                <>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                    <Ionicons name="checkmark-circle" size={16} color={c.success} />
-                    <Text style={{ color: c.success, fontSize: 13, fontWeight: '600' }}>E-Mail bestätigt</Text>
-                  </View>
-                  <View style={{ position: 'relative' }}>
-                    <TextInput value={regPassword} onChangeText={setRegPassword} placeholder={t('passwordPlaceholder')} placeholderTextColor={c.muted} secureTextEntry={!showRegPassword} textContentType="newPassword" autoComplete="new-password" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
-                    <Pressable onPress={() => setShowRegPassword(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
-                      <Ionicons name={showRegPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
-                    </Pressable>
-                  </View>
-                  <View style={{ position: 'relative' }}>
-                    <TextInput value={regPasswordConfirm} onChangeText={setRegPasswordConfirm} placeholder={t('passwordConfirmPlaceholder')} placeholderTextColor={c.muted} secureTextEntry={!showRegPasswordConfirm} textContentType="newPassword" autoComplete="new-password" style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text, paddingRight: 44 }]} />
-                    <Pressable onPress={() => setShowRegPasswordConfirm(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>
-                      <Ionicons name={showRegPasswordConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color={c.muted} />
-                    </Pressable>
-                  </View>
-                  {regPasswordConfirm.length > 0 && regPassword !== regPasswordConfirm && (
-                    <Text style={{ color: c.saved, fontSize: 13, marginTop: -6 }}>{t('passwordsMismatch')}</Text>
-                  )}
-                </>
-              )}
-            </>
-          );
-        case 2:
-          return (
-            <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                 <Text style={[styles.regStepTitle, { color: c.text, marginBottom: 0 }]}>{t('personalDetailsTitle')}</Text>
                 <Pressable onPress={() => setShowRegStepInfo(v => !v)} hitSlop={ICON_HIT_SLOP} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                   <Text style={{ fontSize: 12, color: c.muted }}>{t('infoLabel')}</Text>
@@ -2573,7 +2641,7 @@ export default function App() {
               </View>
               {showRegStepInfo && (
                 <View style={{ backgroundColor: c.mutedBg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: c.border }}>
-                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[2]}</Text>
+                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[1]}</Text>
                 </View>
               )}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 2 }}>
@@ -2683,7 +2751,7 @@ export default function App() {
               </View>
             </>
           );
-        case 3:
+        case 2:
           return (
             <>
               <Text style={[styles.regStepTitle, { color: c.text }]}>{t('freelanceCheckTitle')}</Text>
@@ -2736,7 +2804,7 @@ export default function App() {
               )}
             </>
           );
-        case 4: {
+        case 3: {
           const langSuggestions4 = regLangSearch.length > 0
             ? languageOptions.filter(l => getLangLabel(l).toLowerCase().includes(regLangSearch.toLowerCase()) && !regLanguages.includes(l)).slice(0, 6)
             : [];
@@ -2754,7 +2822,7 @@ export default function App() {
               </View>
               {showRegStepInfo && (
                 <View style={{ backgroundColor: c.mutedBg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: c.border, marginBottom: SPACE.sm }}>
-                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[4]}</Text>
+                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[3]}</Text>
                 </View>
               )}
 
@@ -2899,7 +2967,7 @@ export default function App() {
             </>
           );
         }
-        case 5:
+        case 4:
           return (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
@@ -2911,7 +2979,7 @@ export default function App() {
               </View>
               {showRegStepInfo && (
                 <View style={{ backgroundColor: c.mutedBg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: c.border, marginBottom: SPACE.sm }}>
-                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[5]}</Text>
+                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[4]}</Text>
                 </View>
               )}
               <ComplianceStatusStep
@@ -2924,7 +2992,7 @@ export default function App() {
               />
             </>
           );
-        case 6:
+        case 5:
           return (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
@@ -2936,7 +3004,7 @@ export default function App() {
               </View>
               {showRegStepInfo && (
                 <View style={{ backgroundColor: c.mutedBg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: c.border, marginBottom: SPACE.sm }}>
-                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[6]}</Text>
+                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[5]}</Text>
                 </View>
               )}
 
@@ -2977,7 +3045,7 @@ export default function App() {
               )}
             </>
           );
-        case 7:
+        case 6:
           return (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
@@ -2989,7 +3057,7 @@ export default function App() {
               </View>
               {showRegStepInfo && (
                 <View style={{ backgroundColor: c.mutedBg, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: c.border }}>
-                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[7]}</Text>
+                  <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>{REG_STEP_INFO[6]}</Text>
                 </View>
               )}
               {[
@@ -3033,12 +3101,11 @@ export default function App() {
     };
 
     const REG_STEP_INFO = {
-      1: t('regStepInfoText1'),
-      2: t('regStepInfoText2'),
-      4: t('regStepInfoText4'),
-      5: t('regStepInfoText5'),
-      6: t('regStepInfoText6'),
-      7: t('regStepInfoText7'),
+      1: t('regStepInfoText2'),
+      3: t('regStepInfoText4'),
+      4: t('regStepInfoText5'),
+      5: t('regStepInfoText6'),
+      6: t('regStepInfoText7'),
     };
 
     return (
@@ -3056,6 +3123,7 @@ export default function App() {
             if (regStep === 1) {
               setShowRegister(false);
               resetRegState();
+              setShowRoleSelect(true);
             } else {
               setRegStep(s => s - 1);
               setShowRegStepInfo(false);

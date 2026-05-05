@@ -58,6 +58,24 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
     const existing = await fastify.prisma.user.findUnique({ where: { email } });
     if (existing) return reply.conflict('A user with this email already exists.');
 
+    // Require confirmed OTP — same 2-hour window as therapist registration
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    const confirmedOtp = await fastify.prisma.emailOtp.findFirst({
+      where: { email, verifiedAt: { not: null, gte: twoHoursAgo } },
+      orderBy: { verifiedAt: 'desc' },
+    });
+    if (!confirmedOtp) {
+      const expiredOtp = await fastify.prisma.emailOtp.findFirst({
+        where: { email, verifiedAt: { not: null } },
+      });
+      return reply.badRequest(
+        expiredOtp
+          ? 'Der Bestätigungscode ist abgelaufen. Bitte starte die Registrierung erneut.'
+          : 'E-Mail-Adresse nicht bestätigt. Bitte starte die Registrierung erneut.',
+      );
+    }
+
     const passwordHash = await hashPassword(password);
     const sessionToken = randomBytes(32).toString('hex');
     const user = await fastify.prisma.user.create({
@@ -67,11 +85,13 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
         role: 'patient',
         firstName,
         lastName,
-        emailVerifiedAt: new Date(),
+        emailVerifiedAt: confirmedOtp.verifiedAt,
         requiresEmailVerification: false,
         sessionToken,
       },
     });
+
+    await fastify.prisma.emailOtp.delete({ where: { id: confirmedOtp.id } });
 
     return reply.status(201).send({
       token: sessionToken,
