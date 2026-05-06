@@ -89,9 +89,9 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         };
       }
 
-      const therapist = user.therapistProfile ?? await fastify.prisma.therapist.findFirst({
-        where: { userId: user.id },
-      });
+      const therapist = user.therapistProfile
+        ?? await fastify.prisma.therapist.findFirst({ where: { userId: user.id } })
+        ?? await fastify.prisma.therapist.findUnique({ where: { email } });
       if (!therapist) return reply.unauthorized('Therapeuten-Profil nicht gefunden');
 
       await fastify.prisma.therapist.update({
