@@ -15,6 +15,7 @@ import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
 import { uploadRoutes } from './routes/upload.js';
 import { configRoutes } from './routes/config.js';
+import { bookingRoutes } from './routes/booking.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -40,6 +41,7 @@ export async function buildApp() {
   await app.register(adminRoutes, { prefix: '/admin' });
   await app.register(authRoutes);
   await app.register(uploadRoutes);
+  await app.register(bookingRoutes);
 
   return app;
 }

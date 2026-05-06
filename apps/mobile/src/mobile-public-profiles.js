@@ -197,6 +197,9 @@ export function TherapistProfileScreen(props) {
     t,
     th,
     toggleFavorite,
+    authToken,
+    accountType,
+    onBookingRequest,
   } = props;
 
   const therapistName = typeof th?.fullName === 'string' && th.fullName.trim() ? th.fullName.trim() : 'Profil';
@@ -405,6 +408,27 @@ export function TherapistProfileScreen(props) {
           </View>
         </View>
       ) : null}
+
+      {th.bookingMode === 'FIRST_APPOINTMENT_REQUEST' && accountType !== 'therapist' && accountType !== 'manager' && (
+        <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
+          <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('bookingRequestTitle')}</Text>
+          <Text style={{ color: c.muted, fontSize: 13, marginTop: 4, lineHeight: 18 }}>
+            {t('bookingRequestBody') ?? 'Sende eine Terminanfrage direkt an diesen Therapeuten.'}
+          </Text>
+          <Pressable
+            style={[styles.ctaBtn, { backgroundColor: c.primary, marginTop: 14 }]}
+            onPress={() => {
+              if (authToken && accountType === 'patient') {
+                onBookingRequest(th);
+              } else {
+                onBookingRequest(null);
+              }
+            }}
+          >
+            <Text style={styles.ctaBtnText}>{t('bookingRequestTitle')}</Text>
+          </Pressable>
+        </View>
+      )}
     </ScrollView>
   );
 }

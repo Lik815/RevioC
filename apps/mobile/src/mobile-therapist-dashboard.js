@@ -22,6 +22,7 @@ import {
   ComplianceStatusStep,
   getComplianceStatusLabel,
 } from './mobile-compliance-step';
+import { TherapistBookingCard } from './mobile-booking';
 
 function StatusMiniCard({ icon, label, value, color, c }) {
   return (
@@ -81,6 +82,8 @@ export function TherapistDashboardScreen(props) {
     styles,
     t,
     therapistDocuments,
+    incomingBookings,
+    onRespondToBooking,
   } = props;
 
   const [photoError, setPhotoError] = useState(false);
@@ -91,8 +94,32 @@ export function TherapistDashboardScreen(props) {
   const reviewStatusLabel = th.reviewStatus === 'APPROVED' ? t('statusApproved') : th.reviewStatus === 'CHANGES_REQUESTED' ? t('statusChangesRequested') : t('statusInReview');
   const reviewStatusColor = th.reviewStatus === 'APPROVED' ? c.success : th.reviewStatus === 'CHANGES_REQUESTED' ? c.warning : c.muted;
   const hasDocuments = (therapistDocuments ?? []).length > 0;
+  const pendingBookings = (incomingBookings ?? []).filter(b => b.status === 'PENDING');
+  const pendingCount = pendingBookings.length;
+
   return (
     <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}>
+      {(incomingBookings ?? []).length > 0 && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 }}>
+            <Text style={{ ...TYPE.h3, color: c.text }}>{t('bookingIncoming')}</Text>
+            {pendingCount > 0 && (
+              <View style={{ backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>{pendingCount}</Text>
+              </View>
+            )}
+          </View>
+          {(incomingBookings ?? []).map(req => (
+            <TherapistBookingCard
+              key={req.id}
+              c={c}
+              t={t}
+              request={req}
+              onRespond={onRespondToBooking}
+            />
+          ))}
+        </View>
+      )}
       <View style={[styles.practiceHeader, { backgroundColor: c.card, borderColor: c.border, alignItems: 'center' }]}>
         <Pressable onPress={handlePickPhoto} style={{ position: 'relative' }}>
           {th.photo && !photoError ? (

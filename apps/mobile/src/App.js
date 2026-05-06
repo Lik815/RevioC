@@ -67,6 +67,7 @@ import {
 } from './mobile-compliance-step';
 import { translations } from './mobile-translations';
 import { PatientDashboardScreen } from './mobile-patient-dashboard';
+import { BookingRequestForm, PatientAppointmentCard } from './mobile-booking';
 
 const formatProfileOverviewName = (fullName = '') => {
   const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
@@ -362,6 +363,30 @@ export default function App() {
     } catch {}
   };
 
+  const loadMyAppointments = async (token) => {
+    try {
+      const res = await fetch(`${getBaseUrl()}/bookings/my`, {
+        headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMyAppointments(Array.isArray(data) ? data : []);
+      }
+    } catch {}
+  };
+
+  const loadIncomingBookings = async (token) => {
+    try {
+      const res = await fetch(`${getBaseUrl()}/bookings/incoming`, {
+        headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIncomingBookings(Array.isArray(data) ? data : []);
+      }
+    } catch {}
+  };
+
   // ── Toast notification ────────────────────────────────────────────────────
   const [toastMsg, setToastMsg] = useState(null);
   const toastAnim = useRef(new Animated.Value(-80)).current;
@@ -547,6 +572,10 @@ export default function App() {
   const [loggedInTherapist, setLoggedInTherapist] = useState(null);
   const [loggedInPatient, setLoggedInPatient] = useState(null);
   const [accountType, setAccountType] = useState(null); // 'therapist' | 'patient' | null
+  const [myAppointments, setMyAppointments] = useState([]);
+  const [incomingBookings, setIncomingBookings] = useState([]);
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [bookingTargetTherapist, setBookingTargetTherapist] = useState(null);
   const [showRoleSelect, setShowRoleSelect] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
@@ -674,6 +703,8 @@ export default function App() {
             setLoggedInTherapist(normalizeTherapistProfile(profile));
           }
           loadFavorites(token);
+          if (profile.role === 'patient') loadMyAppointments(token);
+          else loadIncomingBookings(token);
         } else {
           AsyncStorage.removeItem('revio_auth_token');
           AsyncStorage.removeItem('revio_account_type');
@@ -908,6 +939,7 @@ export default function App() {
           await AsyncStorage.setItem('revio_account_type', 'patient');
           setAccountType('patient');
           setLoggedInPatient(profile);
+          loadMyAppointments(token);
           setShowLogin(false);
           setLoginEmail('');
           setLoginPassword('');
@@ -918,6 +950,7 @@ export default function App() {
         setAccountType('therapist');
         const therapistProfile = normalizeTherapistProfile(profile);
         setLoggedInTherapist(therapistProfile);
+        loadIncomingBookings(token);
         registerPushToken(token);
         if (!therapistProfile.photo) {
           const dismissed = await AsyncStorage.getItem('revio_photo_prompt_dismissed');
@@ -984,6 +1017,10 @@ export default function App() {
     setLoggedInPatient(null);
     setAccountType(null);
     setFavorites([]);
+    setMyAppointments([]);
+    setIncomingBookings([]);
+    setShowBookingForm(false);
+    setBookingTargetTherapist(null);
   };
 
   const deleteAccountConfirmed = async () => {
@@ -1846,6 +1883,16 @@ export default function App() {
         t={t}
         th={th}
         toggleFavorite={toggleFavorite}
+        authToken={authToken}
+        accountType={accountType}
+        onBookingRequest={(therapist) => {
+          if (therapist) {
+            setBookingTargetTherapist(therapist);
+            setShowBookingForm(true);
+          } else {
+            setShowLogin(true);
+          }
+        }}
       />
     );
   };
@@ -1936,6 +1983,19 @@ export default function App() {
         setEditTaxRegistrationStatus={setEditTaxRegistrationStatus}
         styles={styles}
         t={t}
+        incomingBookings={incomingBookings}
+        onRespondToBooking={async (bookingId, body) => {
+          const res = await fetch(`${getBaseUrl()}/bookings/${bookingId}/respond`, {
+            method: 'PATCH',
+            headers: { ...TUNNEL_HEADERS, 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+            body: JSON.stringify(body),
+          });
+          if (res.ok) loadIncomingBookings(authToken);
+          else {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error ?? 'Fehler');
+          }
+        }}
       />
     );
   };
@@ -2059,6 +2119,7 @@ export default function App() {
           lastName,
         });
         loadFavorites(data.token);
+        loadMyAppointments(data.token);
       }
       setShowSignup(false);
       resetSignupState();
@@ -2561,6 +2622,32 @@ export default function App() {
           </View>
         ) : (
           <>
+            {accountType === 'patient' && myAppointments.length > 0 && (
+              <>
+                <Text style={[styles.sectionLabel, { color: c.text }]}>{t('myAppointments')}</Text>
+                {myAppointments.map(apt => (
+                  <PatientAppointmentCard
+                    key={apt.id}
+                    c={c}
+                    t={t}
+                    appointment={apt}
+                    onCancel={async () => {
+                      try {
+                        const res = await fetch(`${getBaseUrl()}/bookings/${apt.id}/cancel`, {
+                          method: 'PATCH',
+                          headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
+                        });
+                        if (res.ok) loadMyAppointments(authToken);
+                      } catch {}
+                    }}
+                    onViewTherapist={() => {
+                      if (apt.therapist) setSelectedTherapist(apt.therapist);
+                    }}
+                  />
+                ))}
+              </>
+            )}
+
             <View style={[styles.noticeBox, { backgroundColor: c.mutedBg, borderColor: c.border, marginBottom: 4 }]}>
               <View style={styles.lockBadge}>
                 <Ionicons name="bookmark-outline" size={16} color={c.primary} />
@@ -3293,6 +3380,7 @@ export default function App() {
                   });
                   if (profileRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await profileRes.json()));
                   loadFavorites(resData.token);
+                  loadIncomingBookings(resData.token);
                   await AsyncStorage.removeItem(REGISTRATION_COMPLIANCE_DRAFT_KEY);
                   setShowRegister(false);
                   resetRegState();
@@ -3615,6 +3703,26 @@ export default function App() {
       )}
 
       {/* ── Notification Sheet ──────────────────────────────────────────────── */}
+      <Modal visible={showBookingForm} animationType="slide" onRequestClose={() => { setShowBookingForm(false); setBookingTargetTherapist(null); }}>
+        <View style={{ flex: 1, backgroundColor: c.background }}>
+          {showBookingForm && bookingTargetTherapist && (
+            <BookingRequestForm
+              c={c}
+              t={t}
+              therapist={bookingTargetTherapist}
+              authToken={authToken}
+              onSuccess={() => {
+                setShowBookingForm(false);
+                setBookingTargetTherapist(null);
+                loadMyAppointments(authToken);
+                setActiveTab('favorites');
+              }}
+              onClose={() => { setShowBookingForm(false); setBookingTargetTherapist(null); }}
+            />
+          )}
+        </View>
+      </Modal>
+
       <Modal visible={showNotifications} transparent animationType="slide" onRequestClose={() => setShowNotifications(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setShowNotifications(false)} />
         <View style={{ backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, minHeight: 200 }}>

@@ -46,6 +46,7 @@ enum BookingRequestStatus {
   PENDING
   CONFIRMED
   DECLINED
+  CANCELLED
   EXPIRED
 }
 
@@ -68,6 +69,7 @@ model User {
   therapistProfile       Therapist?              @relation("TherapistUser")
   managerProfile         PracticeManager?
   favoriteTherapists     UserFavoriteTherapist[]
+  bookingRequests        BookingRequest[]
 }
 
 model Therapist {
@@ -224,6 +226,8 @@ model BookingRequest {
   id                   String               @id @default(cuid())
   therapistId          String
   therapist            Therapist            @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  patientUserId        String?
+  patientUser          User?                @relation(fields: [patientUserId], references: [id], onDelete: SetNull)
   status               BookingRequestStatus @default(PENDING)
   patientName          String
   patientEmail         String?
@@ -231,6 +235,7 @@ model BookingRequest {
   preferredDays        String               @default("")
   preferredTimeWindows String               @default("")
   message              String?
+  declinedReason       String?
   consentAcceptedAt    DateTime
   createdAt            DateTime             @default(now())
   responseDueAt        DateTime
@@ -238,6 +243,7 @@ model BookingRequest {
   confirmedSlotAt      DateTime?
 
   @@index([therapistId, status, createdAt])
+  @@index([patientUserId, status, createdAt])
 }
 
 model TherapistRemovalLog {
