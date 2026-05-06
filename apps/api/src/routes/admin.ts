@@ -746,4 +746,13 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     reply.header('Content-Disposition', `inline; filename="${doc.originalName}"`);
     return reply.send(createReadStream(filepath));
   });
+
+  fastify.delete('/users/:email', async (request, reply) => {
+    await fastify.verifyAdmin(request, reply);
+    const { email } = request.params as { email: string };
+    const user = await fastify.prisma.user.findUnique({ where: { email } });
+    if (!user) return reply.notFound('User nicht gefunden');
+    await fastify.prisma.user.delete({ where: { email } });
+    return { deleted: true, email };
+  });
 };
