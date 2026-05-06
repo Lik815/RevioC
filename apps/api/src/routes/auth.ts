@@ -7,6 +7,7 @@ import {
   getTherapistPublicationState,
 } from '../utils/profile-completeness.js';
 import { geocodeAddress } from '../utils/geocode.js';
+import { sendPasswordResetEmail } from '../utils/mailer.js';
 
 export { hashPassword, verifyPassword, getToken };
 
@@ -676,6 +677,75 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     await fastify.prisma.userFavoriteTherapist.deleteMany({
       where: { userId, therapistId },
     });
+
+    return { ok: true };
+  });
+
+  // ── Forgot password ───────────────────────────────────────────────────────
+
+  fastify.post('/auth/forgot-password', async (request, reply) => {
+    const schema = z.object({ email: z.string().email() });
+    const parsed = schema.safeParse(request.body);
+    if (!parsed.success) return reply.badRequest('Ungültige E-Mail-Adresse.');
+
+    const { email } = parsed.data;
+
+    // Always return success to prevent email enumeration
+    const user = await fastify.prisma.user.findUnique({ where: { email } });
+    if (!user) return { ok: true };
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await fastify.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordResetToken: token, passwordResetExpiresAt: expiresAt },
+    });
+
+    const resetLink = `revo://reset-password?token=${token}`;
+    const name = user.firstName ?? email;
+    await sendPasswordResetEmail({ to: email, name, resetLink }).catch((err) => {
+      fastify.log.error({ err }, 'Failed to send password reset email');
+    });
+
+    return { ok: true };
+  });
+
+  fastify.post('/auth/reset-password', async (request, reply) => {
+    const schema = z.object({
+      token: z.string().min(1),
+      password: z.string().min(8, 'Passwort muss mindestens 8 Zeichen lang sein.'),
+    });
+    const parsed = schema.safeParse(request.body);
+    if (!parsed.success) {
+      const msg = parsed.error.errors[0]?.message ?? 'Ungültige Eingabe.';
+      return reply.badRequest(msg);
+    }
+
+    const { token, password } = parsed.data;
+
+    const user = await fastify.prisma.user.findFirst({
+      where: {
+        passwordResetToken: token,
+        passwordResetExpiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!user) return reply.badRequest('Der Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.');
+
+    const passwordHash = await hashPassword(password);
+    await fastify.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, passwordResetToken: null, passwordResetExpiresAt: null },
+    });
+
+    // Also update legacy Therapist.passwordHash if linked
+    if (user.role === 'therapist') {
+      await fastify.prisma.therapist.updateMany({
+        where: { userId: user.id },
+        data: { passwordHash },
+      });
+    }
 
     return { ok: true };
   });

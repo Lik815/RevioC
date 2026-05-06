@@ -274,3 +274,4 @@ export async function sendReinviteEmail(opts: {
     text: `Hallo ${therapistName},\n\n${practiceName} hat dir eine neue Einladung geschickt.\n\nKlicke hier:\n${inviteLink}\n\nDieser Link ist 7 Tage gültig.`,
   });
 }
+

@@ -625,6 +625,15 @@ export default function App() {
   const [inviteClaimData, setInviteClaimData] = useState(null); // { therapist, practice }
   const [inviteClaimLoading, setInviteClaimLoading] = useState(false);
 
+  // Password reset deep-link state
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetPasswordToken, setResetPasswordToken] = useState('');
+  const [resetPasswordNew, setResetPasswordNew] = useState('');
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
+  const [resetPasswordError, setResetPasswordError] = useState('');
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [resetPasswordDone, setResetPasswordDone] = useState(false);
+
   // Email verification deep-link state
   const [showEmailVerify, setShowEmailVerify] = useState(false);
   const [emailVerifyStatus, setEmailVerifyStatus] = useState('idle');
@@ -792,6 +801,17 @@ export default function App() {
 
         if (isVerifyLink) {
           await handleVerifyEmailLink(token);
+          return;
+        }
+
+        const isResetLink = /revo:\/\/reset-password|reset-password/.test(url);
+        if (isResetLink) {
+          setResetPasswordToken(token);
+          setResetPasswordNew('');
+          setResetPasswordConfirm('');
+          setResetPasswordError('');
+          setResetPasswordDone(false);
+          setShowResetPassword(true);
           return;
         }
 
@@ -3703,6 +3723,79 @@ export default function App() {
       )}
 
       {/* ── Notification Sheet ──────────────────────────────────────────────── */}
+      <Modal visible={showResetPassword} transparent animationType="slide" onRequestClose={() => setShowResetPassword(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 28, paddingBottom: 48 }}>
+            <View style={{ width: 36, height: 4, backgroundColor: c.border, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
+            {resetPasswordDone ? (
+              <>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: c.text, marginBottom: 8 }}>Passwort geändert</Text>
+                <Text style={{ fontSize: 15, color: c.muted, marginBottom: 24 }}>Du kannst dich jetzt mit deinem neuen Passwort anmelden.</Text>
+                <Pressable onPress={() => { setShowResetPassword(false); setShowLogin(true); }}
+                  style={{ backgroundColor: c.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Zur Anmeldung</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: c.text, marginBottom: 8 }}>Neues Passwort</Text>
+                <Text style={{ fontSize: 15, color: c.muted, marginBottom: 24 }}>Wähle ein neues Passwort für dein Konto.</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: c.muted, marginBottom: 6 }}>NEUES PASSWORT</Text>
+                <TextInput
+                  value={resetPasswordNew}
+                  onChangeText={setResetPasswordNew}
+                  placeholder="Mindestens 8 Zeichen"
+                  placeholderTextColor={c.muted}
+                  secureTextEntry
+                  style={{ borderWidth: 1, borderColor: c.border, borderRadius: 12, backgroundColor: c.mutedBg, color: c.text, fontSize: 16, padding: 14, marginBottom: 14 }}
+                />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: c.muted, marginBottom: 6 }}>PASSWORT BESTÄTIGEN</Text>
+                <TextInput
+                  value={resetPasswordConfirm}
+                  onChangeText={setResetPasswordConfirm}
+                  placeholder="Passwort wiederholen"
+                  placeholderTextColor={c.muted}
+                  secureTextEntry
+                  style={{ borderWidth: 1, borderColor: c.border, borderRadius: 12, backgroundColor: c.mutedBg, color: c.text, fontSize: 16, padding: 14, marginBottom: 16 }}
+                />
+                {!!resetPasswordError && (
+                  <View style={{ backgroundColor: c.errorBg, borderRadius: 10, padding: 12, marginBottom: 14, flexDirection: 'row', gap: 8 }}>
+                    <Ionicons name="alert-circle-outline" size={16} color={c.error} />
+                    <Text style={{ color: c.error, fontSize: 14, flex: 1 }}>{resetPasswordError}</Text>
+                  </View>
+                )}
+                <Pressable
+                  disabled={resetPasswordLoading}
+                  onPress={async () => {
+                    setResetPasswordError('');
+                    if (resetPasswordNew.length < 8) { setResetPasswordError('Passwort muss mindestens 8 Zeichen lang sein.'); return; }
+                    if (resetPasswordNew !== resetPasswordConfirm) { setResetPasswordError('Passwörter stimmen nicht überein.'); return; }
+                    setResetPasswordLoading(true);
+                    try {
+                      const res = await fetch(`${getBaseUrl()}/auth/reset-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS },
+                        body: JSON.stringify({ token: resetPasswordToken, password: resetPasswordNew }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) { setResetPasswordError(data.message ?? 'Fehler beim Zurücksetzen.'); return; }
+                      setResetPasswordDone(true);
+                    } catch { setResetPasswordError('Verbindungsfehler. Bitte erneut versuchen.'); }
+                    finally { setResetPasswordLoading(false); }
+                  }}
+                  style={{ backgroundColor: resetPasswordLoading ? c.border : c.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}
+                >
+                  {resetPasswordLoading
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Passwort speichern</Text>
+                  }
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={showBookingForm} animationType="slide" onRequestClose={() => { setShowBookingForm(false); setBookingTargetTherapist(null); }}>
         <View style={{ flex: 1, backgroundColor: c.background }}>
           {showBookingForm && bookingTargetTherapist && (
