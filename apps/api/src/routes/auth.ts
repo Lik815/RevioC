@@ -48,7 +48,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (user?.passwordHash) {
       const validUserPassword = await verifyPassword(password, user.passwordHash);
-      if (!validUserPassword) return reply.unauthorized('Ungültige Zugangsdaten');
+      if (!validUserPassword) return reply.unauthorized('Falsches Passwort. Bitte erneut versuchen.');
 
       // Block users who have not verified their email yet
       if (user.requiresEmailVerification && !user.emailVerifiedAt) {
@@ -92,7 +92,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const therapist = user.therapistProfile
         ?? await fastify.prisma.therapist.findFirst({ where: { userId: user.id } })
         ?? await fastify.prisma.therapist.findUnique({ where: { email } });
-      if (!therapist) return reply.unauthorized('Therapeuten-Profil nicht gefunden');
+      if (!therapist) return reply.unauthorized('Benutzer mit dieser E-Mail nicht gefunden.');
 
       await fastify.prisma.therapist.update({
         where: { id: therapist.id },
@@ -176,7 +176,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    return reply.unauthorized('Ungültige Zugangsdaten');
+    return reply.unauthorized('Benutzer mit dieser E-Mail nicht gefunden.');
   });
 
   fastify.get('/auth/verify-email', async (request, reply) => {
