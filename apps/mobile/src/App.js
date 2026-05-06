@@ -611,6 +611,7 @@ export default function App() {
   const [editKassenart, setEditKassenart] = useState('');
   const [editGender, setEditGender] = useState(null);
   const [editIsVisible, setEditIsVisible] = useState(true);
+  const [editBookingMode, setEditBookingMode] = useState('DIRECTORY_ONLY');
   const [editAvailability, setEditAvailability] = useState('');
   const [editTaxRegistrationStatus, setEditTaxRegistrationStatus] = useState(null);
   const [editHealthAuthorityStatus, setEditHealthAuthorityStatus] = useState(null);
@@ -1136,6 +1137,7 @@ export default function App() {
           gender: editGender,
           isVisible: editIsVisible,
           availability: editAvailability,
+          bookingMode: editBookingMode,
         }),
       });
 
@@ -1959,6 +1961,7 @@ export default function App() {
       setEditKassenart(th.kassenart ?? '');
       setEditGender(th.gender ?? null);
       setEditIsVisible(th.isVisible ?? true);
+      setEditBookingMode(th.bookingMode ?? 'DIRECTORY_ONLY');
       setEditAvailability(th.availability ?? '');
       setEditTaxRegistrationStatus(nextCompliance.taxRegistrationStatus);
       setEditHealthAuthorityStatus(nextCompliance.healthAuthorityStatus);
@@ -2003,6 +2006,8 @@ export default function App() {
         setEditTaxRegistrationStatus={setEditTaxRegistrationStatus}
         styles={styles}
         t={t}
+        editBookingMode={editBookingMode}
+        setEditBookingMode={setEditBookingMode}
         incomingBookings={incomingBookings}
         onRespondToBooking={async (bookingId, body) => {
           const res = await fetch(`${getBaseUrl()}/bookings/${bookingId}/respond`, {

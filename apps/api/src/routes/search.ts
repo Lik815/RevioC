@@ -395,6 +395,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
         homeVisit: t.homeVisit, city: t.city, bio: t.bio ?? undefined,
         ...((t as any).serviceRadiusKm != null ? { serviceRadiusKm: (t as any).serviceRadiusKm } : {}),
         photo: t.photo ?? undefined, practices,
+        bookingMode: t.bookingMode ?? 'DIRECTORY_ONLY',
       },
     };
   });

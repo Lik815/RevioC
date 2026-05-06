@@ -84,6 +84,8 @@ export function TherapistDashboardScreen(props) {
     therapistDocuments,
     incomingBookings,
     onRespondToBooking,
+    editBookingMode,
+    setEditBookingMode,
   } = props;
 
   const [photoError, setPhotoError] = useState(false);
@@ -263,6 +265,17 @@ export function TherapistDashboardScreen(props) {
               onValueChange={setEditIsVisible}
               trackColor={{ true: c.primary }}
               disabled={loggedInTherapist?.reviewStatus !== 'APPROVED'}
+            />
+          </View>
+          <View style={[styles.detailInfoRow, { marginTop: 12 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailInfoLabel, { color: c.text }]}>{t('bookingModeLabel') ?? 'Terminanfragen aktivieren'}</Text>
+              <Text style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>{t('bookingModeSub') ?? 'Patienten können direkt einen Termin anfragen.'}</Text>
+            </View>
+            <Switch
+              value={editBookingMode === 'FIRST_APPOINTMENT_REQUEST'}
+              onValueChange={(val) => setEditBookingMode(val ? 'FIRST_APPOINTMENT_REQUEST' : 'DIRECTORY_ONLY')}
+              trackColor={{ true: c.primary }}
             />
           </View>
           {loggedInTherapist?.reviewStatus !== 'APPROVED' && (

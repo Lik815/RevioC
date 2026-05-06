@@ -30,6 +30,7 @@ const updateMeSchema = z.object({
   languages: z.array(z.string()).optional(),
   certifications: z.array(z.string()).optional(),
   photo: z.string().optional(),
+  bookingMode: z.enum(['DIRECTORY_ONLY', 'FIRST_APPOINTMENT_REQUEST']).optional(),
 });
 
 const splitList = (value: string) =>
@@ -339,6 +340,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       taxRegistrationStatus: therapist.taxRegistrationStatus ?? null,
       healthAuthorityStatus: therapist.healthAuthorityStatus ?? null,
       complianceUpdatedAt: therapist.complianceUpdatedAt ?? null,
+      bookingMode: therapist.bookingMode ?? 'DIRECTORY_ONLY',
       ...publication,
       adminPractice: adminPractice ?? null,
       practices: therapist.links.map((l: any) => ({
@@ -420,6 +422,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (data.languages !== undefined) updateData.languages = data.languages.join(', ');
     if (data.certifications !== undefined) updateData.certifications = data.certifications.join(', ');
     if (data.photo !== undefined) updateData.photo = data.photo;
+    if (data.bookingMode !== undefined) updateData.bookingMode = data.bookingMode;
 
     // Wenn city geändert: Stadt geocodieren → homeLat/homeLng setzen
     if (data.city !== undefined) {
