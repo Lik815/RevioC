@@ -199,7 +199,6 @@ export const managerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     if (existingTherapist) return reply.conflict('E-Mail wird bereits verwendet');
 
     const passwordHash = await hashPassword(password);
-    const isDev = process.env.NODE_ENV !== 'production';
 
     // Geocode practice address
     const geo = await geocodeAddress(practiceAddress ?? '', practiceCity);
@@ -213,7 +212,7 @@ export const managerAuthRoutes: FastifyPluginAsync = async (fastify) => {
         address: practiceAddress,
         phone: practicePhone,
         ...(generatedLogo ? { logo: generatedLogo } : {}),
-        reviewStatus: isDev ? 'APPROVED' : 'PENDING_REVIEW',
+        reviewStatus: 'PENDING_REVIEW',
         ...(geo ? { lat: geo.lat, lng: geo.lng } : {}),
       },
     });
@@ -229,7 +228,7 @@ export const managerAuthRoutes: FastifyPluginAsync = async (fastify) => {
           city: practiceCity,
           specializations: '',
           languages: '',
-          reviewStatus: isDev ? 'APPROVED' : 'PENDING_REVIEW',
+          reviewStatus: 'PENDING_REVIEW',
           isVisible: false,
           isPublished: false,
           visibilityPreference: 'hidden',
@@ -353,7 +352,6 @@ export const managerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
 
     const { practiceName, practiceCity, practiceAddress, practicePhone } = parsed.data;
-    const isDev = process.env.NODE_ENV !== 'production';
     const geo = await geocodeAddress(practiceAddress ?? '', practiceCity);
     const generatedLogo = tryEnsurePracticeLogoAsset(practiceName, practiceCity);
 
@@ -364,7 +362,7 @@ export const managerAuthRoutes: FastifyPluginAsync = async (fastify) => {
         address: practiceAddress,
         phone: practicePhone,
         ...(generatedLogo ? { logo: generatedLogo } : {}),
-        reviewStatus: isDev ? 'APPROVED' : 'PENDING_REVIEW',
+        reviewStatus: 'PENDING_REVIEW',
         ...(geo ? { lat: geo.lat, lng: geo.lng } : {}),
       },
     });
@@ -577,7 +575,6 @@ export const managerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     if (existing) return reply.conflict('Ein Therapeut mit dieser E-Mail-Adresse existiert bereits.');
 
     const practice = assignment.practice;
-    const isDev = process.env.NODE_ENV !== 'production';
 
     const newTherapist = await fastify.prisma.therapist.create({
       data: {
@@ -590,7 +587,7 @@ export const managerAuthRoutes: FastifyPluginAsync = async (fastify) => {
         kassenart: kassenart ?? '',
         homeVisit: homeVisit ?? false,
         availability: availability ?? undefined,
-        reviewStatus: isDev ? 'APPROVED' : 'PENDING_REVIEW',
+        reviewStatus: 'PENDING_REVIEW',
         onboardingStatus: 'invited',
         visibilityPreference: 'hidden',
         isPublished: false,

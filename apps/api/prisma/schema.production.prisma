@@ -69,6 +69,7 @@ model User {
   updatedAt              DateTime                @updatedAt
   therapistProfile       Therapist?              @relation("TherapistUser")
   managerProfile         PracticeManager?
+  favoriteTherapists     UserFavoriteTherapist[]
 }
 
 model Therapist {
@@ -119,6 +120,7 @@ model Therapist {
   managerAccount        PracticeManager? @relation("ManagerTherapist")
   documents             TherapistDocument[]
   bookingRequests       BookingRequest[]
+  favoritedBy           UserFavoriteTherapist[]
 }
 
 model Practice {
@@ -381,6 +383,18 @@ model RefreshToken {
   @@index([expiresAt])
   @@index([revokedAt])
   @@map("refresh_token")
+}
+
+model UserFavoriteTherapist {
+  id          String    @id @default(cuid())
+  userId      String
+  therapistId String
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  therapist   Therapist @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, therapistId])
+  @@index([userId])
 }
 
 model PasswordResetToken {

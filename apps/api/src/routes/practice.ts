@@ -46,7 +46,7 @@ export const practiceRoutes: FastifyPluginAsync = async (fastify) => {
       data: {
         ...d,
         ...(generatedLogo ? { logo: generatedLogo } : {}),
-        reviewStatus: process.env.NODE_ENV === 'production' ? 'PENDING_REVIEW' : 'APPROVED',
+        reviewStatus: 'PENDING_REVIEW',
         ...(geo ? { lat: geo.lat, lng: geo.lng } : {}),
       },
     });
@@ -373,7 +373,6 @@ export const practiceRoutes: FastifyPluginAsync = async (fastify) => {
     const existing = await fastify.prisma.therapist.findUnique({ where: { email } });
     if (existing) return reply.conflict('Ein Therapeut mit dieser E-Mail-Adresse existiert bereits.');
 
-    const isDev = process.env.NODE_ENV !== 'production';
     const newTherapist = await fastify.prisma.therapist.create({
       data: {
         email, fullName, professionalTitle,
@@ -381,7 +380,7 @@ export const practiceRoutes: FastifyPluginAsync = async (fastify) => {
         specializations: specializations.join(', '),
         languages: languages.join(', '),
         certifications: certifications.join(', '),
-        reviewStatus: isDev ? 'APPROVED' : 'PENDING_REVIEW',
+        reviewStatus: 'PENDING_REVIEW',
         onboardingStatus: 'invited',
         visibilityPreference: 'hidden',
         isPublished: false,

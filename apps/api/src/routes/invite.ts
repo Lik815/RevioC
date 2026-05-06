@@ -57,8 +57,7 @@ export const inviteRoutes: FastifyPluginAsync = async (fastify) => {
     const existingUser = await fastify.prisma.user.findUnique({ where: { email } });
     if (existingUser) return reply.conflict('Ein Benutzer mit dieser E-Mail-Adresse existiert bereits.');
 
-    const isDev = process.env.NODE_ENV !== 'production';
-    const reviewStatus = isDev ? 'APPROVED' : 'PENDING_REVIEW';
+    const reviewStatus = 'PENDING_REVIEW';
 
     // Create the therapist record with invited status
     const therapist = await fastify.prisma.therapist.create({

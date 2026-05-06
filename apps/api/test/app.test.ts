@@ -68,6 +68,7 @@ afterAll(async () => {
 // Clean DB between test suites
 afterEach(async () => {
   await prisma.appSetting.deleteMany();
+  await prisma.userFavoriteTherapist.deleteMany();
   await prisma.practiceManager.deleteMany();
   await prisma.user.deleteMany();
   await prisma.bookingRequest.deleteMany();
@@ -2576,5 +2577,159 @@ describe.skip('Manager visibility in search', () => {
     });
     expect(searchRes.statusCode).toBe(200);
     expect(searchRes.json().therapists.find((t: any) => t.id === therapistId)).toBeUndefined();
+  });
+});
+
+// ── Therapeuten-Favoriten ────────────────────────────────────────────────────
+describe('GET /auth/favorites/therapists', () => {
+  async function createPatientUser(email = 'fav-patient@test.de', sessionToken = 'fav-patient-token') {
+    return prisma.user.create({
+      data: { email, passwordHash: 'hash', role: 'patient', sessionToken, firstName: 'Anna', lastName: 'Test' },
+    });
+  }
+
+  async function createApprovedTherapist(email = 'fav-therapist@test.de') {
+    return prisma.therapist.create({
+      data: {
+        email,
+        fullName: 'Fav Therapeut',
+        professionalTitle: 'Physiotherapeut',
+        city: 'Berlin',
+        specializations: 'Rücken',
+        languages: 'de',
+        certifications: '',
+        reviewStatus: 'APPROVED',
+        isVisible: true,
+      },
+    });
+  }
+
+  it('returns 401 without token', async () => {
+    const res = await app.inject({ method: 'GET', url: '/auth/favorites/therapists' });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('returns empty list for new user', async () => {
+    await createPatientUser();
+    const res = await app.inject({
+      method: 'GET', url: '/auth/favorites/therapists',
+      headers: { authorization: 'Bearer fav-patient-token' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().therapists).toHaveLength(0);
+  });
+
+  it('POST adds a favorite and GET returns it', async () => {
+    await createPatientUser();
+    const therapist = await createApprovedTherapist();
+
+    const postRes = await app.inject({
+      method: 'POST', url: '/auth/favorites/therapists',
+      headers: { authorization: 'Bearer fav-patient-token', 'content-type': 'application/json' },
+      payload: { therapistId: therapist.id },
+    });
+    expect(postRes.statusCode).toBe(200);
+    expect(postRes.json().ok).toBe(true);
+
+    const getRes = await app.inject({
+      method: 'GET', url: '/auth/favorites/therapists',
+      headers: { authorization: 'Bearer fav-patient-token' },
+    });
+    expect(getRes.statusCode).toBe(200);
+    const list = getRes.json().therapists;
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe(therapist.id);
+    expect(list[0].fullName).toBe('Fav Therapeut');
+  });
+
+  it('POST is idempotent — adding twice does not duplicate', async () => {
+    await createPatientUser();
+    const therapist = await createApprovedTherapist();
+
+    for (let i = 0; i < 2; i++) {
+      await app.inject({
+        method: 'POST', url: '/auth/favorites/therapists',
+        headers: { authorization: 'Bearer fav-patient-token', 'content-type': 'application/json' },
+        payload: { therapistId: therapist.id },
+      });
+    }
+
+    const getRes = await app.inject({
+      method: 'GET', url: '/auth/favorites/therapists',
+      headers: { authorization: 'Bearer fav-patient-token' },
+    });
+    expect(getRes.json().therapists).toHaveLength(1);
+  });
+
+  it('DELETE removes the favorite', async () => {
+    await createPatientUser();
+    const therapist = await createApprovedTherapist();
+
+    await app.inject({
+      method: 'POST', url: '/auth/favorites/therapists',
+      headers: { authorization: 'Bearer fav-patient-token', 'content-type': 'application/json' },
+      payload: { therapistId: therapist.id },
+    });
+
+    const delRes = await app.inject({
+      method: 'DELETE', url: `/auth/favorites/therapists/${therapist.id}`,
+      headers: { authorization: 'Bearer fav-patient-token' },
+    });
+    expect(delRes.statusCode).toBe(200);
+    expect(delRes.json().ok).toBe(true);
+
+    const getRes = await app.inject({
+      method: 'GET', url: '/auth/favorites/therapists',
+      headers: { authorization: 'Bearer fav-patient-token' },
+    });
+    expect(getRes.json().therapists).toHaveLength(0);
+  });
+
+  it('DELETE of non-existing favorite returns 200 (idempotent)', async () => {
+    await createPatientUser();
+    const res = await app.inject({
+      method: 'DELETE', url: '/auth/favorites/therapists/non-existing-id',
+      headers: { authorization: 'Bearer fav-patient-token' },
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('isolates favorites per user — user A cannot see user B favorites', async () => {
+    await createPatientUser('user-a@test.de', 'token-a');
+    await createPatientUser('user-b@test.de', 'token-b');
+    const therapist = await createApprovedTherapist();
+
+    await app.inject({
+      method: 'POST', url: '/auth/favorites/therapists',
+      headers: { authorization: 'Bearer token-a', 'content-type': 'application/json' },
+      payload: { therapistId: therapist.id },
+    });
+
+    const resB = await app.inject({
+      method: 'GET', url: '/auth/favorites/therapists',
+      headers: { authorization: 'Bearer token-b' },
+    });
+    expect(resB.json().therapists).toHaveLength(0);
+  });
+
+  it('works for therapist users too (not only patients)', async () => {
+    const user = await prisma.user.create({
+      data: { email: 'fav-therapist-user@test.de', passwordHash: 'hash', role: 'therapist', sessionToken: 'therapist-fav-token' },
+    });
+    await createApprovedTherapist();
+    const target = await createApprovedTherapist('other-therapist@test.de');
+
+    await app.inject({
+      method: 'POST', url: '/auth/favorites/therapists',
+      headers: { authorization: 'Bearer therapist-fav-token', 'content-type': 'application/json' },
+      payload: { therapistId: target.id },
+    });
+
+    const res = await app.inject({
+      method: 'GET', url: '/auth/favorites/therapists',
+      headers: { authorization: 'Bearer therapist-fav-token' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().therapists).toHaveLength(1);
   });
 });

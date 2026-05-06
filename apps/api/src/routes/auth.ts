@@ -362,6 +362,31 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       where: { sessionToken: token },
       include: { therapistProfile: true },
     });
+
+    // Patient profile update — only firstName/lastName
+    if (user?.role === 'patient') {
+      const patientSchema = z.object({
+        firstName: z.string().min(1).optional(),
+        lastName: z.string().min(1).optional(),
+      });
+      const parsed = patientSchema.safeParse(request.body);
+      if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
+      const updated = await fastify.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ...(parsed.data.firstName !== undefined ? { firstName: parsed.data.firstName } : {}),
+          ...(parsed.data.lastName !== undefined ? { lastName: parsed.data.lastName } : {}),
+        },
+      });
+      return {
+        id: updated.id,
+        email: updated.email,
+        role: 'patient',
+        firstName: updated.firstName ?? '',
+        lastName: updated.lastName ?? '',
+      };
+    }
+
     if (user?.therapistProfile) therapist = user.therapistProfile;
     if (!therapist) {
       therapist = await fastify.prisma.therapist.findUnique({
@@ -464,6 +489,13 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       where: { sessionToken: token },
       include: { therapistProfile: true },
     });
+
+    // Patient deletion — delete User record directly
+    if (user?.role === 'patient') {
+      await fastify.prisma.user.delete({ where: { id: user.id } });
+      return { success: true };
+    }
+
     if (user?.therapistProfile) therapist = user.therapistProfile;
     if (!therapist) {
       therapist = await fastify.prisma.therapist.findUnique({
@@ -561,5 +593,90 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     return { success: true };
+  });
+
+  // ── Therapeuten-Favoriten ─────────────────────────────────────────────────
+
+  async function resolveUserForFavorites(request: any, reply: any): Promise<string | null> {
+    const token = getToken(request);
+    if (!token) { reply.unauthorized('Kein Token'); return null; }
+
+    // Primary lookup via User.sessionToken (patients, modern therapists, managers)
+    let user = await fastify.prisma.user.findUnique({ where: { sessionToken: token } });
+
+    // Fallback: legacy therapists may only have Therapist.sessionToken set
+    if (!user) {
+      const therapist = await fastify.prisma.therapist.findUnique({
+        where: { sessionToken: token },
+        include: { user: true },
+      });
+      if (therapist?.user) user = therapist.user;
+    }
+
+    if (!user) { reply.unauthorized('Ungültiger Token'); return null; }
+    return user.id;
+  }
+
+  fastify.get('/auth/favorites/therapists', async (request, reply) => {
+    const userId = await resolveUserForFavorites(request, reply);
+    if (!userId) return;
+
+    const rows = await fastify.prisma.userFavoriteTherapist.findMany({
+      where: { userId },
+      include: {
+        therapist: {
+          select: {
+            id: true, fullName: true, professionalTitle: true,
+            city: true, photo: true, specializations: true,
+            languages: true, homeVisit: true, isVisible: true,
+            reviewStatus: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      therapists: rows.map((r) => ({
+        ...r.therapist,
+        specializations: r.therapist.specializations.split(',').map((s: string) => s.trim()).filter(Boolean),
+        languages: r.therapist.languages.split(',').map((s: string) => s.trim()).filter(Boolean),
+      })),
+    };
+  });
+
+  fastify.post('/auth/favorites/therapists', async (request, reply) => {
+    const userId = await resolveUserForFavorites(request, reply);
+    if (!userId) return;
+
+    const parsed = z.object({ therapistId: z.string().min(1) }).safeParse(request.body);
+    if (!parsed.success) {
+      fastify.log.warn({ body: request.body, error: parsed.error.flatten() }, 'POST /auth/favorites/therapists validation failed');
+      return reply.badRequest(JSON.stringify(parsed.error.flatten()));
+    }
+
+    const therapist = await fastify.prisma.therapist.findUnique({ where: { id: parsed.data.therapistId } });
+    if (!therapist) return reply.notFound('Therapeut nicht gefunden');
+
+    await fastify.prisma.userFavoriteTherapist.upsert({
+      where: { userId_therapistId: { userId, therapistId: parsed.data.therapistId } },
+      create: { userId, therapistId: parsed.data.therapistId },
+      update: {},
+    });
+
+    return { ok: true };
+  });
+
+  fastify.delete('/auth/favorites/therapists/:therapistId', async (request, reply) => {
+    const userId = await resolveUserForFavorites(request, reply);
+    if (!userId) return;
+
+    const { therapistId } = request.params as { therapistId: string };
+
+    await fastify.prisma.userFavoriteTherapist.deleteMany({
+      where: { userId, therapistId },
+    });
+
+    return { ok: true };
   });
 };

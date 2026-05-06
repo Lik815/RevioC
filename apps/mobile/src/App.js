@@ -66,6 +66,7 @@ import {
   getComplianceStatusLabel,
 } from './mobile-compliance-step';
 import { translations } from './mobile-translations';
+import { PatientDashboardScreen } from './mobile-patient-dashboard';
 
 const formatProfileOverviewName = (fullName = '') => {
   const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
@@ -348,15 +349,19 @@ export default function App() {
 
   // Favorites — stored locally on device only
   const [favorites, setFavorites] = useState([]);
-  useEffect(() => {
-    AsyncStorage.getItem('revio_favorites').then(val => {
-      if (!val) return;
-      try {
-        const parsed = JSON.parse(val);
-        if (Array.isArray(parsed)) setFavorites(parsed);
-      } catch {}
-    });
-  }, []);
+
+  const loadFavorites = async (token) => {
+    try {
+      const res = await fetch(`${getBaseUrl()}/auth/favorites/therapists`, {
+        headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFavorites(Array.isArray(data.therapists) ? data.therapists : []);
+      }
+    } catch {}
+  };
+
   // ── Toast notification ────────────────────────────────────────────────────
   const [toastMsg, setToastMsg] = useState(null);
   const toastAnim = useRef(new Animated.Value(-80)).current;
@@ -370,15 +375,39 @@ export default function App() {
     }, 2500);
   };
 
-  const toggleFavorite = (therapist) => {
-    setFavorites(prev => {
-      const exists = prev.some(f => f.id === therapist.id);
-      const next = exists ? prev.filter(f => f.id !== therapist.id) : [...prev, therapist];
-      AsyncStorage.setItem('revio_favorites', JSON.stringify(next));
-      if (!exists) showToast(t('favSaved').replace('{name}', therapist.fullName));
-      else showToast(`${therapist.fullName} ✕`);
-      return next;
-    });
+  const toggleFavorite = async (therapist) => {
+    if (!authToken) {
+      showToast(t('favLoginRequired') ?? 'Bitte einloggen um Favoriten zu speichern');
+      return;
+    }
+    const exists = favorites.some(f => f.id === therapist.id);
+    // Optimistic update
+    setFavorites(prev => exists ? prev.filter(f => f.id !== therapist.id) : [...prev, therapist]);
+    if (!exists) showToast(t('favSaved').replace('{name}', therapist.fullName));
+    else showToast(`${therapist.fullName} ✕`);
+    try {
+      let res;
+      if (exists) {
+        res = await fetch(`${getBaseUrl()}/auth/favorites/therapists/${therapist.id}`, {
+          method: 'DELETE',
+          headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
+        });
+      } else {
+        res = await fetch(`${getBaseUrl()}/auth/favorites/therapists`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ therapistId: therapist.id }),
+        });
+      }
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        showToast(`Fehler ${res.status}: ${JSON.stringify(errData).slice(0, 80)}`);
+        setFavorites(prev => exists ? [...prev, therapist] : prev.filter(f => f.id !== therapist.id));
+      }
+    } catch (e) {
+      showToast(`Netzwerkfehler: ${String(e).slice(0, 60)}`);
+      setFavorites(prev => exists ? [...prev, therapist] : prev.filter(f => f.id !== therapist.id));
+    }
   };
   const isFavorite = (id) => favorites.some(f => f.id === id);
 
@@ -411,6 +440,7 @@ export default function App() {
   const [showRegister, setShowRegister] = useState(false);
   const [regStep, setRegStep] = useState(1);
   const [regSubmitted, setRegSubmitted] = useState(false);
+  const [regLoading, setRegLoading] = useState(false);
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regPasswordConfirm, setRegPasswordConfirm] = useState('');
@@ -507,6 +537,7 @@ export default function App() {
     setRegOtpCode('');
     setRegOtpError('');
     setRegOtpLoading(false);
+    setRegLoading(false);
     setShowEmailVerify(false);
     setEmailVerifyStatus('idle');
   };
@@ -642,6 +673,7 @@ export default function App() {
             setAccountType('therapist');
             setLoggedInTherapist(normalizeTherapistProfile(profile));
           }
+          loadFavorites(token);
         } else {
           AsyncStorage.removeItem('revio_auth_token');
           AsyncStorage.removeItem('revio_account_type');
@@ -871,6 +903,7 @@ export default function App() {
       });
       if (profileRes.ok) {
         const profile = await profileRes.json();
+        loadFavorites(token);
         if (profile.role === 'patient') {
           await AsyncStorage.setItem('revio_account_type', 'patient');
           setAccountType('patient');
@@ -950,18 +983,22 @@ export default function App() {
     setLoggedInTherapist(null);
     setLoggedInPatient(null);
     setAccountType(null);
+    setFavorites([]);
   };
 
   const deleteAccountConfirmed = async () => {
     try {
       await fetch(`${getBaseUrl()}/auth/me`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
       });
     } catch {}
     await AsyncStorage.removeItem('revio_auth_token');
+    await AsyncStorage.removeItem('revio_account_type');
     setAuthToken(null);
     setLoggedInTherapist(null);
+    setLoggedInPatient(null);
+    setAccountType(null);
   };
 
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
@@ -984,6 +1021,17 @@ export default function App() {
       const msg = t('alertDeleteAdminWarning').replace('{name}', loggedInTherapist.adminPractice.name);
       if (Platform.OS === 'web') { showWebAlert(msg); }
       else { Alert.alert(t('alertHint'), msg, [{ text: 'OK' }]); }
+      return;
+    }
+    if (loggedInPatient) {
+      Alert.alert(
+        t('deleteAccountConfirmTitle'),
+        t('deleteAccountConfirmMsg'),
+        [
+          { text: t('cancelBtn'), style: 'cancel' },
+          { text: t('deleteAccountConfirmBtn'), style: 'destructive', onPress: deleteAccountConfirmed },
+        ],
+      );
       return;
     }
     setDeleteNameInput('');
@@ -2010,6 +2058,7 @@ export default function App() {
           firstName,
           lastName,
         });
+        loadFavorites(data.token);
       }
       setShowSignup(false);
       resetSignupState();
@@ -2072,30 +2121,21 @@ export default function App() {
   );
 
 
+  const handlePatientSaveProfile = (updated) => {
+    setLoggedInPatient((prev) => ({ ...prev, ...updated }));
+  };
+
   const renderPatientDashboard = () => (
-    <ScrollView contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingBottom: 40 }]} showsVerticalScrollIndicator={false}>
-      <View style={{ alignItems: 'center', paddingTop: 32, paddingBottom: 24 }}>
-        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: c.primaryBg, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', color: c.primary }}>{((loggedInPatient?.firstName ?? '?')[0]).toUpperCase()}</Text>
-        </View>
-        <Text style={{ fontSize: 20, fontWeight: '700', color: c.text }}>{loggedInPatient?.firstName} {loggedInPatient?.lastName}</Text>
-        <Text style={{ fontSize: 13, color: c.muted, marginTop: 2 }}>{loggedInPatient?.email}</Text>
-      </View>
-
-      <View style={{ borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: c.border, marginBottom: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card, paddingHorizontal: 16, paddingVertical: 12 }}>
-          <Ionicons name="person-circle-outline" size={18} color={c.muted} />
-          <Text style={{ fontSize: 14, color: c.text }}>{t('patientRoleLabel')}</Text>
-        </View>
-      </View>
-
-      <Pressable
-        style={[styles.registerBtn, { backgroundColor: c.card, borderWidth: 1, borderColor: c.border }]}
-        onPress={handleLogout}
-      >
-        <Text style={{ fontSize: 15, fontWeight: '600', color: c.error }}>{t('logoutBtn')}</Text>
-      </Pressable>
-    </ScrollView>
+    <PatientDashboardScreen
+      c={c}
+      loggedInPatient={loggedInPatient}
+      styles={styles}
+      t={t}
+      authToken={authToken}
+      onProfileSaved={handlePatientSaveProfile}
+      handleLogout={handleLogout}
+      handleDeleteAccount={handleDeleteAccount}
+    />
   );
 
   // ── Therapist tab ─────────────────────────────────────────────────────────
@@ -2368,8 +2408,8 @@ export default function App() {
               <OptionGroup>
                 <Pressable onPress={() => setActiveTab('therapist')} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent' }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                    <View style={{ width: 44, height: 44, borderRadius: 999, backgroundColor: c.primaryBg, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 18, fontWeight: '700', color: c.primary }}>{((loggedInPatient.firstName ?? '?')[0]).toUpperCase()}</Text>
+                    <View style={{ width: 44, height: 44, borderRadius: 999, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>{((loggedInPatient.firstName?.[0] ?? '') + (loggedInPatient.lastName?.[0] ?? '')).toUpperCase() || '?'}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 15, fontWeight: '600', color: c.text }}>{loggedInPatient.firstName} {loggedInPatient.lastName}</Text>
@@ -2481,7 +2521,7 @@ export default function App() {
           {/* ── App-Version & Logout ── */}
           <Text style={{ fontSize: 12, color: c.muted, textAlign: 'center', marginTop: 20 }}>Version 0.1.0 MVP</Text>
 
-          {loggedInTherapist && (
+          {(loggedInTherapist || loggedInPatient) && (
             <View style={{ gap: 10, marginTop: 16 }}>
               <Pressable onPress={handleLogout}
                 style={{ borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: c.border, backgroundColor: c.card }}>
@@ -2506,64 +2546,79 @@ export default function App() {
           <Text style={[styles.headerTitle, { color: c.text }]}>{t('favoritesTitle')}</Text>
         </View>
       </View>
-    <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20, paddingTop: SPACE.sm }]} showsVerticalScrollIndicator={false}>
-
-      <View style={[styles.noticeBox, { backgroundColor: c.mutedBg, borderColor: c.border, marginBottom: 4 }]}>
-        <View style={styles.lockBadge}>
-          <Ionicons name="bookmark-outline" size={16} color={c.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.noticeBody, { color: c.muted, flex: 0 }]}>{t('favoritesHint')}</Text>
-        </View>
-      </View>
-
-      {favorites.length === 0 ? (
-        <View style={[styles.emptyState, { backgroundColor: c.card, borderColor: c.border }]}>
-          <Text style={styles.emptyIcon}>♡</Text>
-          <Text style={[styles.emptyTitle, { color: c.text }]}>{t('favoritesEmpty')}</Text>
-          <Text style={[styles.emptyBody, { color: c.muted }]}>{t('favoritesEmptyBody')}</Text>
-        </View>
-      ) : null}
-
-      {favorites.length > 0 && (
-        <>
-          <Text style={[styles.sectionLabel, { color: c.text }]}>{t('favoritesTherapists')}</Text>
-          {favorites.map((fav) => (
-            <View key={fav.id} style={[styles.resultCard, { backgroundColor: c.card, borderColor: c.border }]}>
-              <View style={styles.cardTop}>
-                <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }} onPress={() => setSelectedTherapist(fav)}>
-                  <Image source={{ uri: fav.photo }} style={styles.avatar} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardName, { color: c.text }]}>{fav.fullName}</Text>
-                    <Text style={[styles.cardTitle, { color: c.muted }]}>{fav.professionalTitle}</Text>
-                  </View>
-                  <Text style={[styles.practiceArrow, { color: c.muted }]}>›</Text>
-                </Pressable>
-                <ThemedHeartButton isSaved={true} onToggle={() => toggleFavorite(fav)} hitSlop={ICON_HIT_SLOP} />
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20, paddingTop: SPACE.sm }]} showsVerticalScrollIndicator={false}>
+        {!authToken ? (
+          <View style={[styles.emptyState, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Text style={styles.emptyIcon}>♡</Text>
+            <Text style={[styles.emptyTitle, { color: c.text }]}>{t('favoritesLoginRequired') ?? 'Einloggen für Favoriten'}</Text>
+            <Text style={[styles.emptyBody, { color: c.muted }]}>{t('favoritesLoginRequiredBody') ?? 'Melde dich an, um Therapeuten als Favoriten zu speichern.'}</Text>
+            <Pressable
+              onPress={() => { setActiveTab('therapist'); setShowLogin(true); }}
+              style={[styles.registerBtn, { backgroundColor: c.primary, marginTop: 16, paddingHorizontal: 32 }]}
+            >
+              <Text style={styles.registerBtnText}>{t('loginAction')}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <View style={[styles.noticeBox, { backgroundColor: c.mutedBg, borderColor: c.border, marginBottom: 4 }]}>
+              <View style={styles.lockBadge}>
+                <Ionicons name="bookmark-outline" size={16} color={c.primary} />
               </View>
-              {(fav.city || fav.availability || fav.homeVisit) ? (
-                <View style={[styles.practiceBtn, { borderColor: c.border, backgroundColor: c.mutedBg }]}>
-                  <View style={[styles.practiceInitial, { backgroundColor: fav.homeVisit ? c.successBg : c.border }]}>
-                    <Ionicons name={fav.homeVisit ? 'home-outline' : 'location-outline'} size={16} color={fav.homeVisit ? c.success : c.muted} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.practiceName, { color: c.text }]}>{fav.city || t('cityLabel')}</Text>
-                    {fav.availability ? <Text style={[styles.practiceCity, { color: c.muted }]} numberOfLines={1}>{fav.availability}</Text> : null}
-                  </View>
-                </View>
-              ) : null}
-              <Pressable
-                style={[styles.ctaBtn, { backgroundColor: c.accent }]}
-                onPress={() => openTherapistById(fav.id)}
-              >
-                <Ionicons name="person-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
-                <Text style={styles.ctaBtnText}>{t('viewProfileBtn')}</Text>
-              </Pressable>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.noticeBody, { color: c.muted, flex: 0 }]}>{t('favoritesHint')}</Text>
+              </View>
             </View>
-          ))}
-        </>
-      )}
-    </ScrollView>
+
+            {favorites.length === 0 && (
+              <View style={[styles.emptyState, { backgroundColor: c.card, borderColor: c.border }]}>
+                <Text style={styles.emptyIcon}>♡</Text>
+                <Text style={[styles.emptyTitle, { color: c.text }]}>{t('favoritesEmpty')}</Text>
+                <Text style={[styles.emptyBody, { color: c.muted }]}>{t('favoritesEmptyBody')}</Text>
+              </View>
+            )}
+
+            {favorites.length > 0 && (
+              <>
+                <Text style={[styles.sectionLabel, { color: c.text }]}>{t('favoritesTherapists')}</Text>
+                {favorites.map((fav) => (
+                  <View key={fav.id} style={[styles.resultCard, { backgroundColor: c.card, borderColor: c.border }]}>
+                    <View style={styles.cardTop}>
+                      <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }} onPress={() => setSelectedTherapist(fav)}>
+                        <Image source={{ uri: fav.photo }} style={styles.avatar} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.cardName, { color: c.text }]}>{fav.fullName}</Text>
+                          <Text style={[styles.cardTitle, { color: c.muted }]}>{fav.professionalTitle}</Text>
+                        </View>
+                        <Text style={[styles.practiceArrow, { color: c.muted }]}>›</Text>
+                      </Pressable>
+                      <ThemedHeartButton isSaved={true} onToggle={() => toggleFavorite(fav)} hitSlop={ICON_HIT_SLOP} />
+                    </View>
+                    {(fav.city || fav.availability || fav.homeVisit) ? (
+                      <View style={[styles.practiceBtn, { borderColor: c.border, backgroundColor: c.mutedBg }]}>
+                        <View style={[styles.practiceInitial, { backgroundColor: fav.homeVisit ? c.successBg : c.border }]}>
+                          <Ionicons name={fav.homeVisit ? 'home-outline' : 'location-outline'} size={16} color={fav.homeVisit ? c.success : c.muted} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.practiceName, { color: c.text }]}>{fav.city || t('cityLabel')}</Text>
+                          {fav.availability ? <Text style={[styles.practiceCity, { color: c.muted }]} numberOfLines={1}>{fav.availability}</Text> : null}
+                        </View>
+                      </View>
+                    ) : null}
+                    <Pressable
+                      style={[styles.ctaBtn, { backgroundColor: c.accent }]}
+                      onPress={() => openTherapistById(fav.id)}
+                    >
+                      <Ionicons name="person-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+                      <Text style={styles.ctaBtnText}>{t('viewProfileBtn')}</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </>
+            )}
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 
@@ -2875,6 +2930,15 @@ export default function App() {
                   </Pressable>
                 );
               })}
+              {regFortbildungen.length > 0 && (
+                <View style={[styles.tagRow, { marginTop: 4, marginBottom: 4 }]}>
+                  {regFortbildungen.map((f) => (
+                    <Pressable key={f} onPress={() => toggleRegFort(f)} style={[styles.chip, { backgroundColor: c.primary, borderColor: c.primary }]}>
+                      <Text style={[styles.chipText, { color: '#FFFFFF' }]}>{getCertificationLabel(f)} ×</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
 
               <View style={styles.sectionBadgeRow}>
                 <Text style={[styles.filterSectionTitle, { color: c.muted, marginBottom: 0 }]}>{t('languagesLabel')}</Text>
@@ -2883,25 +2947,6 @@ export default function App() {
                 </View>
               </View>
               <Text style={[styles.metaNote, { color: c.textMuted, marginBottom: 8 }]}>{t('germanPreselected')}</Text>
-              {regLanguages.length > 0 && (
-                <View style={[styles.tagRow, { marginBottom: 8 }]}>
-                  {regLanguages.map(l => (
-                    <Pressable key={l} onPress={() => toggleRegLang(l)} style={[styles.chip, { backgroundColor: c.primary, borderColor: c.primary }]}>
-                      <Text style={[styles.chipText, { color: '#FFFFFF' }]}>{getLangLabel(l)} ×</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-              {langSuggestions4.length > 0 && (
-                <View style={{ borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.border, marginBottom: 4, overflow: 'hidden', backgroundColor: c.card }}>
-                  {langSuggestions4.map((l, i) => (
-                    <Pressable key={l} onPress={() => { toggleRegLang(l); setRegLangSearch(''); }}
-                      style={{ padding: SPACE.md, borderTopWidth: i > 0 ? 1 : 0, borderColor: c.border }}>
-                      <Text style={{ ...TYPE.body, color: c.text }}>{getLangLabel(l)}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
               <TextInput
                 value={regLangSearch}
                 onChangeText={setRegLangSearch}
@@ -2910,6 +2955,25 @@ export default function App() {
                 placeholderTextColor={c.muted}
                 style={[styles.regInput, { backgroundColor: c.card, borderColor: regLanguages.length > 0 ? c.primary : c.border, color: c.text }]}
               />
+              {langSuggestions4.length > 0 && (
+                <View style={{ borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.border, marginTop: -8, marginBottom: 4, overflow: 'hidden', backgroundColor: c.card }}>
+                  {langSuggestions4.map((l, i) => (
+                    <Pressable key={l} onPress={() => { toggleRegLang(l); setRegLangSearch(''); }}
+                      style={{ padding: SPACE.md, borderTopWidth: i > 0 ? 1 : 0, borderColor: c.border }}>
+                      <Text style={{ ...TYPE.body, color: c.text }}>{getLangLabel(l)}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+              {regLanguages.length > 0 && (
+                <View style={[styles.tagRow, { marginTop: 4, marginBottom: 8 }]}>
+                  {regLanguages.map(l => (
+                    <Pressable key={l} onPress={() => toggleRegLang(l)} style={[styles.chip, { backgroundColor: c.primary, borderColor: c.primary }]}>
+                      <Text style={[styles.chipText, { color: '#FFFFFF' }]}>{getLangLabel(l)} ×</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
 
               {/* Hausbesuche */}
               <View style={[styles.detailInfoRow, { marginTop: 16 }]}>
@@ -3139,13 +3203,14 @@ export default function App() {
         {renderStepContent()}
 
         <Pressable
-          style={[styles.registerBtn, { backgroundColor: canProceed() ? c.primary : c.border, marginTop: 8 }]}
+          style={[styles.registerBtn, { backgroundColor: canProceed() && !regLoading ? c.primary : c.border, marginTop: 8 }]}
           onPress={async () => {
-            if (!canProceed()) return;
+            if (!canProceed() || regLoading) return;
             if (regStep < REG_STEPS) {
               setRegStep(s => s + 1);
               setShowRegStepInfo(false);
             } else {
+              setRegLoading(true);
               try {
                 const res = await fetch(`${getBaseUrl()}/register/therapist`, {
                   method: 'POST',
@@ -3175,6 +3240,7 @@ export default function App() {
                 const resData = await res.json().catch(() => ({}));
                 if (!res.ok) {
                   const msg = typeof resData.message === 'string' ? resData.message : (resData.error ?? `Fehler ${res.status}`);
+                  setRegLoading(false);
                   // OTP window expired → send user back to step 1 with the error pre-filled
                   if (msg.includes('abgelaufen') || msg.includes('nicht bestätigt')) {
                     setRegStep(1);
@@ -3226,12 +3292,14 @@ export default function App() {
                     headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${resData.token}` },
                   });
                   if (profileRes.ok) setLoggedInTherapist(normalizeTherapistProfile(await profileRes.json()));
+                  loadFavorites(resData.token);
                   await AsyncStorage.removeItem(REGISTRATION_COMPLIANCE_DRAFT_KEY);
                   setShowRegister(false);
                   resetRegState();
                   return;
                 }
               } catch {
+                setRegLoading(false);
                 showWebAlert(`${t('alertConnectionError')}. ${t('alertConnectionErrorBody')}`);
                 return;
               }
@@ -3239,11 +3307,22 @@ export default function App() {
             }
           }}
         >
-          <Text style={styles.registerBtnText}>
-            {regStep < REG_STEPS ? 'Weiter →' : 'Profil einreichen'}
-          </Text>
+          {regLoading && regStep >= REG_STEPS
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={styles.registerBtnText}>{regStep < REG_STEPS ? 'Weiter →' : 'Profil einreichen'}</Text>
+          }
         </Pressable>
       </ScrollView>
+
+      {regLoading && (
+        <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <View style={{ backgroundColor: c.card, borderRadius: 20, paddingVertical: 32, paddingHorizontal: 40, alignItems: 'center', gap: 16, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 16, elevation: 10 }}>
+            <ActivityIndicator size="large" color={c.primary} />
+            <Text style={{ color: c.text, fontSize: 16, fontWeight: '700' }}>Profil wird erstellt…</Text>
+            <Text style={{ color: c.muted, fontSize: 13, textAlign: 'center' }}>Einen Moment bitte.</Text>
+          </View>
+        </View>
+      )}
       </KeyboardAvoidingView>
     );
   };
@@ -3906,7 +3985,7 @@ const styles = StyleSheet.create({
     gap: 10,
     ...SHADOW.card,
   },
-  searchInput: { flex: 1, ...TYPE.body },
+  searchInput: { flex: 1, fontSize: TYPE.body.fontSize, fontWeight: TYPE.body.fontWeight },
   searchDivider: { width: 1, height: 24, opacity: 0.5 },
   searchFilterArea: {
     paddingHorizontal: 12,
@@ -4421,7 +4500,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     minHeight: 44,
-    ...TYPE.body,
+    fontSize: TYPE.body.fontSize,
+    fontWeight: TYPE.body.fontWeight,
     outlineWidth: 0,
   },
   regTextarea: { minHeight: 100, textAlignVertical: 'top', paddingTop: 12 },
