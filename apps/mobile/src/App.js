@@ -2219,8 +2219,6 @@ export default function App() {
       t={t}
       authToken={authToken}
       onProfileSaved={handlePatientSaveProfile}
-      handleLogout={handleLogout}
-      handleDeleteAccount={handleDeleteAccount}
     />
   );
 

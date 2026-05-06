@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { getBaseUrl, RADIUS, SHADOW, SPACE, TUNNEL_HEADERS, TYPE } from './mobile-utils';
 
-export function PatientDashboardScreen({ c, loggedInPatient, styles, t, authToken, onProfileSaved, handleLogout, handleDeleteAccount }) {
+export function PatientDashboardScreen({ c, loggedInPatient, styles, t, authToken, onProfileSaved }) {
   const firstName = loggedInPatient?.firstName ?? '';
   const lastName = loggedInPatient?.lastName ?? '';
   const email = loggedInPatient?.email ?? '';
@@ -132,18 +132,6 @@ export function PatientDashboardScreen({ c, loggedInPatient, styles, t, authToke
         </View>
       )}
 
-      {/* ── Logout & Konto löschen ─────────────────────────────────── */}
-      <View style={{ gap: 10, marginTop: 24 }}>
-        <Pressable
-          onPress={handleLogout}
-          style={{ borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: c.border, backgroundColor: c.card }}
-        >
-          <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>{t('logoutBtn')}</Text>
-        </Pressable>
-        <Pressable onPress={handleDeleteAccount} style={{ borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-          <Text style={{ color: c.muted, fontSize: 14 }}>{t('deleteAccount')}</Text>
-        </Pressable>
-      </View>
     </ScrollView>
   );
 }
