@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-  "buildCommand": "cd ../.. && pnpm --filter @revio/admin build",
+  "buildCommand": "cd ../.. && rm -rf apps/admin/.next && pnpm --filter @revio/admin build",
   "outputDirectory": ".next"
 }
