@@ -308,10 +308,21 @@ export function TherapistBookingCard({ c, t, request, onRespond }) {
       if (action === 'CONFIRM') {
         const parts = confirmDate.trim().split(/[\s,]+/);
         const [datePart, timePart] = parts;
-        const [d, m, y] = datePart.split('.');
+        const dateBits = datePart.split('.');
+        if (dateBits.length !== 3 || !dateBits[2] || dateBits[2].length < 4) {
+          setError('Bitte im Format TT.MM.JJJJ HH:MM eingeben, z.B. 15.05.2026 10:00');
+          setLoading(false);
+          return;
+        }
+        const [d, m, y] = dateBits;
         const isoDate = timePart
           ? `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T${timePart}:00.000Z`
           : `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T09:00:00.000Z`;
+        if (isNaN(new Date(isoDate).getTime())) {
+          setError('Ungültiges Datum. Bitte Format prüfen: TT.MM.JJJJ HH:MM');
+          setLoading(false);
+          return;
+        }
         body = { action: 'CONFIRM', confirmedSlotAt: isoDate };
       } else {
         body = { action: 'DECLINE', declinedReason: declinedReason.trim() || undefined };
