@@ -33,6 +33,7 @@ export function LoginScreen(props) {
     setShowLogin,
     styles,
     t,
+    onDemoLogin,
   } = props;
   const [showPassword, setShowPassword] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -126,6 +127,31 @@ export function LoginScreen(props) {
       >
         <Text style={styles.registerBtnText}>{loginLoading ? t('loginLoading') : t('loginAction')}</Text>
       </Pressable>
+
+      {/* Demo logins */}
+      <View style={{ marginTop: 28 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
+          <Text style={{ fontSize: 12, color: c.muted, fontWeight: '600' }}>DEMO</Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
+        </View>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Pressable
+            onPress={() => onDemoLogin('demo.patient@revio.de', 'Demo1234!')}
+            style={{ flex: 1, borderWidth: 1.5, borderColor: c.border, borderRadius: 12, paddingVertical: 12, alignItems: 'center', backgroundColor: c.card }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>👤 Patient</Text>
+            <Text style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>Demo-Konto</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onDemoLogin('demo.physio@revio.de', 'Demo1234!')}
+            style={{ flex: 1, borderWidth: 1.5, borderColor: c.border, borderRadius: 12, paddingVertical: 12, alignItems: 'center', backgroundColor: c.card }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>🩺 Physiotherapeut</Text>
+            <Text style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>Demo-Konto</Text>
+          </Pressable>
+        </View>
+      </View>
     </ScrollView>
   );
 }

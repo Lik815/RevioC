@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { hashPassword } from './auth-utils.js';
 import { createReadStream, existsSync } from 'fs';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
@@ -754,5 +755,33 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     if (!user) return reply.notFound('User nicht gefunden');
     await fastify.prisma.user.delete({ where: { email } });
     return { deleted: true, email };
+  });
+
+  fastify.post('/create-demo-user', async (request, reply) => {
+    await fastify.verifyAdmin(request, reply);
+    const schema = z.object({
+      email: z.string().email(),
+      password: z.string().min(6),
+      role: z.enum(['patient', 'therapist']),
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+    });
+    const parsed = schema.safeParse(request.body);
+    if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
+
+    const { email, password, role, firstName, lastName } = parsed.data;
+
+    const existing = await fastify.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      const ph = await hashPassword(password);
+      await fastify.prisma.user.update({ where: { email }, data: { passwordHash: ph } });
+      return { updated: true, email };
+    }
+
+    const passwordHash = await hashPassword(password);
+    await fastify.prisma.user.create({
+      data: { email, passwordHash, role, firstName, lastName, emailVerifiedAt: new Date() },
+    });
+    return { created: true, email, role };
   });
 };
