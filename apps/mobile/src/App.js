@@ -2728,13 +2728,6 @@ export default function App() {
               </>
             )}
 
-            {accountType === 'patient' && myAppointments.length === 0 && authToken && (
-              <View style={[styles.emptyState, { backgroundColor: c.card, borderColor: c.border }]}>
-                <Text style={styles.emptyIcon}>📅</Text>
-                <Text style={[styles.emptyTitle, { color: c.text }]}>Keine Terminanfragen</Text>
-                <Text style={[styles.emptyBody, { color: c.muted }]}>Deine Terminanfragen und bestätigten Termine erscheinen hier.</Text>
-              </View>
-            )}
 
             {(accountType === 'therapist' || accountType === 'manager') && incomingBookings.length > 0 && (
               <>
@@ -2759,15 +2752,8 @@ export default function App() {
               </>
             )}
 
-            {(accountType === 'therapist' || accountType === 'manager') && incomingBookings.length === 0 && authToken && (
-              <View style={[styles.emptyState, { backgroundColor: c.card, borderColor: c.border }]}>
-                <Text style={styles.emptyIcon}>📅</Text>
-                <Text style={[styles.emptyTitle, { color: c.text }]}>Keine offenen Anfragen</Text>
-                <Text style={[styles.emptyBody, { color: c.muted }]}>Eingehende Terminanfragen erscheinen hier.</Text>
-              </View>
-            )}
 
-            {favorites.length === 0 && (
+            {favorites.length === 0 && myAppointments.length === 0 && incomingBookings.length === 0 && (
               <View style={[styles.emptyState, { backgroundColor: c.card, borderColor: c.border }]}>
                 <Text style={styles.emptyIcon}>♡</Text>
                 <Text style={[styles.emptyTitle, { color: c.text }]}>{t('favoritesEmpty')}</Text>
