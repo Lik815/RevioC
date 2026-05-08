@@ -1,5 +1,5 @@
 import { PageShell } from '../../../components/page-shell';
-import { api } from '../../../lib/api';
+import { AdminApiError, api } from '../../../lib/api';
 import { updateAppFeedbackStatus } from '../../../lib/actions';
 
 type SearchParams = Promise<{ status?: string }>;
@@ -21,8 +21,21 @@ function formatDateTime(iso: string) {
 
 export default async function FeedbackPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const feedback = await api.getAppFeedback();
   const statusFilter = params.status === 'NEW' || params.status === 'RESOLVED' ? params.status : 'ALL';
+  let feedbackError: string | null = null;
+  let feedback: Awaited<ReturnType<typeof api.getAppFeedback>> = [];
+
+  try {
+    feedback = await api.getAppFeedback();
+  } catch (error) {
+    if (error instanceof AdminApiError) {
+      feedbackError = error.message;
+    } else if (error instanceof Error) {
+      feedbackError = error.message;
+    } else {
+      feedbackError = 'Feedback konnte gerade nicht geladen werden.';
+    }
+  }
 
   const filtered = feedback.filter((item) => statusFilter === 'ALL' || item.status === statusFilter);
   const newCount = feedback.filter((item) => item.status === 'NEW').length;
@@ -57,7 +70,20 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Sea
         <button className="primary-btn" type="submit">Filtern</button>
       </form>
 
-      {filtered.length === 0 ? (
+      {feedbackError ? (
+        <article className="panel panel--compact">
+          <div className="panel-header">
+            <div className="panel-header__content">
+              <div className="kicker">Feedback</div>
+              <h3>Feedback aktuell nicht verfügbar</h3>
+              <p className="panel-header__description">
+                Die Admin-App konnte die Feedback-Daten gerade nicht laden. Wahrscheinlich ist die API oder die Datenbankmigration für `AppFeedback` noch nicht vollständig live.
+              </p>
+            </div>
+          </div>
+          <p className="table-note" style={{ marginTop: 0 }}>{feedbackError}</p>
+        </article>
+      ) : filtered.length === 0 ? (
         <div className="empty-state empty-state--compact">
           <div className="empty-illustration">💬</div>
           <strong>Kein Feedback für diesen Filter</strong>

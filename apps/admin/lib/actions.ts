@@ -11,7 +11,7 @@ export type LoginState = {
 
 async function getAdminToken() {
   const cookieStore = await cookies();
-  return cookieStore.get('revio_admin_token')?.value ?? process.env.ADMIN_TOKEN ?? '';
+  return cookieStore.get('revio_admin_token')?.value ?? process.env.REVIO_ADMIN_TOKEN ?? process.env.ADMIN_TOKEN ?? '';
 }
 
 async function adminRequest(path: string, init?: { method?: 'POST' | 'PATCH' | 'DELETE'; body?: unknown }) {
@@ -249,4 +249,3 @@ export async function deleteBlogPost(id: string) {
   await adminRequest(`/admin/blog-posts/${id}/delete`);
   revalidatePath('/blog');
 }
-
