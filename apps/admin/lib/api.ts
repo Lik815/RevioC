@@ -1,4 +1,5 @@
 import type {
+  AppFeedback,
   AdminStats,
   TherapistWithLinks,
 } from '@revio/shared';
@@ -119,8 +120,69 @@ export type BlogPost = {
   updatedAt: string;
 };
 
+export type AdminPractice = {
+  id: string;
+  name: string;
+  city: string;
+  address?: string | null;
+  phone?: string | null;
+  reviewStatus: string;
+  createdAt: string;
+  links?: Array<{
+    id: string;
+    status: string;
+    therapist: {
+      id: string;
+      fullName: string;
+      professionalTitle: string;
+    };
+  }>;
+};
+
+export type AdminLink = {
+  id: string;
+  therapistId: string;
+  practiceId: string;
+  status: string;
+  createdAt: string;
+  therapist: {
+    id: string;
+    fullName: string;
+    professionalTitle: string;
+    reviewStatus?: string;
+  };
+  practice: {
+    id: string;
+    name: string;
+    city: string;
+    reviewStatus?: string;
+  };
+};
+
+export type AdminManager = {
+  id: string;
+  email: string;
+  therapistId?: string | null;
+  therapist?: {
+    id: string;
+    fullName: string;
+    email: string;
+    reviewStatus: string;
+  } | null;
+  practice?: {
+    id: string;
+    name: string;
+    city: string;
+    reviewStatus: string;
+  } | null;
+};
+
 export const api = {
+  getAppFeedback: () => adminFetch<AppFeedback[]>('/admin/feedback'),
   getStats: () => adminFetch<AdminStats>('/admin/stats'),
+  getPractices: () => adminFetch<AdminPractice[]>('/admin/practices'),
+  getLinks: () => adminFetch<AdminLink[]>('/admin/links'),
+  getManagers: () => adminFetch<{ managers: AdminManager[] }>('/admin/managers'),
   getTherapists: () => adminFetch<TherapistWithLinks[]>('/admin/therapists'),
   getTherapist: (id: string) => adminFetch<TherapistWithLinks>(`/admin/therapists/${id}`),
   getVisibilityIssues: () => adminFetch<VisibilityIssues>('/admin/visibility-issues'),
