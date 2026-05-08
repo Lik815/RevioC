@@ -250,36 +250,3 @@ export async function deleteBlogPost(id: string) {
   revalidatePath('/blog');
 }
 
-// ── Practice actions ──────────────────────────────────────────────────────────
-
-export async function approvePractice(id: string) {
-  await adminRequest(`/admin/practices/${id}/approve`);
-  revalidatePath('/practices');
-}
-
-export async function rejectPractice(id: string) {
-  await adminRequest(`/admin/practices/${id}/reject`);
-  revalidatePath('/practices');
-}
-
-export async function suspendPractice(id: string) {
-  await adminRequest(`/admin/practices/${id}/suspend`);
-  revalidatePath('/practices');
-}
-
-// ── Link actions ──────────────────────────────────────────────────────────────
-
-export async function confirmLink(id: string) {
-  await adminRequest(`/admin/links/${id}/confirm`);
-  revalidatePath('/links');
-}
-
-export async function rejectLink(id: string) {
-  await adminRequest(`/admin/links/${id}/reject`);
-  revalidatePath('/links');
-}
-
-export async function disputeLink(id: string) {
-  await adminRequest(`/admin/links/${id}/dispute`);
-  revalidatePath('/links');
-}
