@@ -783,9 +783,34 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const passwordHash = await hashPassword(password);
-    await fastify.prisma.user.create({
+    const user = await fastify.prisma.user.create({
       data: { email, passwordHash, role, firstName, lastName, emailVerifiedAt: new Date() },
     });
+
+    if (role === 'therapist') {
+      const existingTherapist = await fastify.prisma.therapist.findUnique({ where: { email } });
+      if (!existingTherapist) {
+        await fastify.prisma.therapist.create({
+          data: {
+            email,
+            userId: user.id,
+            fullName: `${firstName ?? ''} ${lastName ?? ''}`.trim() || 'Demo Physio',
+            professionalTitle: 'Physiotherapeut:in',
+            city: 'Köln',
+            bio: 'Demo-Konto für den Therapeut:innen-Login in der Mobile-App.',
+            homeVisit: true,
+            specializations: 'Rückenschmerzen,Sportphysiotherapie',
+            languages: 'Deutsch',
+            certifications: '',
+            kassenart: 'Alle',
+            reviewStatus: 'APPROVED',
+            isVisible: true,
+            bookingMode: 'FIRST_APPOINTMENT_REQUEST',
+          },
+        });
+      }
+    }
+
     return { created: true, email, role };
   });
 };
