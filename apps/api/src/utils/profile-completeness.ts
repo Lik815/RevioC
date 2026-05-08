@@ -86,6 +86,22 @@ export function getTherapistPublicationState(
   };
 }
 
+export function getTherapistRequestabilityState(
+  therapist: TherapistLike & { bookingMode?: string | null; nextFreeSlotAt?: Date | string | null },
+  options?: { links?: TherapistPracticeLinkLike[] },
+) {
+  const publication = getTherapistPublicationState(therapist, options);
+  const blockingReasons: string[] = [];
+
+  if (!publication.publicSearchEligible) blockingReasons.push(...publication.blockingReasons);
+  if (therapist.bookingMode !== 'FIRST_APPOINTMENT_REQUEST') blockingReasons.push('booking_mode_disabled');
+
+  return {
+    requestable: blockingReasons.length === 0,
+    blockingReasons: [...new Set(blockingReasons)],
+  };
+}
+
 export function getProfileStatus(therapist: TherapistLike): TherapistProfileStatus {
   const completion = getTherapistProfileCompletion(therapist);
 

@@ -251,6 +251,11 @@ export default async function TherapistsPage({ searchParams }: { searchParams: S
                     <span className="entity-meta" title={blockerReasons.join(', ')}>
                       {getVisibilityMeta(t)}
                     </span>
+                    {(t as any).bookingMode === 'FIRST_APPOINTMENT_REQUEST' ? (
+                      (t as any).requestability?.requestable
+                        ? <span className="badge badge--APPROVED" style={{ marginTop: 2 }}>Anfragbar</span>
+                        : <span className="badge badge--DRAFT" title={(t as any).requestability?.blockingReasons?.join(', ')} style={{ marginTop: 2 }}>Anfragbar (blockiert)</span>
+                    ) : null}
                   </div>
                 </td>
                 <td data-label="Aktionen">

@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import type { SearchInput, SearchTherapist, SearchPractice } from '@revio/shared';
 import { normalizeText, scoreMatch, levenshtein } from '../utils/search-utils.js';
-import { getTherapistPublicationState } from '../utils/profile-completeness.js';
+import { getTherapistPublicationState, getTherapistRequestabilityState } from '../utils/profile-completeness.js';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -180,6 +180,7 @@ const searchBodySchema = z.object({
   homeVisit: z.boolean().optional(),
   specialization: z.string().optional(),
   kassenart: z.string().optional(),
+  requestable: z.boolean().optional(),
 }).refine((data) => Boolean(data.city) || Boolean(data.origin), {
   message: 'city oder origin ist erforderlich',
 });
@@ -249,9 +250,12 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
 
     const results: SearchTherapist[] = [];
 
+    const requestableFilter = (parsed.data as any).requestable as boolean | undefined;
+
     filteredTherapists.forEach((t) => {
       const practiceNames = t.links.map((l) => l.practice.name);
       const relevance = scoreTherapist(t, input.query, practiceNames, input.homeVisit);
+      const requestability = getTherapistRequestabilityState(t, { links: t.links });
       const specializations = splitList(t.specializations);
 
       // Distanz für mobile Therapeuten ohne Praxis (homeLat/homeLng)
@@ -309,6 +313,9 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
       // Score 0 ausschließen (kein Match und kein generischer Begriff)
       if (relevance <= 0) return;
 
+      // requestable-Filter
+      if (requestableFilter === true && !requestability.requestable) return;
+
       const nearestPracticeDistance = practices[0]?.distKm;
       const effectiveDistKm = practices.length > 0 ? nearestPracticeDistance : therapistDistKm;
 
@@ -329,6 +336,9 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
         relevance,
         distKm: effectiveDistKm,
         practices,
+        bookingMode: tAny.bookingMode ?? 'DIRECTORY_ONLY',
+        requestable: requestability.requestable,
+        nextFreeSlotAt: tAny.nextFreeSlotAt?.toISOString?.() ?? tAny.nextFreeSlotAt ?? null,
         // Neue Felder für mobile Therapeuten
         ...(tAny.serviceRadiusKm != null ? { serviceRadiusKm: tAny.serviceRadiusKm } : {}),
         ...(practices.length === 0 && t.homeVisit && tAny.homeLat && tAny.homeLat !== 0
@@ -371,6 +381,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
     if (!t) return reply.notFound('Therapeut nicht gefunden');
     const publication = getTherapistPublicationState(t, { links: t.links });
     if (!publication.publicSearchEligible) return reply.notFound('Therapeut nicht gefunden');
+    const requestability = getTherapistRequestabilityState(t, { links: t.links });
     const practices = t.links.map((link) => {
       let photos: string[] | undefined;
       if (link.practice.photos) { try { photos = JSON.parse(link.practice.photos); } catch {} }
@@ -395,7 +406,9 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
         homeVisit: t.homeVisit, city: t.city, bio: t.bio ?? undefined,
         ...((t as any).serviceRadiusKm != null ? { serviceRadiusKm: (t as any).serviceRadiusKm } : {}),
         photo: t.photo ?? undefined, practices,
-        bookingMode: t.bookingMode ?? 'DIRECTORY_ONLY',
+        bookingMode: (t as any).bookingMode ?? 'DIRECTORY_ONLY',
+        requestable: requestability.requestable,
+        nextFreeSlotAt: (t as any).nextFreeSlotAt?.toISOString?.() ?? null,
       },
     };
   });

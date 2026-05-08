@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import { getEnv } from '../env.js';
 import { geocodeAddress } from '../utils/geocode.js';
 import { tryEnsurePracticeLogoAsset } from '../../prisma/practice-logo.js';
-import { getTherapistPublicationState } from '../utils/profile-completeness.js';
+import { getTherapistPublicationState, getTherapistRequestabilityState } from '../utils/profile-completeness.js';
 import { sendProfileApprovedEmail, sendProfileRejectedEmail, sendProfileChangesRequestedEmail } from '../utils/mailer.js';
 import { sendPushNotification } from '../utils/push.js';
 import { ensureDefaultCertificationOptions } from '../utils/certification-options.js';
@@ -26,6 +26,7 @@ type TherapistRow = {
   languages: string; certifications: string; reviewStatus: string;
   serviceRadiusKm: number | null; kassenart: string;
   isVisible: boolean; isPublished: boolean; onboardingStatus: string | null;
+  bookingMode?: string | null; nextFreeSlotAt?: Date | null;
   createdAt: Date; updatedAt: Date;
   links?: Array<{ id: string; status: string; practice: { id: string; name: string; city: string; address: string | null; phone: string | null; hours: string | null; lat: number; lng: number; reviewStatus: string; createdAt: Date; updatedAt: Date } }>;
 };
@@ -78,6 +79,9 @@ function mapTherapist(t: TherapistRow) {
     createdAt: t.createdAt.toISOString(),
     links: t.links?.map((l) => ({ id: l.id, status: l.status, practice: mapPractice(l.practice) })),
     visibility: computeVisibility(t),
+    bookingMode: t.bookingMode ?? 'DIRECTORY_ONLY',
+    nextFreeSlotAt: t.nextFreeSlotAt?.toISOString() ?? null,
+    requestability: getTherapistRequestabilityState(t, { links: t.links }),
   };
 }
 

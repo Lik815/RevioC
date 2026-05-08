@@ -23,6 +23,26 @@ export type ReviewStatus =
 
 export type LinkStatus = 'PROPOSED' | 'CONFIRMED' | 'DISPUTED' | 'REJECTED';
 
+export type BookingMode = 'DIRECTORY_ONLY' | 'FIRST_APPOINTMENT_REQUEST';
+
+export type BookingRequestStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'EXPIRED';
+
+export interface BookingRequest {
+  id: string;
+  therapistId: string;
+  status: BookingRequestStatus;
+  patientName: string;
+  patientEmail?: string | null;
+  patientPhone?: string | null;
+  preferredDays: string[];
+  preferredTimeWindows: string[];
+  message?: string | null;
+  createdAt: string;
+  responseDueAt: string;
+  respondedAt?: string | null;
+  confirmedSlotAt?: string | null;
+}
+
 // ─── Core Entities ────────────────────────────────────────────────────────────
 
 export interface Therapist {
@@ -44,6 +64,8 @@ export interface Therapist {
   isPublished: boolean;
   onboardingStatus: string | null;
   createdAt: string;
+  bookingMode?: BookingMode;
+  nextFreeSlotAt?: string | null;
 }
 
 export interface Practice {
@@ -118,6 +140,9 @@ export interface SearchTherapist {
   relevance: number;
   distKm?: number;
   practices: SearchPractice[];
+  bookingMode?: BookingMode;
+  requestable?: boolean;
+  nextFreeSlotAt?: string | null;
 }
 
 export interface SearchResponse {

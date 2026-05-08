@@ -112,6 +112,8 @@ export function DiscoverScreen(props) {
     kassenart,
     searchRadius,
     setSearchRadius,
+    requestableOnly,
+    setRequestableOnly,
   } = props;
 
   const safeResults = Array.isArray(results) ? results : [];
@@ -147,6 +149,7 @@ export function DiscoverScreen(props) {
     setGender(null);
     setFortbildungen([]);
     setFortbildungQuery('');
+    if (setRequestableOnly) setRequestableOnly(false);
   };
   const headerToggle = (
     <View style={{ flexDirection: 'row', borderRadius: RADIUS.full, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
@@ -220,6 +223,22 @@ export function DiscoverScreen(props) {
           <Text style={[styles.filterCompactChipText, { color: homeVisit ? c.success : c.text }]}>Hausbesuch</Text>
           {homeVisit ? <Ionicons name="checkmark" size={12} color={c.success} /> : null}
         </Pressable>
+        {setRequestableOnly != null && (
+          <Pressable
+            onPress={() => setRequestableOnly(!requestableOnly)}
+            style={[
+              styles.filterCompactChip,
+              {
+                borderColor: requestableOnly ? c.primary : c.border,
+                backgroundColor: requestableOnly ? c.primaryBg : c.mutedBg,
+              },
+            ]}
+          >
+            <Ionicons name="calendar-outline" size={13} color={requestableOnly ? c.primary : mutedText} />
+            <Text style={[styles.filterCompactChipText, { color: requestableOnly ? c.primary : c.text }]}>Direkt anfragbar</Text>
+            {requestableOnly ? <Ionicons name="checkmark" size={12} color={c.primary} /> : null}
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.filterCompactSection}>
@@ -743,6 +762,11 @@ export function DiscoverScreen(props) {
             {therapist.kassenart && therapist.kassenart !== 'Alle' && (
               <View style={[styles.tag, { backgroundColor: c.mutedBg }]}>
                 <Text style={[styles.tagText, { color: mutedText }]}>{therapist.kassenart}</Text>
+              </View>
+            )}
+            {therapist.requestable && (
+              <View style={[styles.tag, { backgroundColor: c.primaryBg, borderWidth: 1, borderColor: c.primary }]}>
+                <Text style={[styles.tagText, { color: c.primary }]}>📅 Direkt anfragbar</Text>
               </View>
             )}
           </View>

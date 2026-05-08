@@ -1361,6 +1361,7 @@ export default function App() {
   const [homeVisit, setHomeVisit] = useState(false);
   const [kassenart, setKassenart] = useState(null);
   const [gender, setGender] = useState(null);
+  const [requestableOnly, setRequestableOnly] = useState(false);
   const [fortbildungen, setFortbildungen] = useState([]);
   const [certificationOptions, setCertificationOptions] = useState(() => normalizeCertificationOptions(fortbildungOptions));
   const [searchRadius, setSearchRadius] = useState(5);
@@ -1421,7 +1422,7 @@ export default function App() {
     };
   }, [query]);
 
-  const activeFilterCount = (homeVisit ? 1 : 0) + (kassenart ? 1 : 0) + (gender ? 1 : 0) + fortbildungen.length;
+  const activeFilterCount = (homeVisit ? 1 : 0) + (kassenart ? 1 : 0) + (gender ? 1 : 0) + fortbildungen.length + (requestableOnly ? 1 : 0);
   const getCertificationLabel = (key) => certificationOptions.find((option) => option.key === key)?.label ?? key;
 
   const toggleFortbildung = (key) => {
@@ -1525,6 +1526,7 @@ export default function App() {
         homeVisit: homeVisit || undefined,
         kassenart: kassenart || undefined,
         gender: gender || undefined,
+        requestable: requestableOnly || undefined,
       }),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1919,6 +1921,8 @@ export default function App() {
       toggleFortbildung={toggleFortbildung}
       userCoords={userCoords}
       viewMode={viewMode}
+      requestableOnly={requestableOnly}
+      setRequestableOnly={setRequestableOnly}
     />
   );
 

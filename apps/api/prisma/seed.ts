@@ -289,7 +289,53 @@ async function main() {
     });
   }
 
-  // ── Test-Account ──────────────────────────────────────────────────────────
+  // ── Demo-Accounts ─────────────────────────────────────────────────────────
+  const demoPatientPasswordHash = await hashPassword('Demo1234!');
+  await prisma.user.create({
+    data: {
+      email: 'demo.patient@revio.de',
+      passwordHash: demoPatientPasswordHash,
+      role: 'patient',
+      firstName: 'Demo',
+      lastName: 'Patient',
+      emailVerifiedAt: new Date(),
+    },
+  });
+
+  const demoPhysioPasswordHash = await hashPassword('Demo1234!');
+  const demoPhysioUser = await prisma.user.create({
+    data: {
+      email: 'demo.physio@revio.de',
+      passwordHash: demoPhysioPasswordHash,
+      role: 'therapist',
+      emailVerifiedAt: new Date(),
+    },
+  });
+  await prisma.therapist.create({
+    data: {
+      email: 'demo.physio@revio.de',
+      userId: demoPhysioUser.id,
+      fullName: 'Demo Physio',
+      professionalTitle: 'Physiotherapeutin',
+      city: 'Köln',
+      bio: 'Demo-Konto für den Therapeut:innen-Login in der Mobile-App.',
+      homeVisit: true,
+      serviceRadiusKm: 15,
+      bookingMode: 'FIRST_APPOINTMENT_REQUEST',
+      specializations: 'Manuelle Therapie, Sportphysiotherapie',
+      languages: 'de, en',
+      certifications: 'MT, KGG',
+      kassenart: 'gesetzlich, privat',
+      availability: 'Mo–Fr 8:00–18:00 Uhr',
+      reviewStatus: 'APPROVED',
+      photo: 'https://randomuser.me/api/portraits/women/44.jpg',
+      links: {
+        create: { practiceId: practiceRecords[0].id, status: 'CONFIRMED' },
+      },
+    },
+  });
+
+  // ── Legacy Test-Account ───────────────────────────────────────────────────
   const testPasswordHash = await hashPassword('password');
   const testManagerUser = await prisma.user.findUnique({ where: { email: 'test@revio.de' } });
   const testTherapist = await prisma.therapist.create({
@@ -420,6 +466,8 @@ async function main() {
   console.log('Seed complete.');
   console.log('  30 Praxen (APPROVED) mit Admin-Login');
   console.log('  100 Therapeuten (APPROVED) über 10 Städte verteilt');
+  console.log('  DEMO Patient: demo.patient@revio.de / Demo1234!');
+  console.log('  DEMO Physio: demo.physio@revio.de / Demo1234!');
   console.log('  1  Therapeut PENDING (Max Klein)');
   console.log('  1  Beitrittsanfrage (Sarah Müller → Physio & Motion) als Notification');
   console.log('  TEST: test@revio.de / password (Therapeut + Praxis-Admin von "Physio & Motion")');
