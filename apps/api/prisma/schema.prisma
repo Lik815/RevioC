@@ -56,6 +56,11 @@ enum SlotStatus {
   CANCELLED
 }
 
+enum AppFeedbackStatus {
+  NEW
+  RESOLVED
+}
+
 model User {
   id                     String                  @id @default(cuid())
   email                  String                  @unique
@@ -76,6 +81,7 @@ model User {
   managerProfile         PracticeManager?
   favoriteTherapists     UserFavoriteTherapist[]
   bookingRequests        BookingRequest[]
+  appFeedbacks           AppFeedback[]
 }
 
 model Therapist {
@@ -227,6 +233,21 @@ model BlogPost {
   publishedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model AppFeedback {
+  id              String            @id @default(cuid())
+  userId          String?
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email           String
+  message         String
+  status          AppFeedbackStatus @default(NEW)
+  isAuthenticated Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
 }
 
 model TherapistSlot {

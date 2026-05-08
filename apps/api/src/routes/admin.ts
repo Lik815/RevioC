@@ -124,6 +124,29 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     content: z.string().trim().min(30),
     authorName: z.string().trim().min(2).max(80).default('Revio Team'),
   });
+  const appFeedbackStatusSchema = z.object({
+    status: z.enum(['NEW', 'RESOLVED']),
+  });
+
+  const mapAppFeedback = (feedback: {
+    id: string;
+    userId: string | null;
+    email: string;
+    message: string;
+    status: 'NEW' | 'RESOLVED';
+    isAuthenticated: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }) => ({
+    id: feedback.id,
+    userId: feedback.userId,
+    email: feedback.email,
+    message: feedback.message,
+    status: feedback.status,
+    isAuthenticated: feedback.isAuthenticated,
+    createdAt: feedback.createdAt.toISOString(),
+    updatedAt: feedback.updatedAt.toISOString(),
+  });
 
   fastify.post('/login', async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
@@ -166,6 +189,31 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/site-settings', async () => {
     return getPublicSiteSettings(fastify.prisma);
+  });
+
+  fastify.get('/feedback', async () => {
+    const items = await fastify.prisma.appFeedback.findMany({
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+
+    return items.map(mapAppFeedback);
+  });
+
+  fastify.post('/feedback/:id/status', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = appFeedbackStatusSchema.safeParse(request.body);
+    if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
+
+    const updated = await fastify.prisma.appFeedback.update({
+      where: { id },
+      data: { status: parsed.data.status },
+    }).catch(() => null);
+
+    if (!updated) return reply.notFound('Feedback nicht gefunden');
+
+    return {
+      feedback: mapAppFeedback(updated),
+    };
   });
 
   fastify.post('/site-settings/update', async (request, reply) => {

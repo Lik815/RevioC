@@ -68,6 +68,7 @@ afterAll(async () => {
 // Clean DB between test suites
 afterEach(async () => {
   await prisma.appSetting.deleteMany();
+  await prisma.appFeedback.deleteMany();
   await prisma.userFavoriteTherapist.deleteMany();
   await prisma.practiceManager.deleteMany();
   await prisma.user.deleteMany();
@@ -120,6 +121,110 @@ describe('Site settings', () => {
     const nextRes = await app.inject({ method: 'GET', url: '/config/site' });
     expect(nextRes.statusCode).toBe(200);
     expect(nextRes.json()).toEqual({ underConstruction: true });
+  });
+});
+
+describe('POST /feedback', () => {
+  it('accepts authenticated feedback without email and stores account email', async () => {
+    const user = await prisma.user.create({
+      data: {
+        email: 'feedback-auth@test.de',
+        passwordHash: await hashPassword('password123'),
+        role: 'patient',
+        sessionToken: 'feedback-auth-token',
+        firstName: 'Anna',
+        lastName: 'Test',
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/feedback',
+      headers: { authorization: 'Bearer feedback-auth-token' },
+      payload: { message: 'Die App läuft super.' },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.feedback.email).toBe(user.email);
+    expect(body.feedback.userId).toBe(user.id);
+    expect(body.feedback.isAuthenticated).toBe(true);
+  });
+
+  it('rejects guest feedback without valid email', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/feedback',
+      payload: { email: 'ungueltig', message: 'Test' },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('rejects empty feedback message', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/feedback',
+      payload: { email: 'guest@test.de', message: '   ' },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('stores guest feedback without user id', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/feedback',
+      payload: { email: 'guest@test.de', message: 'Bitte Dark Mode verbessern.' },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.feedback.userId).toBeNull();
+    expect(body.feedback.isAuthenticated).toBe(false);
+    expect(body.feedback.email).toBe('guest@test.de');
+  });
+});
+
+describe('Admin feedback routes', () => {
+  it('lists feedback newest first and updates status', async () => {
+    const older = await prisma.appFeedback.create({
+      data: {
+        email: 'older@test.de',
+        message: 'Älteres Feedback',
+      },
+    });
+    const newer = await prisma.appFeedback.create({
+      data: {
+        email: 'newer@test.de',
+        message: 'Neueres Feedback',
+      },
+    });
+
+    const listRes = await app.inject({
+      method: 'GET',
+      url: '/admin/feedback',
+      headers: AUTH,
+    });
+
+    expect(listRes.statusCode).toBe(200);
+    const listBody = listRes.json();
+    expect(listBody).toHaveLength(2);
+    expect(listBody[0].id).toBe(newer.id);
+    expect(listBody[1].id).toBe(older.id);
+
+    const updateRes = await app.inject({
+      method: 'POST',
+      url: `/admin/feedback/${newer.id}/status`,
+      headers: AUTH,
+      payload: { status: 'RESOLVED' },
+    });
+
+    expect(updateRes.statusCode).toBe(200);
+    expect(updateRes.json().feedback.status).toBe('RESOLVED');
+
+    const stored = await prisma.appFeedback.findUnique({ where: { id: newer.id } });
+    expect(stored?.status).toBe('RESOLVED');
   });
 });
 

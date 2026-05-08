@@ -29,6 +29,19 @@ export type BookingRequestStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'CANCE
 
 export type SlotStatus = 'AVAILABLE' | 'BOOKED' | 'CANCELLED';
 
+export type AppFeedbackStatus = 'NEW' | 'RESOLVED';
+
+export interface AppFeedback {
+  id: string;
+  email: string;
+  message: string;
+  status: AppFeedbackStatus;
+  isAuthenticated: boolean;
+  createdAt: string;
+  updatedAt: string;
+  userId?: string | null;
+}
+
 export interface TherapistSlot {
   id: string;
   therapistId: string;
@@ -67,6 +80,7 @@ export interface Therapist {
   email: string;
   fullName: string;
   professionalTitle: string;
+  gender?: string | null;
   isFreelancer: boolean;
   specializations: string[];
   languages: string[];

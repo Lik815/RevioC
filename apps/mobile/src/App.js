@@ -88,6 +88,10 @@ function showWebConfirm(message) {
   return webWindow?.confirm?.(message) ?? false;
 }
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
+}
+
 const ICON_HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 const REVIEW_NOTIFICATION_TYPES = new Set([
@@ -387,6 +391,68 @@ export default function App() {
     } catch {}
   };
 
+  const getAuthenticatedFeedbackEmail = () => loggedInPatient?.email ?? loggedInTherapist?.email ?? '';
+
+  const closeFeedbackModal = () => {
+    setShowFeedbackModal(false);
+    setFeedbackError('');
+    setFeedbackLoading(false);
+  };
+
+  const openFeedbackModal = () => {
+    const authenticatedFeedbackEmail = getAuthenticatedFeedbackEmail();
+    setFeedbackError('');
+    setFeedbackMessage('');
+    setFeedbackEmail(authenticatedFeedbackEmail || '');
+    setShowFeedbackModal(true);
+  };
+
+  const submitFeedback = async () => {
+    const authenticatedFeedbackEmail = getAuthenticatedFeedbackEmail();
+    const message = feedbackMessage.trim();
+    const email = feedbackEmail.trim();
+
+    if (!message) {
+      setFeedbackError(t('feedbackMessageRequired'));
+      return;
+    }
+    if (!authenticatedFeedbackEmail && !isValidEmail(email)) {
+      setFeedbackError(t('feedbackEmailRequired'));
+      return;
+    }
+
+    setFeedbackLoading(true);
+    setFeedbackError('');
+    try {
+      const res = await fetch(`${getBaseUrl()}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...TUNNEL_HEADERS,
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({
+          ...(authenticatedFeedbackEmail ? {} : { email }),
+          message,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFeedbackError(data.error ?? t('feedbackSubmitError'));
+        return;
+      }
+
+      setFeedbackMessage('');
+      if (!authenticatedFeedbackEmail) setFeedbackEmail('');
+      setShowFeedbackModal(false);
+      Alert.alert(t('feedbackSuccessTitle'), t('feedbackSuccessBody'));
+    } catch {
+      setFeedbackError(t('feedbackSubmitError'));
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
   const loadMySlots = async (token) => {
     if (!token) return;
     setSlotsLoading(true);
@@ -632,6 +698,7 @@ export default function App() {
   const [incomingBookings, setIncomingBookings] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [availableSlotsTherapistId, setAvailableSlotsTherapistId] = useState(null);
+  const authenticatedFeedbackEmail = loggedInPatient?.email ?? loggedInTherapist?.email ?? '';
   const [mySlots, setMySlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [showBookingForm, setShowBookingForm] = useState(false);
@@ -1437,6 +1504,11 @@ export default function App() {
   const registerScrollRef = React.useRef(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackEmail, setFeedbackEmail] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackError, setFeedbackError] = useState('');
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
   const notificationPollRef = React.useRef(null);
   const [showReviewNotificationModal, setShowReviewNotificationModal] = useState(false);
   const [reviewNotification, setReviewNotification] = useState(null);
@@ -1852,6 +1924,13 @@ export default function App() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!showFeedbackModal) return;
+    if (authenticatedFeedbackEmail) {
+      setFeedbackEmail(authenticatedFeedbackEmail);
+    }
+  }, [authenticatedFeedbackEmail, showFeedbackModal]);
 
 
 
@@ -2699,12 +2778,12 @@ export default function App() {
               </View>
               <Text style={[styles.optionValue, { color: c.muted }]}>{t('comingSoon')} ›</Text>
             </Pressable>
-            <Pressable style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
+            <Pressable onPress={openFeedbackModal} style={[styles.optionRow, { backgroundColor: c.card, borderColor: 'transparent', borderTopWidth: 1, borderTopColor: c.border }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Ionicons name="chatbubble-outline" size={18} color={c.muted} />
                 <Text style={[styles.optionLabel, { color: c.text }]}>{t('appFeedback')}</Text>
               </View>
-              <Text style={[styles.optionValue, { color: c.muted }]}>{t('comingSoon')} ›</Text>
+              <Text style={[styles.optionValue, { color: c.primary }]}>›</Text>
             </Pressable>
           </OptionGroup>
 
@@ -3963,6 +4042,88 @@ export default function App() {
               }}
             />
           )}
+        </View>
+      </Modal>
+
+      <Modal visible={showFeedbackModal} transparent animationType="slide" onRequestClose={closeFeedbackModal}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={closeFeedbackModal} />
+        <View style={{ backgroundColor: c.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 }}>
+          <View style={{ width: 36, height: 4, backgroundColor: c.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: c.text }}>{t('appFeedbackTitle')}</Text>
+            <Pressable onPress={closeFeedbackModal} hitSlop={ICON_HIT_SLOP}>
+              <Ionicons name="close" size={22} color={c.muted} />
+            </Pressable>
+          </View>
+          <Text style={{ color: c.muted, lineHeight: 20, marginBottom: 16 }}>{t('appFeedbackBody')}</Text>
+
+          <Text style={{ ...TYPE.label, color: c.text, marginBottom: 8 }}>{t('feedbackEmailLabel')}</Text>
+          <TextInput
+            value={authenticatedFeedbackEmail || feedbackEmail}
+            onChangeText={setFeedbackEmail}
+            editable={!authenticatedFeedbackEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder={t('feedbackEmailPlaceholder')}
+            placeholderTextColor={c.muted}
+            style={[
+              styles.regInput,
+              {
+                marginTop: 0,
+                backgroundColor: c.card,
+                borderColor: c.border,
+                color: authenticatedFeedbackEmail ? c.muted : c.text,
+                opacity: authenticatedFeedbackEmail ? 0.8 : 1,
+              },
+            ]}
+          />
+          {authenticatedFeedbackEmail ? (
+            <Text style={{ color: c.muted, fontSize: 12, marginTop: 6 }}>{t('feedbackEmailHintLoggedIn')}</Text>
+          ) : null}
+
+          <Text style={{ ...TYPE.label, color: c.text, marginTop: 18, marginBottom: 8 }}>{t('feedbackMessageLabel')}</Text>
+          <TextInput
+            value={feedbackMessage}
+            onChangeText={setFeedbackMessage}
+            multiline
+            textAlignVertical="top"
+            placeholder={t('feedbackMessagePlaceholder')}
+            placeholderTextColor={c.muted}
+            style={[
+              styles.regInput,
+              {
+                marginTop: 0,
+                minHeight: 120,
+                backgroundColor: c.card,
+                borderColor: c.border,
+                color: c.text,
+                paddingTop: 14,
+              },
+            ]}
+          />
+
+          {!!feedbackError && (
+            <Text style={{ color: c.error, fontSize: 13, marginTop: 12 }}>{feedbackError}</Text>
+          )}
+
+          <Pressable
+            onPress={submitFeedback}
+            disabled={feedbackLoading}
+            style={[
+              styles.registerBtn,
+              {
+                backgroundColor: feedbackLoading ? c.border : c.primary,
+                marginTop: 18,
+                opacity: feedbackLoading ? 0.8 : 1,
+              },
+            ]}
+          >
+            {feedbackLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.registerBtnText}>{t('feedbackSend')}</Text>
+            )}
+          </Pressable>
         </View>
       </Modal>
 
