@@ -2911,131 +2911,42 @@ export default function App() {
   };
 
 
-  const renderFavorites = () => (
+  const renderTherapyTabShell = (title, body) => (
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, backgroundColor: c.background }}>
         <View style={[styles.header, { marginBottom: 0 }]}>
           <Image source={require('../assets/icon.png')} style={styles.logoMark} />
-          <Text style={[styles.headerTitle, { color: c.text }]}>{t('favoritesTitle')}</Text>
+          <Text style={[styles.headerTitle, { color: c.text }]}>{title}</Text>
         </View>
       </View>
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20, paddingTop: SPACE.sm }]} showsVerticalScrollIndicator={false}>
-        {!authToken ? (
-          <View style={[styles.emptyState, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={styles.emptyIcon}>♡</Text>
-            <Text style={[styles.emptyTitle, { color: c.text }]}>{t('favoritesLoginRequired') ?? 'Einloggen für Favoriten'}</Text>
-            <Text style={[styles.emptyBody, { color: c.muted }]}>{t('favoritesLoginRequiredBody') ?? 'Melde dich an, um Therapeuten als Favoriten zu speichern.'}</Text>
-            <Pressable
-              onPress={() => { setActiveTab('therapist'); setShowLogin(true); }}
-              style={[styles.registerBtn, { backgroundColor: c.primary, marginTop: 16, paddingHorizontal: 32 }]}
-            >
-              <Text style={styles.registerBtnText}>{t('loginAction')}</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <>
-            {accountType === 'patient' && myAppointments.length > 0 && (
-              <>
-                <Text style={[styles.sectionLabel, { color: c.text }]}>{t('myAppointments') ?? 'Meine Termine'}</Text>
-                {myAppointments.map(apt => (
-                  <PatientAppointmentCard
-                    key={apt.id}
-                    c={c}
-                    t={t}
-                    appointment={apt}
-                    onCancel={async () => {
-                      try {
-                        const res = await fetch(`${getBaseUrl()}/bookings/${apt.id}/cancel`, {
-                          method: 'PATCH',
-                          headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
-                        });
-                        if (res.ok) loadMyAppointments(authToken);
-                      } catch {}
-                    }}
-                    onViewTherapist={() => {
-                      if (apt.therapist) setSelectedTherapist(apt.therapist);
-                    }}
-                  />
-                ))}
-              </>
-            )}
-
-
-            {(accountType === 'therapist' || accountType === 'manager') && incomingBookings.length > 0 && (
-              <>
-                <Text style={[styles.sectionLabel, { color: c.text }]}>Eingehende Anfragen</Text>
-                {incomingBookings.map(req => (
-                  <TherapistBookingCard
-                    key={req.id}
-                    c={c}
-                    t={t}
-                    request={req}
-                    onRespond={async (id, body) => {
-                      const res = await fetch(`${getBaseUrl()}/bookings/${id}/respond`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
-                        body: JSON.stringify(body),
-                      });
-                      if (!res.ok) throw new Error('failed');
-                      loadIncomingBookings(authToken);
-                    }}
-                  />
-                ))}
-              </>
-            )}
-
-
-            {favorites.length === 0 && myAppointments.length === 0 && incomingBookings.length === 0 && (
-              <View style={[styles.emptyState, { backgroundColor: c.card, borderColor: c.border }]}>
-                <Text style={styles.emptyIcon}>♡</Text>
-                <Text style={[styles.emptyTitle, { color: c.text }]}>{t('favoritesEmpty')}</Text>
-                <Text style={[styles.emptyBody, { color: c.muted }]}>{t('favoritesEmptyBody')}</Text>
-              </View>
-            )}
-
-            {favorites.length > 0 && (
-              <>
-                <Text style={[styles.sectionLabel, { color: c.text }]}>{t('favoritesTherapists')}</Text>
-                {favorites.map((fav) => (
-                  <View key={fav.id} style={[styles.resultCard, { backgroundColor: c.card, borderColor: c.border }]}>
-                    <View style={styles.cardTop}>
-                      <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }} onPress={() => setSelectedTherapist(fav)}>
-                        <Image source={{ uri: fav.photo }} style={styles.avatar} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.cardName, { color: c.text }]}>{fav.fullName}</Text>
-                          <Text style={[styles.cardTitle, { color: c.muted }]}>{fav.professionalTitle}</Text>
-                        </View>
-                        <Text style={[styles.practiceArrow, { color: c.muted }]}>›</Text>
-                      </Pressable>
-                      <ThemedHeartButton isSaved={true} onToggle={() => toggleFavorite(fav)} hitSlop={ICON_HIT_SLOP} />
-                    </View>
-                    {(fav.city || fav.availability || fav.homeVisit) ? (
-                      <View style={[styles.practiceBtn, { borderColor: c.border, backgroundColor: c.mutedBg }]}>
-                        <View style={[styles.practiceInitial, { backgroundColor: fav.homeVisit ? c.successBg : c.border }]}>
-                          <Ionicons name={fav.homeVisit ? 'home-outline' : 'location-outline'} size={16} color={fav.homeVisit ? c.success : c.muted} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.practiceName, { color: c.text }]}>{fav.city || t('cityLabel')}</Text>
-                          {fav.availability ? <Text style={[styles.practiceCity, { color: c.muted }]} numberOfLines={1}>{fav.availability}</Text> : null}
-                        </View>
-                      </View>
-                    ) : null}
-                    <Pressable
-                      style={[styles.ctaBtn, { backgroundColor: c.accent }]}
-                      onPress={() => openTherapistById(fav.id)}
-                    >
-                      <Ionicons name="person-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
-                      <Text style={styles.ctaBtnText}>{t('viewProfileBtn')}</Text>
-                    </Pressable>
-                  </View>
-                ))}
-              </>
-            )}
-          </>
-        )}
+        {body}
       </ScrollView>
     </View>
   );
+
+  const renderTherapyPlaceholder = (label) => (
+    <View style={[styles.emptyState, { backgroundColor: c.card, borderColor: c.border }]}>
+      <Text style={styles.emptyIcon}>◌</Text>
+      <Text style={[styles.emptyTitle, { color: c.text }]}>{label}</Text>
+    </View>
+  );
+
+  const renderTherapyTabGuest = () => renderTherapyTabShell(t('favoritesTitle'), renderTherapyPlaceholder('Guest placeholder'));
+
+  const renderTherapyTabPatient = () => renderTherapyTabShell(t('favoritesTitle'), renderTherapyPlaceholder('Patient placeholder'));
+
+  const renderTherapyTabTherapist = () => renderTherapyTabShell(t('favoritesTitle'), renderTherapyPlaceholder('Therapist placeholder'));
+
+  const renderTherapyTabManager = () => renderTherapyTabShell(t('favoritesTitle'), renderTherapyPlaceholder('Manager placeholder'));
+
+  const renderFavorites = () => {
+    if (!authToken) return renderTherapyTabGuest();
+    if (accountType === 'patient') return renderTherapyTabPatient();
+    if (accountType === 'therapist') return renderTherapyTabTherapist();
+    if (accountType === 'manager') return renderTherapyTabManager();
+    return renderTherapyTabGuest();
+  };
 
   // ── Register flow ──────────────────────────────────────────────────────────
 
