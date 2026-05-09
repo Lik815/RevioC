@@ -1154,6 +1154,11 @@ export default function App() {
           setShowLogin(false);
           setLoginEmail('');
           setLoginPassword('');
+          // Nach Login direkt zum Booking wenn ein Therapeut vorgemerkt war
+          if (bookingTargetTherapist) {
+            loadAvailableSlots(bookingTargetTherapist.id);
+            setShowBookingForm(true);
+          }
           return;
         }
         // Therapist account
@@ -2168,7 +2173,14 @@ export default function App() {
         accountType={accountType}
         availableSlots={availableSlotsTherapistId === th?.id ? availableSlots : []}
         onBookingRequest={(therapist) => {
-          if (!authToken) { setShowLogin(true); return; }
+          if (!authToken) {
+            // Gewünschten Therapeuten merken — nach Login direkt buchen
+            setBookingTargetTherapist(therapist);
+            setSelectedTherapist(null);
+            setActiveTab('therapist');
+            setShowLogin(true);
+            return;
+          }
           if (therapist) {
             setBookingTargetTherapist(therapist);
             loadAvailableSlots(therapist.id);
