@@ -14,6 +14,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -361,9 +362,20 @@ export default function App() {
 
   // Favorites — stored locally on device only
   const [favorites, setFavorites] = useState([]);
+  const THERAPY_STALE_MS = 60 * 1000;
 
-  const loadFavorites = async (token) => {
-    setFavoritesLoading(true);
+  const [therapyRefreshing, setTherapyRefreshing] = useState(false);
+  const [favoritesLastLoadedAt, setFavoritesLastLoadedAt] = useState(0);
+  const [appointmentsLastLoadedAt, setAppointmentsLastLoadedAt] = useState(0);
+  const [incomingBookingsLastLoadedAt, setIncomingBookingsLastLoadedAt] = useState(0);
+  const [slotsLastLoadedAt, setSlotsLastLoadedAt] = useState(0);
+
+  const shouldShowSectionLoading = (isLoading, lastLoadedAt) => isLoading && lastLoadedAt === 0;
+  const isTherapyDataStale = (lastLoadedAt) => !lastLoadedAt || Date.now() - lastLoadedAt > THERAPY_STALE_MS;
+
+  const loadFavorites = async (token, options = {}) => {
+    const { background = false } = options;
+    if (!background || favoritesLastLoadedAt === 0) setFavoritesLoading(true);
     try {
       const res = await fetch(`${getBaseUrl()}/auth/favorites/therapists`, {
         headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${token}` },
@@ -371,14 +383,16 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setFavorites(Array.isArray(data.therapists) ? data.therapists : []);
+        setFavoritesLastLoadedAt(Date.now());
       }
     } catch {} finally {
       setFavoritesLoading(false);
     }
   };
 
-  const loadMyAppointments = async (token) => {
-    setMyAppointmentsLoading(true);
+  const loadMyAppointments = async (token, options = {}) => {
+    const { background = false } = options;
+    if (!background || appointmentsLastLoadedAt === 0) setMyAppointmentsLoading(true);
     try {
       const res = await fetch(`${getBaseUrl()}/bookings/my`, {
         headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${token}` },
@@ -386,14 +400,16 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setMyAppointments(Array.isArray(data) ? data : []);
+        setAppointmentsLastLoadedAt(Date.now());
       }
     } catch {} finally {
       setMyAppointmentsLoading(false);
     }
   };
 
-  const loadIncomingBookings = async (token) => {
-    setIncomingBookingsLoading(true);
+  const loadIncomingBookings = async (token, options = {}) => {
+    const { background = false } = options;
+    if (!background || incomingBookingsLastLoadedAt === 0) setIncomingBookingsLoading(true);
     try {
       const res = await fetch(`${getBaseUrl()}/bookings/incoming`, {
         headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${token}` },
@@ -401,6 +417,7 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setIncomingBookings(Array.isArray(data) ? data : []);
+        setIncomingBookingsLastLoadedAt(Date.now());
       }
     } catch {} finally {
       setIncomingBookingsLoading(false);
@@ -477,9 +494,10 @@ export default function App() {
     }
   };
 
-  const loadMySlots = async (token) => {
+  const loadMySlots = async (token, options = {}) => {
+    const { background = false } = options;
     if (!token) return;
-    setSlotsLoading(true);
+    if (!background || slotsLastLoadedAt === 0) setSlotsLoading(true);
     try {
       const res = await fetch(`${getBaseUrl()}/therapist/slots`, {
         headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${token}` },
@@ -487,6 +505,7 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setMySlots(Array.isArray(data.slots) ? data.slots : []);
+        setSlotsLastLoadedAt(Date.now());
       }
     } catch {} finally {
       setSlotsLoading(false);
@@ -514,6 +533,52 @@ export default function App() {
       });
       if (res.ok) loadMySlots(authToken);
     } catch {}
+  };
+
+  const resetTherapyData = () => {
+    setFavorites([]);
+    setMyAppointments([]);
+    setIncomingBookings([]);
+    setMySlots([]);
+    setFavoritesLastLoadedAt(0);
+    setAppointmentsLastLoadedAt(0);
+    setIncomingBookingsLastLoadedAt(0);
+    setSlotsLastLoadedAt(0);
+    setFavoritesLoading(false);
+    setMyAppointmentsLoading(false);
+    setIncomingBookingsLoading(false);
+    setSlotsLoading(false);
+    setTherapyRefreshing(false);
+  };
+
+  const refreshTherapyTab = async ({ force = false } = {}) => {
+    if (!authToken) return;
+    const shouldRefreshFavorites = force || isTherapyDataStale(favoritesLastLoadedAt);
+    const shouldRefreshAppointments = force || isTherapyDataStale(appointmentsLastLoadedAt);
+    const shouldRefreshIncoming = force || isTherapyDataStale(incomingBookingsLastLoadedAt);
+    const shouldRefreshSlots = force || isTherapyDataStale(slotsLastLoadedAt);
+
+    const jobs = [];
+    if (shouldRefreshFavorites) jobs.push(loadFavorites(authToken, { background: true }));
+    if (accountType === 'patient') {
+      if (shouldRefreshAppointments) jobs.push(loadMyAppointments(authToken, { background: true }));
+    } else if (loggedInTherapist) {
+      if (shouldRefreshSlots) jobs.push(loadMySlots(authToken, { background: true }));
+      if (shouldRefreshIncoming) jobs.push(loadIncomingBookings(authToken, { background: true }));
+    }
+
+    if (jobs.length === 0) return;
+    await Promise.allSettled(jobs);
+  };
+
+  const handleTherapyRefresh = async () => {
+    if (!authToken) return;
+    setTherapyRefreshing(true);
+    try {
+      await refreshTherapyTab({ force: true });
+    } finally {
+      setTherapyRefreshing(false);
+    }
   };
 
   const loadAvailableSlots = async (therapistId) => {
@@ -1248,9 +1313,7 @@ export default function App() {
     setLoggedInTherapist(null);
     setLoggedInPatient(null);
     setAccountType(null);
-    setFavorites([]);
-    setMyAppointments([]);
-    setIncomingBookings([]);
+    resetTherapyData();
     setShowBookingForm(false);
     setBookingTargetTherapist(null);
   };
@@ -1268,6 +1331,7 @@ export default function App() {
     setLoggedInTherapist(null);
     setLoggedInPatient(null);
     setAccountType(null);
+    resetTherapyData();
   };
 
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
@@ -1960,21 +2024,13 @@ export default function App() {
 
   useEffect(() => {
     if (activeTab === 'therapist' && authToken && loggedInTherapist) {
-      loadMySlots(authToken);
+      loadMySlots(authToken, { background: slotsLastLoadedAt > 0 });
     }
-  }, [activeTab, authToken]);
+  }, [activeTab, authToken, loggedInTherapist?.id]);
 
   useEffect(() => {
     if (activeTab !== 'favorites' || !authToken) return;
-    loadFavorites(authToken);
-    if (accountType === 'patient') {
-      loadMyAppointments(authToken);
-      return;
-    }
-    if (loggedInTherapist) {
-      loadMySlots(authToken);
-      loadIncomingBookings(authToken);
-    }
+    refreshTherapyTab();
   }, [activeTab, authToken, accountType, loggedInTherapist?.id, loggedInPatient?.id]);
 
   useEffect(() => {
@@ -2309,6 +2365,7 @@ export default function App() {
         styles={styles}
         t={t}
         onOpenTherapyTab={() => setActiveTab('favorites')}
+        onAddSlot={handleAddSlot}
         editBookingMode={editBookingMode}
         setEditBookingMode={setEditBookingMode}
       />
@@ -2920,7 +2977,11 @@ export default function App() {
           <Text style={[styles.headerTitle, { color: c.text }]}>{title}</Text>
         </View>
       </View>
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20, paddingTop: SPACE.sm }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 20, paddingTop: SPACE.sm }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={authToken ? <RefreshControl refreshing={therapyRefreshing} onRefresh={handleTherapyRefresh} tintColor={c.primary} /> : undefined}
+      >
         {body}
       </ScrollView>
     </View>
@@ -3003,7 +3064,7 @@ export default function App() {
     therapyTabTitle,
     <>
       <Text style={[styles.sectionLabel, { color: c.text }]}>{t('myAppointments') ?? 'Meine Termine'}</Text>
-      {myAppointmentsLoading
+      {shouldShowSectionLoading(myAppointmentsLoading, appointmentsLastLoadedAt)
         ? renderTherapySectionLoading()
         : myAppointments.length > 0
           ? myAppointments.map((apt) => (
@@ -3029,7 +3090,7 @@ export default function App() {
           : renderTherapySectionEmpty('Du hast noch keine Termine.', t('noAppointmentsBody'))}
 
       <Text style={[styles.sectionLabel, { color: c.text }]}>{t('favoritesTherapists') ?? 'Therapeut:innen'}</Text>
-      {favoritesLoading
+      {shouldShowSectionLoading(favoritesLoading, favoritesLastLoadedAt)
         ? renderTherapySectionLoading()
         : favorites.length > 0
           ? renderFavoriteTherapists()
@@ -3058,7 +3119,7 @@ export default function App() {
               c={c}
               mySlots={mySlots}
               onCancelSlot={handleCancelSlot}
-              slotsLoading={slotsLoading}
+              slotsLoading={shouldShowSectionLoading(slotsLoading, slotsLastLoadedAt)}
               groupByStatus
               emptyText="Du hast noch keine Slots angelegt."
             />
@@ -3066,7 +3127,7 @@ export default function App() {
         </View>
 
         <Text style={[styles.sectionLabel, { color: c.text }]}>Eingehende Anfragen</Text>
-        {incomingBookingsLoading
+        {shouldShowSectionLoading(incomingBookingsLoading, incomingBookingsLastLoadedAt)
           ? renderTherapySectionLoading()
           : pendingIncomingBookings.length > 0
             ? pendingIncomingBookings.map((request) => (
@@ -3090,7 +3151,7 @@ export default function App() {
             : renderTherapySectionEmpty('Keine offenen Anfragen.', null)}
 
         <Text style={[styles.sectionLabel, { color: c.text }]}>{t('favoritesTherapists') ?? 'Therapeut:innen'}</Text>
-        {favoritesLoading
+        {shouldShowSectionLoading(favoritesLoading, favoritesLastLoadedAt)
           ? renderTherapySectionLoading()
           : favorites.length > 0
             ? renderFavoriteTherapists()

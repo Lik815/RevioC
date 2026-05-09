@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Image,
+  Modal,
   ScrollView,
   Pressable,
   Switch,
@@ -9,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { TherapistSlotComposer } from './mobile-slot-composer';
 
 import {
   getLangLabel,
@@ -84,9 +86,11 @@ export function TherapistDashboardScreen(props) {
     editBookingMode,
     setEditBookingMode,
     onOpenTherapyTab,
+    onAddSlot,
   } = props;
 
   const [photoError, setPhotoError] = useState(false);
+  const [showSlotModal, setShowSlotModal] = useState(false);
 
   const th = loggedInTherapist;
   if (!th) return null;
@@ -287,20 +291,62 @@ export function TherapistDashboardScreen(props) {
         </View>
       ) : (
         <>
-          <Pressable
-            onPress={onOpenTherapyTab}
-            style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border, gap: 10 }]}
-          >
-            <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Therapie</Text>
-            <Text style={{ ...TYPE.heading, color: c.text }}>Deine Termine und Slots findest du im Therapie-Tab.</Text>
-            <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>
-              Dort kannst du neue Termine anlegen, gebuchte Slots sehen und offene Anfragen bearbeiten.
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          {/* Therapie-Sektion */}
+          <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border, gap: 12 }]}>
+            <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Termine</Text>
+
+            {/* Neuen Termin anlegen */}
+            {th.bookingMode === 'FIRST_APPOINTMENT_REQUEST' && onAddSlot ? (
+              <Pressable
+                onPress={() => setShowSlotModal(true)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.primaryBg, borderRadius: RADIUS.sm, borderWidth: 1.5, borderColor: c.primary, paddingHorizontal: 14, paddingVertical: 12 }}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={c.primary} />
+                <Text style={{ fontSize: 15, fontWeight: '600', color: c.primary }}>Neuen Termin anlegen</Text>
+              </Pressable>
+            ) : null}
+
+            {/* Zum Therapie-Tab */}
+            <Pressable
+              onPress={onOpenTherapyTab}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            >
               <Ionicons name="arrow-forward-circle-outline" size={18} color={c.primary} />
-              <Text style={{ color: c.primary, fontSize: 14, fontWeight: '600' }}>Zum Therapie-Tab</Text>
-            </View>
-          </Pressable>
+              <Text style={{ color: c.primary, fontSize: 14, fontWeight: '600' }}>Alle Slots und Anfragen sehen</Text>
+            </Pressable>
+          </View>
+
+          {/* Modal: Neuen Termin anlegen */}
+          <Modal
+            visible={showSlotModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowSlotModal(false)}
+          >
+            <Pressable
+              style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
+              onPress={() => setShowSlotModal(false)}
+            >
+              <Pressable onPress={() => {}} style={{ backgroundColor: c.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32 }}>
+                {/* Header */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: c.text, flex: 1 }}>Neuen Termin anlegen</Text>
+                  <Pressable onPress={() => setShowSlotModal(false)} style={{ padding: 4 }}>
+                    <Ionicons name="close" size={22} color={c.muted} />
+                  </Pressable>
+                </View>
+                <View style={{ paddingHorizontal: 20 }}>
+                  <TherapistSlotComposer
+                    c={c}
+                    onAddSlot={(slot) => {
+                      onAddSlot(slot);
+                      setShowSlotModal(false);
+                    }}
+                  />
+                </View>
+              </Pressable>
+            </Pressable>
+          </Modal>
 
           {th.bio ? (
             <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
