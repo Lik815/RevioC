@@ -65,6 +65,10 @@ import {
   TherapistDashboardScreen,
 } from './mobile-therapist-dashboard';
 import {
+  TherapistSlotComposer,
+  TherapistSlotList,
+} from './mobile-slot-composer';
+import {
   ComplianceStatusStep,
   getComplianceStatusLabel,
 } from './mobile-compliance-step';
@@ -1961,6 +1965,19 @@ export default function App() {
   }, [activeTab, authToken]);
 
   useEffect(() => {
+    if (activeTab !== 'favorites' || !authToken) return;
+    loadFavorites(authToken);
+    if (accountType === 'patient') {
+      loadMyAppointments(authToken);
+      return;
+    }
+    if (loggedInTherapist) {
+      loadMySlots(authToken);
+      loadIncomingBookings(authToken);
+    }
+  }, [activeTab, authToken, accountType, loggedInTherapist?.id, loggedInPatient?.id]);
+
+  useEffect(() => {
     if (!showFeedbackModal) return;
     if (authenticatedFeedbackEmail) {
       setFeedbackEmail(authenticatedFeedbackEmail);
@@ -3036,7 +3053,67 @@ export default function App() {
     </>
   );
 
-  const renderTherapyTabTherapist = () => renderTherapyTabShell(therapyTabTitle, renderTherapyPlaceholder('Therapist placeholder'));
+  const renderTherapyTabTherapist = () => {
+    const slotBookingEnabled = loggedInTherapist?.bookingMode === 'FIRST_APPOINTMENT_REQUEST';
+    const pendingIncomingBookings = incomingBookings.filter((request) => request.status === 'PENDING');
+
+    return renderTherapyTabShell(
+      therapyTabTitle,
+      <>
+        <Text style={[styles.sectionLabel, { color: c.text }]}>Neuen Termin anlegen</Text>
+        <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
+          {slotBookingEnabled
+            ? <TherapistSlotComposer c={c} onAddSlot={handleAddSlot} />
+            : renderTherapySectionEmpty('Terminanfragen sind noch nicht aktiviert.', 'Aktiviere Terminanfragen in deinem Profil, um Slots anzulegen.')}
+        </View>
+
+        <Text style={[styles.sectionLabel, { color: c.text }]}>Nächste eigene Slots</Text>
+        <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
+          {slotBookingEnabled ? (
+            <TherapistSlotList
+              c={c}
+              mySlots={mySlots}
+              onCancelSlot={handleCancelSlot}
+              slotsLoading={slotsLoading}
+              groupByStatus
+              emptyText="Du hast noch keine Slots angelegt."
+            />
+          ) : renderTherapySectionEmpty('Noch keine Slot-Ansicht verfügbar.', 'Sobald Terminanfragen aktiviert sind, erscheinen deine freien und gebuchten Slots hier.')}
+        </View>
+
+        <Text style={[styles.sectionLabel, { color: c.text }]}>Eingehende Anfragen</Text>
+        {incomingBookingsLoading
+          ? renderTherapySectionLoading()
+          : pendingIncomingBookings.length > 0
+            ? pendingIncomingBookings.map((request) => (
+              <TherapistBookingCard
+                key={request.id}
+                c={c}
+                t={t}
+                request={request}
+                onRespond={async (id, body) => {
+                  const res = await fetch(`${getBaseUrl()}/bookings/${id}/respond`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
+                    body: JSON.stringify(body),
+                  });
+                  if (!res.ok) throw new Error('failed');
+                  loadIncomingBookings(authToken);
+                  loadMySlots(authToken);
+                }}
+              />
+            ))
+            : renderTherapySectionEmpty('Keine offenen Anfragen.', null)}
+
+        <Text style={[styles.sectionLabel, { color: c.text }]}>{t('favoritesTherapists') ?? 'Therapeut:innen'}</Text>
+        {favoritesLoading
+          ? renderTherapySectionLoading()
+          : favorites.length > 0
+            ? renderFavoriteTherapists()
+            : renderTherapySectionEmpty('Du hast noch keine Therapeut:innen gespeichert.', t('favoritesEmptyBody'))}
+      </>
+    );
+  };
 
   const renderTherapyTabManager = () => renderTherapyTabShell(therapyTabTitle, renderTherapyPlaceholder('Manager placeholder'));
 

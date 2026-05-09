@@ -260,7 +260,17 @@ export function TherapistSlotComposer({ c, onAddSlot }) {
   );
 }
 
-export function TherapistSlotList({ c, mySlots, onCancelSlot, slotsLoading }) {
+function renderSlotSection({ c, onCancelSlot, slots, title }) {
+  if (slots.length === 0) return null;
+  return (
+    <View style={{ marginTop: 6 }}>
+      <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.4, color: c.muted, marginBottom: 6 }}>{title}</Text>
+      {slots.map((slot) => renderSlotRow({ c, slot, onCancelSlot }))}
+    </View>
+  );
+}
+
+export function TherapistSlotList({ c, mySlots, onCancelSlot, slotsLoading, groupByStatus = false, emptyText = 'Noch keine Termine angelegt.' }) {
   if (slotsLoading) {
     return <Text style={{ fontSize: 13, color: c.muted, textAlign: 'center', paddingVertical: 8 }}>Lädt…</Text>;
   }
@@ -269,8 +279,20 @@ export function TherapistSlotList({ c, mySlots, onCancelSlot, slotsLoading }) {
   if (visibleSlots.length === 0) {
     return (
       <Text style={{ fontSize: 13, color: c.muted, textAlign: 'center', paddingVertical: 8 }}>
-        Noch keine Termine angelegt.
+        {emptyText}
       </Text>
+    );
+  }
+
+  if (groupByStatus) {
+    const sortedSlots = [...visibleSlots].sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+    const availableSlots = sortedSlots.filter((slot) => slot.status === 'AVAILABLE');
+    const bookedSlots = sortedSlots.filter((slot) => slot.status === 'BOOKED');
+    return (
+      <>
+        {renderSlotSection({ c, onCancelSlot, slots: availableSlots, title: 'Freie Slots' })}
+        {renderSlotSection({ c, onCancelSlot, slots: bookedSlots, title: 'Gebuchte Termine' })}
+      </>
     );
   }
 
