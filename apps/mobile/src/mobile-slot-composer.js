@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -35,25 +36,54 @@ function buildCalendar(year, month) {
   return cells;
 }
 
-function renderSlotRow({ c, slot, onCancelSlot }) {
+function renderSlotRow({ c, deletingSlotIds, slot, onCancelSlot }) {
   const d = new Date(slot.startsAt);
   const label = `${d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })} · ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
   const isBooked = slot.status === 'BOOKED';
+  const isDeleting = deletingSlotIds.includes(slot.id);
 
   return (
-    <View key={slot.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border }}>
-      <Text style={{ fontSize: 13, color: isBooked ? c.primary : c.text, flex: 1 }}>
-        {label} ({slot.durationMin} Min)
-      </Text>
-      {isBooked ? (
-        <View style={{ backgroundColor: c.primaryBg, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-          <Text style={{ fontSize: 11, color: c.primary, fontWeight: '600' }}>Gebucht</Text>
+    <View key={slot.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={{ fontSize: 13, color: isBooked ? c.primary : c.text, flex: 1, fontWeight: isBooked ? '600' : '400' }}>
+          {label} ({slot.durationMin} Min)
+        </Text>
+        {isBooked ? (
+          <View style={{ backgroundColor: c.primaryBg, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+            <Text style={{ fontSize: 11, color: c.primary, fontWeight: '600' }}>Gebucht</Text>
+          </View>
+        ) : (
+          <View style={{ minWidth: 56, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }}>
+            {isDeleting ? (
+              <ActivityIndicator size="small" color={c.error} />
+            ) : (
+              <Pressable onPress={() => onCancelSlot(slot.id)}>
+                <Text style={{ fontSize: 12, color: c.error }}>Löschen</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+      </View>
+      {isBooked && slot.patientName ? (
+        <View style={{ marginTop: 5, gap: 3 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Ionicons name="person-outline" size={12} color={c.muted} />
+            <Text style={{ fontSize: 12, color: c.text, fontWeight: '500' }}>{slot.patientName}</Text>
+          </View>
+          {slot.patientEmail ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Ionicons name="mail-outline" size={12} color={c.muted} />
+              <Text style={{ fontSize: 12, color: c.muted }}>{slot.patientEmail}</Text>
+            </View>
+          ) : null}
+          {slot.patientPhone ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Ionicons name="call-outline" size={12} color={c.muted} />
+              <Text style={{ fontSize: 12, color: c.muted }}>{slot.patientPhone}</Text>
+            </View>
+          ) : null}
         </View>
-      ) : (
-        <Pressable onPress={() => onCancelSlot(slot.id)}>
-          <Text style={{ fontSize: 12, color: c.error, paddingHorizontal: 8 }}>Löschen</Text>
-        </Pressable>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -260,17 +290,17 @@ export function TherapistSlotComposer({ c, onAddSlot }) {
   );
 }
 
-function renderSlotSection({ c, onCancelSlot, slots, title }) {
+function renderSlotSection({ c, deletingSlotIds, onCancelSlot, slots, title }) {
   if (slots.length === 0) return null;
   return (
     <View style={{ marginTop: 6 }}>
       <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.4, color: c.muted, marginBottom: 6 }}>{title}</Text>
-      {slots.map((slot) => renderSlotRow({ c, slot, onCancelSlot }))}
+      {slots.map((slot) => renderSlotRow({ c, deletingSlotIds, slot, onCancelSlot }))}
     </View>
   );
 }
 
-export function TherapistSlotList({ c, mySlots, onCancelSlot, slotsLoading, groupByStatus = false, emptyText = 'Noch keine Termine angelegt.' }) {
+export function TherapistSlotList({ c, deletingSlotIds = [], mySlots, onCancelSlot, slotsLoading, groupByStatus = false, emptyText = 'Noch keine Termine angelegt.' }) {
   if (slotsLoading) {
     return <Text style={{ fontSize: 13, color: c.muted, textAlign: 'center', paddingVertical: 8 }}>Lädt…</Text>;
   }
@@ -290,21 +320,21 @@ export function TherapistSlotList({ c, mySlots, onCancelSlot, slotsLoading, grou
     const bookedSlots = sortedSlots.filter((slot) => slot.status === 'BOOKED');
     return (
       <>
-        {renderSlotSection({ c, onCancelSlot, slots: availableSlots, title: 'Freie Slots' })}
-        {renderSlotSection({ c, onCancelSlot, slots: bookedSlots, title: 'Gebuchte Termine' })}
+        {renderSlotSection({ c, deletingSlotIds, onCancelSlot, slots: availableSlots, title: 'Freie Slots' })}
+        {renderSlotSection({ c, deletingSlotIds, onCancelSlot, slots: bookedSlots, title: 'Gebuchte Termine' })}
       </>
     );
   }
 
-  return visibleSlots.map((slot) => renderSlotRow({ c, slot, onCancelSlot }));
+  return visibleSlots.map((slot) => renderSlotRow({ c, deletingSlotIds, slot, onCancelSlot }));
 }
 
-export function TherapistSlotManagerCard({ c, mySlots, onAddSlot, onCancelSlot, slotsLoading, styles }) {
+export function TherapistSlotManagerCard({ c, deletingSlotIds = [], mySlots, onAddSlot, onCancelSlot, slotsLoading, styles }) {
   return (
     <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
       <Text style={[styles.filterSectionTitle, { color: c.muted }]}>Verfügbare Termine</Text>
       <TherapistSlotComposer c={c} onAddSlot={onAddSlot} />
-      <TherapistSlotList c={c} mySlots={mySlots} onCancelSlot={onCancelSlot} slotsLoading={slotsLoading} />
+      <TherapistSlotList c={c} deletingSlotIds={deletingSlotIds} mySlots={mySlots} onCancelSlot={onCancelSlot} slotsLoading={slotsLoading} />
     </View>
   );
 }

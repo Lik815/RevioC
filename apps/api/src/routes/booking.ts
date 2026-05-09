@@ -64,7 +64,7 @@ export async function bookingRoutes(fastify: FastifyInstance) {
 
     const slots = await fastify.prisma.therapistSlot.findMany({
       where: { therapistId: therapist.id, startsAt: { gte: fromDate, lte: toDate } },
-      include: { booking: { select: { id: true, patientName: true, status: true } } },
+      include: { booking: { select: { id: true, patientName: true, patientEmail: true, patientPhone: true, status: true } } },
       orderBy: { startsAt: 'asc' },
     });
 
@@ -75,6 +75,8 @@ export async function bookingRoutes(fastify: FastifyInstance) {
       status: s.status,
       bookingId: s.booking?.id ?? null,
       patientName: s.booking?.patientName ?? null,
+      patientEmail: s.booking?.patientEmail ?? null,
+      patientPhone: s.booking?.patientPhone ?? null,
       bookingStatus: s.booking?.status ?? null,
       createdAt: s.createdAt.toISOString(),
     })) };
