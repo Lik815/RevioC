@@ -359,6 +359,7 @@ export default function App() {
   const [favorites, setFavorites] = useState([]);
 
   const loadFavorites = async (token) => {
+    setFavoritesLoading(true);
     try {
       const res = await fetch(`${getBaseUrl()}/auth/favorites/therapists`, {
         headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${token}` },
@@ -367,10 +368,13 @@ export default function App() {
         const data = await res.json();
         setFavorites(Array.isArray(data.therapists) ? data.therapists : []);
       }
-    } catch {}
+    } catch {} finally {
+      setFavoritesLoading(false);
+    }
   };
 
   const loadMyAppointments = async (token) => {
+    setMyAppointmentsLoading(true);
     try {
       const res = await fetch(`${getBaseUrl()}/bookings/my`, {
         headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${token}` },
@@ -379,10 +383,13 @@ export default function App() {
         const data = await res.json();
         setMyAppointments(Array.isArray(data) ? data : []);
       }
-    } catch {}
+    } catch {} finally {
+      setMyAppointmentsLoading(false);
+    }
   };
 
   const loadIncomingBookings = async (token) => {
+    setIncomingBookingsLoading(true);
     try {
       const res = await fetch(`${getBaseUrl()}/bookings/incoming`, {
         headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${token}` },
@@ -391,7 +398,9 @@ export default function App() {
         const data = await res.json();
         setIncomingBookings(Array.isArray(data) ? data : []);
       }
-    } catch {}
+    } catch {} finally {
+      setIncomingBookingsLoading(false);
+    }
   };
 
   const getAuthenticatedFeedbackEmail = () => loggedInPatient?.email ?? loggedInTherapist?.email ?? '';
@@ -706,12 +715,15 @@ export default function App() {
   const [loggedInPatient, setLoggedInPatient] = useState(null);
   const [accountType, setAccountType] = useState(null); // 'therapist' | 'patient' | null
   const [myAppointments, setMyAppointments] = useState([]);
+  const [myAppointmentsLoading, setMyAppointmentsLoading] = useState(false);
   const [incomingBookings, setIncomingBookings] = useState([]);
+  const [incomingBookingsLoading, setIncomingBookingsLoading] = useState(false);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [availableSlotsTherapistId, setAvailableSlotsTherapistId] = useState(null);
   const authenticatedFeedbackEmail = loggedInPatient?.email ?? loggedInTherapist?.email ?? '';
   const [mySlots, setMySlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [bookingTargetTherapist, setBookingTargetTherapist] = useState(null);
   const [showRoleSelect, setShowRoleSelect] = useState(false);
