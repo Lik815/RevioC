@@ -862,48 +862,4 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     return { created: true, email, role };
   });
 
-  // POST /admin/run-slot-migration — einmalig TherapistSlot-Tabelle auf PostgreSQL anlegen
-  fastify.post('/run-slot-migration', async (_request, reply) => {
-    try {
-      await fastify.prisma.$executeRawUnsafe(`
-        DO $$ BEGIN
-          CREATE TYPE "SlotStatus" AS ENUM ('AVAILABLE', 'BOOKED', 'CANCELLED');
-        EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-      `);
-      await fastify.prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "TherapistSlot" (
-          "id" TEXT NOT NULL,
-          "therapistId" TEXT NOT NULL,
-          "startsAt" TIMESTAMP(3) NOT NULL,
-          "durationMin" INTEGER NOT NULL DEFAULT 20,
-          "status" "SlotStatus" NOT NULL DEFAULT 'AVAILABLE',
-          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "TherapistSlot_pkey" PRIMARY KEY ("id"),
-          CONSTRAINT "TherapistSlot_therapistId_fkey" FOREIGN KEY ("therapistId")
-            REFERENCES "Therapist"("id") ON DELETE CASCADE ON UPDATE CASCADE
-        );
-      `);
-      await fastify.prisma.$executeRawUnsafe(`
-        CREATE INDEX IF NOT EXISTS "TherapistSlot_therapistId_status_startsAt_idx"
-          ON "TherapistSlot"("therapistId", "status", "startsAt");
-      `);
-      await fastify.prisma.$executeRawUnsafe(`
-        ALTER TABLE "BookingRequest" ADD COLUMN IF NOT EXISTS "slotId" TEXT;
-      `);
-      try {
-        await fastify.prisma.$executeRawUnsafe(`
-          ALTER TABLE "BookingRequest" ADD CONSTRAINT "BookingRequest_slotId_key" UNIQUE ("slotId");
-        `);
-      } catch {}
-      try {
-        await fastify.prisma.$executeRawUnsafe(`
-          ALTER TABLE "BookingRequest" ADD CONSTRAINT "BookingRequest_slotId_fkey"
-            FOREIGN KEY ("slotId") REFERENCES "TherapistSlot"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-        `);
-      } catch {}
-      return { success: true, message: 'TherapistSlot migration applied' };
-    } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
-    }
-  });
 };
