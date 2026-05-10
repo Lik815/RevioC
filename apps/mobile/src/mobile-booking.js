@@ -367,7 +367,7 @@ export function PatientAppointmentCard({ c, t, appointment, onCancel, onOpenDeta
           <Text style={{ fontSize: 10, fontWeight: '700', color: badge.text }}>{badge.label}</Text>
         </View>
         {status === 'PENDING' ? (
-          <Pressable onPress={(e) => { e.stopPropagation?.(); Alert.alert('Stornieren?', '', [{ text: 'Nein', style: 'cancel' }, { text: 'Ja', style: 'destructive', onPress: onCancel }]); }}>
+          <Pressable onPress={(e) => { e.stopPropagation?.(); Alert.alert('Termin stornieren', 'Möchtest du diese Anfrage wirklich stornieren?', [{ text: 'Nein', style: 'cancel' }, { text: 'Stornieren', style: 'destructive', onPress: onCancel }]); }}>
             <Text style={{ fontSize: 11, color: c.muted }}>Stornieren</Text>
           </Pressable>
         ) : (

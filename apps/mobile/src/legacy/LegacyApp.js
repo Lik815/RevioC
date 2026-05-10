@@ -3140,8 +3140,12 @@ export default function App() {
         if (res.ok) {
           await loadMyAppointments(authToken);
           setSelectedAppointment(null);
+        } else {
+          Alert.alert('Fehler', 'Stornierung fehlgeschlagen. Bitte versuche es erneut.');
         }
-      } catch {}
+      } catch {
+        Alert.alert('Fehler', 'Keine Verbindung. Bitte versuche es erneut.');
+      }
     };
 
     return renderTherapyTabShell(
@@ -3305,8 +3309,14 @@ export default function App() {
         const res = await fetch(`${getBaseUrl()}/bookings/${apt.id}/cancel`, {
           method: 'PATCH', headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
         });
-        if (res.ok) loadMyAppointments(authToken);
-      } catch {}
+        if (res.ok) {
+          loadMyAppointments(authToken);
+        } else {
+          Alert.alert('Fehler', 'Stornierung fehlgeschlagen. Bitte versuche es erneut.');
+        }
+      } catch {
+        Alert.alert('Fehler', 'Keine Verbindung. Bitte versuche es erneut.');
+      }
     };
 
     return renderTherapyTabShell(
