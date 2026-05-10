@@ -214,7 +214,7 @@ export async function bookingRoutes(fastify: FastifyInstance) {
             patientEmail: patient.email,
             confirmedSlotAt: slot.startsAt,
             consentAcceptedAt: now,
-            responseDueAt: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000),
+            responseDueAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
             message,
           },
           include: { slot: true },
