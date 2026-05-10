@@ -227,6 +227,7 @@ export function TherapistProfileScreen(props) {
   const thWithSlots = availableSlots !== undefined ? { ...th, availableSlots } : th;
 
   const [showLoginHint, setShowLoginHint] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
 
@@ -238,6 +239,7 @@ export function TherapistProfileScreen(props) {
   const therapistPhone = th?.phone ?? '+4312345678';
   const displayEmail = th?.email ?? 'demo.physio@revio.app';
   const iconHitSlop = { top: 10, bottom: 10, left: 10, right: 10 };
+  const canOpenBookingModal = thWithSlots.bookingMode === 'FIRST_APPOINTMENT_REQUEST' && accountType !== 'therapist' && accountType !== 'manager';
   const bookingSlots = Array.isArray(thWithSlots?.availableSlots)
     ? [...thWithSlots.availableSlots].sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
     : [];
@@ -359,16 +361,28 @@ export function TherapistProfileScreen(props) {
 
         <View style={{ height: 1, backgroundColor: c.border, marginTop: 18, marginBottom: 18, opacity: 0.8 }} />
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, width: '100%' }}>
-          <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ width: '100%', gap: 12 }}>
+          <View style={{ minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Ionicons name="mail-outline" size={22} color={c.accent} />
-            <Text numberOfLines={1} style={{ color: c.text, fontSize: 15, flexShrink: 1 }}>{displayEmail}</Text>
+            <Text style={{ color: c.text, fontSize: 15, flexShrink: 1 }}>{displayEmail}</Text>
           </View>
-          <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Ionicons name="call-outline" size={22} color={c.accent} />
-            <Text numberOfLines={1} style={{ color: c.text, fontSize: 15, flexShrink: 1 }}>{therapistPhone}</Text>
+            <Text style={{ color: c.text, fontSize: 15, flexShrink: 1 }}>{therapistPhone}</Text>
           </View>
         </View>
+
+        {canOpenBookingModal ? (
+          <Pressable
+            style={[styles.ctaBtn, { backgroundColor: c.primary, marginTop: 16 }]}
+            onPress={() => setShowBookingModal(true)}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              <Ionicons name="calendar-outline" size={20} color="#fff" />
+              <Text style={styles.ctaBtnText}>Freie Termine ansehen</Text>
+            </View>
+          </Pressable>
+        ) : null}
 
         {th.bio ? (
           <Text style={{ color: c.muted, fontSize: 15, marginTop: 18, lineHeight: 24 }}>
@@ -479,134 +493,147 @@ export function TherapistProfileScreen(props) {
         </View>
       ) : null}
 
-      {thWithSlots.bookingMode === 'FIRST_APPOINTMENT_REQUEST' && accountType !== 'therapist' && accountType !== 'manager' && (
-        <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <Text style={[styles.filterSectionTitle, { color: c.muted, marginBottom: 0 }]}>Freie Termine</Text>
-            <Ionicons name="calendar-outline" size={18} color={c.muted} />
-          </View>
-          {bookingSlots.length > 0 ? (
-            <>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>
-                {slotDates.map((dayKey) => {
-                  const active = selectedDate === dayKey;
-                  const label = formatSlotDayLabel(dayKey);
-                  return (
-                    <Pressable
-                      key={dayKey}
-                      onPress={() => {
-                        setSelectedDate(dayKey);
-                        setSelectedSlotId(null);
-                      }}
-                      style={{
-                        minWidth: 82,
-                        paddingHorizontal: 12,
-                        paddingVertical: 12,
-                        borderRadius: 18,
-                        borderWidth: 1,
-                        borderColor: active ? c.primary : c.border,
-                        backgroundColor: active ? c.primary : c.mutedBg,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      <Text style={{ color: active ? '#fff' : c.text, fontSize: 15, fontWeight: '700', textTransform: 'capitalize' }}>
-                        {label.weekday}
-                      </Text>
-                      <Text style={{ color: active ? '#fff' : c.muted, fontSize: 13 }}>
-                        {label.date}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
-                {visibleSlotsForSelectedDate.map((slot) => {
-                  const active = selectedSlotId === slot.id;
-                  return (
-                    <Pressable
-                      key={slot.id}
-                      onPress={() => setSelectedSlotId(slot.id)}
-                      style={{
-                        width: '30%',
-                        minWidth: 88,
-                        paddingVertical: 14,
-                        paddingHorizontal: 8,
-                        borderRadius: 18,
-                        borderWidth: 1.5,
-                        borderColor: active ? c.primary : c.border,
-                        backgroundColor: active ? c.primaryBg : c.card,
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      <Text style={{ fontSize: 16, fontWeight: '700', color: active ? c.primary : c.text }}>
-                        {formatSlotTime(slot.startsAt)}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: active ? c.primary : c.muted }}>
-                        {slot.durationMin ?? 20} Min
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <Pressable
-                style={[styles.ctaBtn, { backgroundColor: selectedSlotId ? c.primary : c.border, marginTop: 18, opacity: selectedSlotId ? 1 : 0.85 }]}
-                onPress={() => {
-                  if (!selectedSlotId) return;
-                  if (authToken && accountType === 'patient') {
-                    onBookingRequest({ ...th, selectedSlotId });
-                  } else {
-                    setShowLoginHint(true);
-                  }
-                }}
-                disabled={!selectedSlotId}
-              >
-                <Text style={styles.ctaBtnText}>Termin buchen</Text>
+      <Modal visible={showBookingModal} transparent animationType="fade" onRequestClose={() => setShowBookingModal(false)}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
+          onPress={() => setShowBookingModal(false)}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{ backgroundColor: c.card, borderRadius: 18, padding: 20, width: '100%', maxWidth: 420, borderWidth: 1, borderColor: c.border, maxHeight: '86%' }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <Text style={{ color: c.text, fontSize: 18, fontWeight: '700' }}>Freie Termine</Text>
+              <Pressable onPress={() => setShowBookingModal(false)} hitSlop={iconHitSlop}>
+                <Ionicons name="close-outline" size={26} color={c.muted} />
               </Pressable>
+            </View>
 
-              {/* Login-Hinweis Modal */}
-              <Modal visible={showLoginHint} transparent animationType="fade" onRequestClose={() => setShowLoginHint(false)}>
+            {bookingSlots.length > 0 ? (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 4 }}>
+                  {slotDates.map((dayKey) => {
+                    const active = selectedDate === dayKey;
+                    const label = formatSlotDayLabel(dayKey);
+                    return (
+                      <Pressable
+                        key={dayKey}
+                        onPress={() => {
+                          setSelectedDate(dayKey);
+                          setSelectedSlotId(null);
+                        }}
+                        style={{
+                          minWidth: 82,
+                          paddingHorizontal: 12,
+                          paddingVertical: 12,
+                          borderRadius: 18,
+                          borderWidth: 1,
+                          borderColor: active ? c.primary : c.border,
+                          backgroundColor: active ? c.primary : c.mutedBg,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <Text style={{ color: active ? '#fff' : c.text, fontSize: 15, fontWeight: '700', textTransform: 'capitalize' }}>
+                          {label.weekday}
+                        </Text>
+                        <Text style={{ color: active ? '#fff' : c.muted, fontSize: 13 }}>
+                          {label.date}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
+                  {visibleSlotsForSelectedDate.map((slot) => {
+                    const active = selectedSlotId === slot.id;
+                    return (
+                      <Pressable
+                        key={slot.id}
+                        onPress={() => setSelectedSlotId(slot.id)}
+                        style={{
+                          width: '30%',
+                          minWidth: 88,
+                          paddingVertical: 14,
+                          paddingHorizontal: 8,
+                          borderRadius: 18,
+                          borderWidth: 1.5,
+                          borderColor: active ? c.primary : c.border,
+                          backgroundColor: active ? c.primaryBg : c.card,
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: active ? c.primary : c.text }}>
+                          {formatSlotTime(slot.startsAt)}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: active ? c.primary : c.muted }}>
+                          {slot.durationMin ?? 20} Min
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
                 <Pressable
-                  style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
-                  onPress={() => setShowLoginHint(false)}
+                  style={[styles.ctaBtn, { backgroundColor: selectedSlotId ? c.primary : c.border, marginTop: 18, opacity: selectedSlotId ? 1 : 0.85 }]}
+                  onPress={() => {
+                    if (!selectedSlotId) return;
+                    if (authToken && accountType === 'patient') {
+                      setShowBookingModal(false);
+                      onBookingRequest({ ...th, selectedSlotId });
+                    } else {
+                      setShowBookingModal(false);
+                      setShowLoginHint(true);
+                    }
+                  }}
+                  disabled={!selectedSlotId}
                 >
-                  <Pressable onPress={() => {}} style={{ backgroundColor: c.card, borderRadius: 16, padding: 24, width: '100%', maxWidth: 360 }}>
-                    <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                      <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.primaryBg, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                        <Ionicons name="calendar-outline" size={26} color={c.primary} />
-                      </View>
-                      <Text style={{ fontSize: 17, fontWeight: '700', color: c.text, textAlign: 'center', marginBottom: 8 }}>
-                        Anmeldung erforderlich
-                      </Text>
-                      <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 20 }}>
-                        Um einen Termin zu buchen, melde dich mit deinem Patienten-Konto an oder erstelle ein kostenloses Konto.
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={() => { setShowLoginHint(false); onBookingRequest(null); }}
-                      style={{ backgroundColor: c.primary, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginBottom: 10 }}
-                    >
-                      <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Jetzt anmelden</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => setShowLoginHint(false)}
-                      style={{ paddingVertical: 10, alignItems: 'center' }}
-                    >
-                      <Text style={{ color: c.muted, fontSize: 14 }}>Abbrechen</Text>
-                    </Pressable>
-                  </Pressable>
+                  <Text style={styles.ctaBtnText}>Termin buchen</Text>
                 </Pressable>
-              </Modal>
-            </>
-          ) : (
-            <Text style={{ color: c.muted, fontSize: 13, marginTop: 4, lineHeight: 18 }}>
-              Aktuell keine freien Termine verfügbar. Kontaktiere den Therapeuten direkt.
-            </Text>
-          )}
-        </View>
-      )}
+              </>
+            ) : (
+              <Text style={{ color: c.muted, fontSize: 13, lineHeight: 18 }}>
+                Aktuell keine freien Termine verfügbar. Kontaktiere den Therapeuten direkt.
+              </Text>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Login-Hinweis Modal */}
+      <Modal visible={showLoginHint} transparent animationType="fade" onRequestClose={() => setShowLoginHint(false)}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
+          onPress={() => setShowLoginHint(false)}
+        >
+          <Pressable onPress={() => {}} style={{ backgroundColor: c.card, borderRadius: 16, padding: 24, width: '100%', maxWidth: 360 }}>
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.primaryBg, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Ionicons name="calendar-outline" size={26} color={c.primary} />
+              </View>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: c.text, textAlign: 'center', marginBottom: 8 }}>
+                Anmeldung erforderlich
+              </Text>
+              <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 20 }}>
+                Um einen Termin zu buchen, melde dich mit deinem Patienten-Konto an oder erstelle ein kostenloses Konto.
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => { setShowLoginHint(false); onBookingRequest(null); }}
+              style={{ backgroundColor: c.primary, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginBottom: 10 }}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Jetzt anmelden</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setShowLoginHint(false)}
+              style={{ paddingVertical: 10, alignItems: 'center' }}
+            >
+              <Text style={{ color: c.muted, fontSize: 14 }}>Abbrechen</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
