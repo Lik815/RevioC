@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  Image,
   View,
   Text,
   Pressable,
@@ -9,7 +10,30 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { getBaseUrl, RADIUS, SHADOW, SPACE, TYPE } from './mobile-utils';
+import { getBaseUrl, RADIUS, SHADOW, SPACE, TYPE, resolveMediaUrl } from './mobile-utils';
+
+function TherapistAvatar({ therapist, size = 40, c }) {
+  const [imgError, setImgError] = useState(false);
+  const photo = resolveMediaUrl(therapist?.photo);
+  const fallback = `https://i.pravatar.cc/${size * 2}?u=${therapist?.id ?? 'default'}`;
+  const uri = (!imgError && photo) ? photo : fallback;
+  const initials = (therapist?.fullName ?? '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.primaryBg }}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.primaryBg, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: size * 0.38, fontWeight: '700', color: c.primary }}>{initials}</Text>
+    </View>
+  );
+}
 
 function formatSlot(startsAt, durationMin) {
   if (!startsAt) return '—';
@@ -221,9 +245,7 @@ export function PatientAppointmentCard({ c, t, appointment, onCancel, onViewTher
         {/* Status + Therapeut */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACE.md }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>{(therapist?.fullName ?? '?')[0]}</Text>
-            </View>
+            <TherapistAvatar therapist={therapist} size={28} c={{ ...c, primaryBg: 'rgba(255,255,255,0.2)', primary: '#fff' }} />
             <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '500' }}>{therapist?.fullName ?? '—'}</Text>
           </View>
           <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
