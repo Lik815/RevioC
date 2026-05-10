@@ -2163,7 +2163,7 @@ export default function App() {
     if (!therapist) return therapist;
     return {
       id: therapist.id,
-      email: therapist.email ?? '',
+      email: therapist.email || null,
       fullName: therapist.fullName,
       professionalTitle: therapist.professionalTitle,
       specializations: Array.isArray(therapist.specializations) ? therapist.specializations : [],

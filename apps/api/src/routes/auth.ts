@@ -659,7 +659,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
             id: true, fullName: true, professionalTitle: true,
             city: true, photo: true, specializations: true,
             languages: true, homeVisit: true, isVisible: true,
-            reviewStatus: true,
+            reviewStatus: true, email: true,
           },
         },
       },

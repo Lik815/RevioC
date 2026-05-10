@@ -237,7 +237,7 @@ export function TherapistProfileScreen(props) {
   const therapistSpecializations = Array.isArray(th?.specializations) ? th.specializations : [];
   const therapistCertifications = Array.isArray(th?.fortbildungen) ? th.fortbildungen : [];
   const therapistPhone = th?.phone ?? '+4312345678';
-  const displayEmail = th?.email ?? 'demo.physio@revio.app';
+  const displayEmail = th?.email || null;
   const iconHitSlop = { top: 10, bottom: 10, left: 10, right: 10 };
   const canOpenBookingModal = thWithSlots.bookingMode === 'FIRST_APPOINTMENT_REQUEST' && accountType !== 'therapist' && accountType !== 'manager';
   const bookingSlots = Array.isArray(thWithSlots?.availableSlots)
@@ -359,18 +359,15 @@ export function TherapistProfileScreen(props) {
           </View>
         </View>
 
-        <View style={{ height: 1, backgroundColor: c.border, marginTop: 18, marginBottom: 18, opacity: 0.8 }} />
-
-        <View style={{ width: '100%', gap: 12 }}>
-          <View style={{ minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Ionicons name="mail-outline" size={22} color={c.accent} />
-            <Text style={{ color: c.text, fontSize: 15, flexShrink: 1 }}>{displayEmail}</Text>
-          </View>
-          <View style={{ minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Ionicons name="call-outline" size={22} color={c.accent} />
-            <Text style={{ color: c.text, fontSize: 15, flexShrink: 1 }}>{therapistPhone}</Text>
-          </View>
-        </View>
+        {displayEmail ? (
+          <>
+            <View style={{ height: 1, backgroundColor: c.border, marginTop: 18, marginBottom: 18, opacity: 0.8 }} />
+            <View style={{ minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="mail-outline" size={22} color={c.accent} />
+              <Text style={{ color: c.text, fontSize: 15, flexShrink: 1 }}>{displayEmail}</Text>
+            </View>
+          </>
+        ) : null}
 
         {canOpenBookingModal ? (
           <Pressable
