@@ -890,6 +890,11 @@ export default function App() {
     setShowProfileSavedModal(true);
   };
 
+  const closeProfileSavedModal = () => {
+    setShowProfileSavedModal(false);
+    setEditMode(false);
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -1452,17 +1457,18 @@ export default function App() {
       }
 
       if (profileRes.ok && complianceRes.ok) {
-        setEditMode(false);
         openProfileSavedModal(
           t('profileSavedModalTitle'),
           t('profileSavedModalBody'),
         );
       } else if (profileRes.ok) {
+        setEditMode(false);
         openProfileSavedModal(
           t('alertHint'),
           t('profileSavedCompliancePendingBody'),
         );
       } else if (complianceRes.ok) {
+        setEditMode(false);
         openProfileSavedModal(
           t('alertHint'),
           profileData.message ?? t('complianceOnlySavedBody'),
@@ -4758,8 +4764,8 @@ export default function App() {
       </Modal>
 
       {/* ── Profile Saved Modal ─────────────────────────────────────────────── */}
-      <Modal visible={showProfileSavedModal} transparent animationType="fade" onRequestClose={() => setShowProfileSavedModal(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 24 }} onPress={() => setShowProfileSavedModal(false)}>
+      <Modal visible={showProfileSavedModal} transparent animationType="fade" onRequestClose={closeProfileSavedModal}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 24 }} onPress={closeProfileSavedModal}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={{ backgroundColor: c.card, borderRadius: 20, padding: 24, gap: 16 }}>
               <View style={{ alignItems: 'center', gap: 10 }}>
@@ -4775,7 +4781,7 @@ export default function App() {
               </Text>
               <Pressable
                 style={{ backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
-                onPress={() => setShowProfileSavedModal(false)}
+                onPress={closeProfileSavedModal}
               >
                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{t('doneBtn')}</Text>
               </Pressable>
