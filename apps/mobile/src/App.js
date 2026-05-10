@@ -526,13 +526,16 @@ export default function App() {
 
   const handleCancelSlot = async (slotId) => {
     if (!authToken) return;
+    setDeletingSlotIds((prev) => (prev.includes(slotId) ? prev : [...prev, slotId]));
     try {
       const res = await fetch(`${getBaseUrl()}/therapist/slots/${slotId}`, {
         method: 'DELETE',
         headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
       });
-      if (res.ok) loadMySlots(authToken);
-    } catch {}
+      if (res.ok) await loadMySlots(authToken, { background: true });
+    } catch {} finally {
+      setDeletingSlotIds((prev) => prev.filter((id) => id !== slotId));
+    }
   };
 
   const resetTherapyData = () => {
@@ -540,6 +543,7 @@ export default function App() {
     setMyAppointments([]);
     setIncomingBookings([]);
     setMySlots([]);
+    setDeletingSlotIds([]);
     setFavoritesLastLoadedAt(0);
     setAppointmentsLastLoadedAt(0);
     setIncomingBookingsLastLoadedAt(0);
@@ -791,6 +795,7 @@ export default function App() {
   const [availableSlotsTherapistId, setAvailableSlotsTherapistId] = useState(null);
   const authenticatedFeedbackEmail = loggedInPatient?.email ?? loggedInTherapist?.email ?? '';
   const [mySlots, setMySlots] = useState([]);
+  const [deletingSlotIds, setDeletingSlotIds] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [showBookingForm, setShowBookingForm] = useState(false);
@@ -3102,17 +3107,42 @@ export default function App() {
   const renderTherapyTabTherapist = () => {
     const slotBookingEnabled = loggedInTherapist?.bookingMode === 'FIRST_APPOINTMENT_REQUEST';
     const pendingIncomingBookings = incomingBookings.filter((request) => request.status === 'PENDING');
+    const freeSlots = mySlots.filter(s => s.status === 'AVAILABLE');
+    const bookedSlots = mySlots.filter(s => s.status === 'BOOKED');
 
     return renderTherapyTabShell(
       therapyTabTitle,
       <>
+        {/* ── Stats-Überblick ────────────────────────────────────────── */}
+        {slotBookingEnabled && (
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+            {[
+              { label: 'Frei', value: freeSlots.length, color: c.success ?? '#5A9E8E', bg: c.successBg ?? '#EAF4F1' },
+              { label: 'Gebucht', value: bookedSlots.length, color: c.primary, bg: c.primaryBg },
+              { label: 'Anfragen', value: pendingIncomingBookings.length, color: c.warning ?? '#8A6000', bg: c.warningBg ?? '#FEF5DC' },
+            ].map(({ label, value, color, bg }) => (
+              <View key={label} style={{ flex: 1, backgroundColor: bg, borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}>
+                <Text style={{ fontSize: 20, fontWeight: '800', color }}>{value}</Text>
+                <Text style={{ fontSize: 11, color, fontWeight: '600', marginTop: 1 }}>{label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* ── CTA ───────────────────────────────────────────────────── */}
         {slotBookingEnabled ? (
           <Pressable
             onPress={() => setShowSlotComposerModal(true)}
-            style={[styles.infoSection, { backgroundColor: c.primaryBg, borderColor: c.primary, flexDirection: 'row', alignItems: 'center', gap: 10 }]}
+            style={{ backgroundColor: c.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 }}
           >
-            <Ionicons name="add-circle-outline" size={22} color={c.primary} />
-            <Text style={{ fontSize: 15, fontWeight: '600', color: c.primary }}>Neuen Termin anlegen</Text>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="add" size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Neuen Termin anlegen</Text>
+              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>Datum, Uhrzeit und Dauer wählen</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.6)" />
           </Pressable>
         ) : (
           <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
@@ -3120,20 +3150,25 @@ export default function App() {
           </View>
         )}
 
-        <Text style={[styles.sectionLabel, { color: c.text }]}>Nächste eigene Slots</Text>
-        <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-          {slotBookingEnabled ? (
-            <TherapistSlotList
-              c={c}
-              mySlots={mySlots}
-              onCancelSlot={handleCancelSlot}
-              slotsLoading={shouldShowSectionLoading(slotsLoading, slotsLastLoadedAt)}
-              groupByStatus
-              emptyText="Du hast noch keine Slots angelegt."
-            />
-          ) : renderTherapySectionEmpty('Noch keine Slot-Ansicht verfügbar.', 'Sobald Terminanfragen aktiviert sind, erscheinen deine freien und gebuchten Slots hier.')}
-        </View>
+        {/* ── Slots (getrennte Karten via groupByStatus) ─────────────── */}
+        <Text style={[styles.sectionLabel, { color: c.text }]}>Meine Termine</Text>
+        {slotBookingEnabled ? (
+          <TherapistSlotList
+            c={c}
+            deletingSlotIds={deletingSlotIds}
+            mySlots={mySlots}
+            onCancelSlot={handleCancelSlot}
+            slotsLoading={shouldShowSectionLoading(slotsLoading, slotsLastLoadedAt)}
+            groupByStatus
+            emptyText="Du hast noch keine Slots angelegt."
+          />
+        ) : (
+          <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
+            {renderTherapySectionEmpty('Noch keine Slot-Ansicht verfügbar.', 'Sobald Terminanfragen aktiviert sind, erscheinen deine freien und gebuchten Slots hier.')}
+          </View>
+        )}
 
+        {/* ── Eingehende Anfragen ────────────────────────────────────── */}
         <Text style={[styles.sectionLabel, { color: c.text }]}>Eingehende Anfragen</Text>
         {shouldShowSectionLoading(incomingBookingsLoading, incomingBookingsLastLoadedAt)
           ? renderTherapySectionLoading()
@@ -3156,7 +3191,12 @@ export default function App() {
                 }}
               />
             ))
-            : renderTherapySectionEmpty('Keine offenen Anfragen.', null)}
+            : <View style={{ backgroundColor: c.card, borderRadius: 12, borderWidth: 1, borderColor: c.border, paddingVertical: 20, paddingHorizontal: 16, alignItems: 'center', marginBottom: 4 }}>
+                <Ionicons name="checkmark-circle-outline" size={28} color={c.muted} style={{ marginBottom: 8 }} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: c.text, textAlign: 'center' }}>Keine offenen Anfragen</Text>
+                <Text style={{ fontSize: 13, color: c.muted, textAlign: 'center', marginTop: 4, lineHeight: 18 }}>Neue Buchungsanfragen von Patienten erscheinen hier automatisch.</Text>
+              </View>
+        }
 
         <Text style={[styles.sectionLabel, { color: c.text }]}>{t('favoritesTherapists') ?? 'Therapeut:innen'}</Text>
         {shouldShowSectionLoading(favoritesLoading, favoritesLastLoadedAt)

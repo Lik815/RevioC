@@ -38,52 +38,64 @@ function buildCalendar(year, month) {
 
 function renderSlotRow({ c, deletingSlotIds, slot, onCancelSlot }) {
   const d = new Date(slot.startsAt);
-  const label = `${d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })} · ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
+  const dateStr = d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' });
+  const timeStr = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   const isBooked = slot.status === 'BOOKED';
   const isDeleting = deletingSlotIds.includes(slot.id);
 
+  if (isBooked) {
+    // Gebuchter Termin — hochwertiger, mehr Infos
+    return (
+      <View key={slot.id} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: c.text }}>{dateStr} · {timeStr}</Text>
+            <Text style={{ fontSize: 12, color: c.muted, marginTop: 1 }}>{slot.durationMin} Min</Text>
+          </View>
+          <View style={{ backgroundColor: c.successBg ?? '#EAF4F1', borderRadius: 5, paddingHorizontal: 7, paddingVertical: 3 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: c.success ?? '#5A9E8E' }}>Gebucht</Text>
+          </View>
+        </View>
+        {slot.patientName ? (
+          <View style={{ marginTop: 7, gap: 3 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Ionicons name="person-circle-outline" size={13} color={c.primary} />
+              <Text style={{ fontSize: 13, color: c.text, fontWeight: '600' }}>{slot.patientName}</Text>
+            </View>
+            {slot.patientEmail ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 1 }}>
+                <Ionicons name="mail-outline" size={12} color={c.muted} />
+                <Text style={{ fontSize: 12, color: c.muted }}>{slot.patientEmail}</Text>
+              </View>
+            ) : null}
+            {slot.patientPhone ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 1 }}>
+                <Ionicons name="call-outline" size={12} color={c.muted} />
+                <Text style={{ fontSize: 12, color: c.muted }}>{slot.patientPhone}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+
+  // Freier Slot — kompakt, schnell scannbar
   return (
-    <View key={slot.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={{ fontSize: 13, color: isBooked ? c.primary : c.text, flex: 1, fontWeight: isBooked ? '600' : '400' }}>
-          {label} ({slot.durationMin} Min)
-        </Text>
-        {isBooked ? (
-          <View style={{ backgroundColor: c.primaryBg, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-            <Text style={{ fontSize: 11, color: c.primary, fontWeight: '600' }}>Gebucht</Text>
-          </View>
+    <View key={slot.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 13, color: c.text, fontWeight: '500' }}>{dateStr} · {timeStr}</Text>
+        <Text style={{ fontSize: 11, color: c.muted, marginTop: 1 }}>{slot.durationMin} Min</Text>
+      </View>
+      <View style={{ alignItems: 'center', justifyContent: 'center', paddingLeft: 12 }}>
+        {isDeleting ? (
+          <ActivityIndicator size="small" color={c.muted} />
         ) : (
-          <View style={{ minWidth: 56, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }}>
-            {isDeleting ? (
-              <ActivityIndicator size="small" color={c.error} />
-            ) : (
-              <Pressable onPress={() => onCancelSlot(slot.id)}>
-                <Text style={{ fontSize: 12, color: c.error }}>Löschen</Text>
-              </Pressable>
-            )}
-          </View>
+          <Pressable onPress={() => onCancelSlot(slot.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="trash-outline" size={16} color={c.muted} />
+          </Pressable>
         )}
       </View>
-      {isBooked && slot.patientName ? (
-        <View style={{ marginTop: 5, gap: 3 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Ionicons name="person-outline" size={12} color={c.muted} />
-            <Text style={{ fontSize: 12, color: c.text, fontWeight: '500' }}>{slot.patientName}</Text>
-          </View>
-          {slot.patientEmail ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Ionicons name="mail-outline" size={12} color={c.muted} />
-              <Text style={{ fontSize: 12, color: c.muted }}>{slot.patientEmail}</Text>
-            </View>
-          ) : null}
-          {slot.patientPhone ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Ionicons name="call-outline" size={12} color={c.muted} />
-              <Text style={{ fontSize: 12, color: c.muted }}>{slot.patientPhone}</Text>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -290,25 +302,15 @@ export function TherapistSlotComposer({ c, onAddSlot }) {
   );
 }
 
-function renderSlotSection({ c, deletingSlotIds, onCancelSlot, slots, title }) {
-  if (slots.length === 0) return null;
-  return (
-    <View style={{ marginTop: 6 }}>
-      <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.4, color: c.muted, marginBottom: 6 }}>{title}</Text>
-      {slots.map((slot) => renderSlotRow({ c, deletingSlotIds, slot, onCancelSlot }))}
-    </View>
-  );
-}
-
 export function TherapistSlotList({ c, deletingSlotIds = [], mySlots, onCancelSlot, slotsLoading, groupByStatus = false, emptyText = 'Noch keine Termine angelegt.' }) {
   if (slotsLoading) {
-    return <Text style={{ fontSize: 13, color: c.muted, textAlign: 'center', paddingVertical: 8 }}>Lädt…</Text>;
+    return <Text style={{ fontSize: 13, color: c.muted, textAlign: 'center', paddingVertical: 16 }}>Lädt…</Text>;
   }
 
   const visibleSlots = Array.isArray(mySlots) ? mySlots.filter((slot) => slot.status !== 'CANCELLED') : [];
   if (visibleSlots.length === 0) {
     return (
-      <Text style={{ fontSize: 13, color: c.muted, textAlign: 'center', paddingVertical: 8 }}>
+      <Text style={{ fontSize: 13, color: c.muted, textAlign: 'center', paddingVertical: 12 }}>
         {emptyText}
       </Text>
     );
@@ -320,8 +322,31 @@ export function TherapistSlotList({ c, deletingSlotIds = [], mySlots, onCancelSl
     const bookedSlots = sortedSlots.filter((slot) => slot.status === 'BOOKED');
     return (
       <>
-        {renderSlotSection({ c, deletingSlotIds, onCancelSlot, slots: availableSlots, title: 'Freie Slots' })}
-        {renderSlotSection({ c, deletingSlotIds, onCancelSlot, slots: bookedSlots, title: 'Gebuchte Termine' })}
+        {/* Freie Slots — eigene Karte */}
+        <View style={{ backgroundColor: c.card, borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.border, marginBottom: 12, overflow: 'hidden' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6 }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.success ?? '#5A9E8E' }} />
+            <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: c.muted, textTransform: 'uppercase' }}>Freie Slots · {availableSlots.length}</Text>
+          </View>
+          <View style={{ paddingHorizontal: 14, paddingBottom: 4 }}>
+            {availableSlots.length === 0
+              ? <Text style={{ fontSize: 13, color: c.muted, paddingVertical: 10 }}>Keine freien Slots verfügbar.</Text>
+              : availableSlots.map((slot) => renderSlotRow({ c, deletingSlotIds, slot, onCancelSlot }))}
+          </View>
+        </View>
+
+        {/* Gebuchte Termine — eigene Karte mit Akzent */}
+        {bookedSlots.length > 0 && (
+          <View style={{ backgroundColor: c.card, borderRadius: RADIUS.md, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.primary }} />
+              <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: c.muted, textTransform: 'uppercase' }}>Gebuchte Termine · {bookedSlots.length}</Text>
+            </View>
+            <View style={{ paddingHorizontal: 14, paddingBottom: 4 }}>
+              {bookedSlots.map((slot) => renderSlotRow({ c, deletingSlotIds, slot, onCancelSlot }))}
+            </View>
+          </View>
+        )}
       </>
     );
   }
