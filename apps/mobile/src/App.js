@@ -2135,6 +2135,42 @@ export default function App() {
     );
   };
 
+  const mapPublicTherapistDetail = (therapist) => {
+    if (!therapist) return therapist;
+    return {
+      id: therapist.id,
+      email: therapist.email ?? '',
+      fullName: therapist.fullName,
+      professionalTitle: therapist.professionalTitle,
+      specializations: Array.isArray(therapist.specializations) ? therapist.specializations : [],
+      languages: normalizeLanguageCodes(therapist.languages),
+      homeVisit: therapist.homeVisit ?? false,
+      serviceRadiusKm: therapist.serviceRadiusKm ?? null,
+      isVisible: true,
+      availability: therapist.availability ?? '',
+      city: therapist.city ?? '',
+      bio: therapist.bio ?? '',
+      kassenart: therapist.kassenart ?? null,
+      fortbildungen: Array.isArray(therapist.certifications) ? therapist.certifications : [],
+      distKm: typeof therapist.distKm === 'number' ? therapist.distKm : null,
+      verifiziert: true,
+      behandlungsbereiche: Array.isArray(therapist.specializations) ? therapist.specializations : [],
+      verfügbareZeiten: '',
+      website: therapist.website ?? '',
+      photo: resolveMediaUrl(therapist.photo) ?? null,
+      practices: Array.isArray(therapist.practices)
+        ? therapist.practices.map((practice) => ({
+            ...practice,
+            logo: resolveMediaUrl(practice.logo),
+            photos: Array.isArray(practice.photos) ? practice.photos.map(resolveMediaUrl) : [],
+          }))
+        : [],
+      bookingMode: therapist.bookingMode ?? 'DIRECTORY_ONLY',
+      requestable: therapist.requestable ?? false,
+      nextFreeSlotAt: therapist.nextFreeSlotAt ?? null,
+    };
+  };
+
   const openTherapistById = async (id, fallbackTherapist = null) => {
     const th = results.find(x => x.id === id)
       || allApiTherapists.find(x => x.id === id)
@@ -2149,24 +2185,13 @@ export default function App() {
 
     if (therapistHasProfileContent(th)) return;
 
-    const queryName = fallbackTherapist?.fullName || th?.fullName;
-    const queryCity = fallbackTherapist?.city || th?.city || city || '';
-    if (!queryName) return;
-
     try {
-      const response = await fetch(`${getBaseUrl()}/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS },
-        body: JSON.stringify({
-          query: queryName,
-          city: queryCity || undefined,
-        }),
+      const response = await fetch(`${getBaseUrl()}/therapist/${id}`, {
+        headers: { ...TUNNEL_HEADERS },
       });
       if (!response.ok) return;
       const payload = await response.json();
-      const enriched = (Array.isArray(payload?.therapists) ? payload.therapists : [])
-        .map(mapApiTherapist)
-        .find((candidate) => candidate.id === id);
+      const enriched = mapPublicTherapistDetail(payload?.therapist);
       if (!enriched) return;
       setSelectedTherapist(enriched);
       if (enriched.bookingMode === 'FIRST_APPOINTMENT_REQUEST') loadAvailableSlots(id);
