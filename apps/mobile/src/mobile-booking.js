@@ -300,7 +300,6 @@ export function PatientAppointmentCard({ c, t, appointment, onCancel, onViewTher
       </View>
     </Pressable>
   );
-  );
 }
 
 // ─── TherapistBookingCard ──────────────────────────────────────────────────────
