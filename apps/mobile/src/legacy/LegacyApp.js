@@ -4569,6 +4569,8 @@ export default function App() {
                 setShowBookingForm(false);
                 setBookingTargetTherapist(null);
                 setAvailableSlots([]);
+                setSelectedTherapist(null);
+                setSelectedAppointment(null);
                 loadMyAppointments(authToken);
                 setActiveTab('favorites');
               }}
