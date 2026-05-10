@@ -36,149 +36,175 @@ const updateMeSchema = z.object({
 const splitList = (value: string) =>
   value.split(',').map((s) => s.trim()).filter(Boolean);
 
+const LOGIN_TEMPORARY_UNAVAILABLE_MESSAGE = 'Server momentan nicht erreichbar. Bitte spaeter erneut versuchen.';
+
+const isDatabaseUnavailableError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const code = typeof error === 'object' && error !== null && 'code' in error
+    ? String((error as { code?: unknown }).code ?? '')
+    : '';
+
+  return (
+    code === 'P1001'
+    || message.includes("Can't reach database server")
+    || message.includes('postgres.railway.internal')
+    || message.includes('ECONNREFUSED')
+    || message.includes('ENOTFOUND')
+  );
+};
+
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/auth/login', async (request, reply) => {
-    const parsed = loginSchema.safeParse(request.body);
-    if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
+    try {
+      const parsed = loginSchema.safeParse(request.body);
+      if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
 
-    const { email, password } = parsed.data;
+      const { email, password } = parsed.data;
 
-    const user = await fastify.prisma.user.findUnique({
-      where: { email },
-      include: { therapistProfile: true, managerProfile: true },
-    });
-
-    if (user?.passwordHash) {
-      const validUserPassword = await verifyPassword(password, user.passwordHash);
-      if (!validUserPassword) return reply.unauthorized('Falsches Passwort. Bitte erneut versuchen.');
-
-      // Block users who have not verified their email yet
-      if (user.requiresEmailVerification && !user.emailVerifiedAt) {
-        return reply.unauthorized('Bitte bestätige zunächst deine E-Mail-Adresse. Überprüfe deinen Posteingang.');
-      }
-
-      const token = randomBytes(32).toString('hex');
-      await fastify.prisma.user.update({
-        where: { id: user.id },
-        data: { sessionToken: token },
+      const user = await fastify.prisma.user.findUnique({
+        where: { email },
+        include: { therapistProfile: true, managerProfile: true },
       });
 
-      if (user.role === 'patient') {
-        return {
-          token,
-          userId: user.id,
-          accountType: 'patient',
-        };
-      }
+      if (user?.passwordHash) {
+        const validUserPassword = await verifyPassword(password, user.passwordHash);
+        if (!validUserPassword) return reply.unauthorized('Falsches Passwort. Bitte erneut versuchen.');
 
-      if (user.role === 'manager') {
-        const manager = user.managerProfile ?? await fastify.prisma.practiceManager.findFirst({
-          where: { userId: user.id },
-        });
-        if (!manager) return reply.unauthorized('Manager-Profil nicht gefunden');
-
-        await fastify.prisma.practiceManager.update({
-          where: { id: manager.id },
-          data: { sessionToken: token },
-        });
-        const practice = manager.practiceId ? await fastify.prisma.practice.findUnique({ where: { id: manager.practiceId } }) : null;
-        return {
-          token,
-          userId: user.id,
-          accountType: 'manager',
-          practiceId: manager.practiceId,
-          name: practice?.name ?? null,
-        };
-      }
-
-      const therapist = user.therapistProfile
-        ?? await fastify.prisma.therapist.findFirst({ where: { userId: user.id } })
-        ?? await fastify.prisma.therapist.findUnique({ where: { email } });
-      if (!therapist) return reply.unauthorized('Benutzer mit dieser E-Mail nicht gefunden.');
-
-      await fastify.prisma.therapist.update({
-        where: { id: therapist.id },
-        data: { sessionToken: token },
-      });
-      return {
-        token,
-        userId: user.id,
-        accountType: 'therapist',
-        therapistId: therapist.id,
-        fullName: therapist.fullName,
-      };
-    }
-
-    // Legacy fallback: therapist credentials without a migrated User row.
-    const therapist = await fastify.prisma.therapist.findUnique({ where: { email } });
-    if (therapist?.passwordHash) {
-      const validTherapist = await verifyPassword(password, therapist.passwordHash);
-      if (validTherapist) {
-        const existingUser = await fastify.prisma.user.findUnique({ where: { email } });
-        const ensuredUser = existingUser ?? await fastify.prisma.user.create({
-          data: {
-            email,
-            passwordHash: therapist.passwordHash,
-            role: 'therapist',
-          },
-        });
+        if (user.requiresEmailVerification && !user.emailVerifiedAt) {
+          return reply.unauthorized('Bitte bestätige zunächst deine E-Mail-Adresse. Überprüfe deinen Posteingang.');
+        }
 
         const token = randomBytes(32).toString('hex');
         await fastify.prisma.user.update({
-          where: { id: ensuredUser.id },
+          where: { id: user.id },
           data: { sessionToken: token },
         });
+
+        if (user.role === 'patient') {
+          return {
+            token,
+            userId: user.id,
+            accountType: 'patient',
+          };
+        }
+
+        if (user.role === 'manager') {
+          const manager = user.managerProfile ?? await fastify.prisma.practiceManager.findFirst({
+            where: { userId: user.id },
+          });
+          if (!manager) return reply.unauthorized('Manager-Profil nicht gefunden');
+
+          await fastify.prisma.practiceManager.update({
+            where: { id: manager.id },
+            data: { sessionToken: token },
+          });
+          const practice = manager.practiceId ? await fastify.prisma.practice.findUnique({ where: { id: manager.practiceId } }) : null;
+          return {
+            token,
+            userId: user.id,
+            accountType: 'manager',
+            practiceId: manager.practiceId,
+            name: practice?.name ?? null,
+          };
+        }
+
+        const therapist = user.therapistProfile
+          ?? await fastify.prisma.therapist.findFirst({ where: { userId: user.id } })
+          ?? await fastify.prisma.therapist.findUnique({ where: { email } });
+        if (!therapist) return reply.unauthorized('Benutzer mit dieser E-Mail nicht gefunden.');
+
         await fastify.prisma.therapist.update({
           where: { id: therapist.id },
-          data: { sessionToken: token, userId: therapist.userId ?? ensuredUser.id },
+          data: { sessionToken: token },
         });
-
         return {
           token,
-          userId: ensuredUser.id,
+          userId: user.id,
           accountType: 'therapist',
           therapistId: therapist.id,
           fullName: therapist.fullName,
         };
       }
-    }
 
-    // Legacy fallback: manager credentials without a migrated User row.
-    const manager = await fastify.prisma.practiceManager.findUnique({ where: { email } });
-    if (manager?.passwordHash) {
-      const validManager = await verifyPassword(password, manager.passwordHash);
-      if (validManager) {
-        const existingUser = await fastify.prisma.user.findUnique({ where: { email } });
-        const ensuredUser = existingUser ?? await fastify.prisma.user.create({
-          data: {
-            email,
-            passwordHash: manager.passwordHash,
-            role: 'manager',
-          },
-        });
+      const therapist = await fastify.prisma.therapist.findUnique({ where: { email } });
+      if (therapist?.passwordHash) {
+        const validTherapist = await verifyPassword(password, therapist.passwordHash);
+        if (validTherapist) {
+          const existingUser = await fastify.prisma.user.findUnique({ where: { email } });
+          const ensuredUser = existingUser ?? await fastify.prisma.user.create({
+            data: {
+              email,
+              passwordHash: therapist.passwordHash,
+              role: 'therapist',
+            },
+          });
 
-        const token = randomBytes(32).toString('hex');
-        await fastify.prisma.user.update({
-          where: { id: ensuredUser.id },
-          data: { sessionToken: token },
-        });
-        await fastify.prisma.practiceManager.update({
-          where: { id: manager.id },
-          data: { sessionToken: token, userId: manager.userId ?? ensuredUser.id },
-        });
-        const practice = manager.practiceId ? await fastify.prisma.practice.findUnique({ where: { id: manager.practiceId } }) : null;
+          const token = randomBytes(32).toString('hex');
+          await fastify.prisma.user.update({
+            where: { id: ensuredUser.id },
+            data: { sessionToken: token },
+          });
+          await fastify.prisma.therapist.update({
+            where: { id: therapist.id },
+            data: { sessionToken: token, userId: therapist.userId ?? ensuredUser.id },
+          });
 
-        return {
-          token,
-          userId: ensuredUser.id,
-          accountType: 'manager',
-          practiceId: manager.practiceId,
-          name: practice?.name ?? null,
-        };
+          return {
+            token,
+            userId: ensuredUser.id,
+            accountType: 'therapist',
+            therapistId: therapist.id,
+            fullName: therapist.fullName,
+          };
+        }
       }
-    }
 
-    return reply.unauthorized('Benutzer mit dieser E-Mail nicht gefunden.');
+      const manager = await fastify.prisma.practiceManager.findUnique({ where: { email } });
+      if (manager?.passwordHash) {
+        const validManager = await verifyPassword(password, manager.passwordHash);
+        if (validManager) {
+          const existingUser = await fastify.prisma.user.findUnique({ where: { email } });
+          const ensuredUser = existingUser ?? await fastify.prisma.user.create({
+            data: {
+              email,
+              passwordHash: manager.passwordHash,
+              role: 'manager',
+            },
+          });
+
+          const token = randomBytes(32).toString('hex');
+          await fastify.prisma.user.update({
+            where: { id: ensuredUser.id },
+            data: { sessionToken: token },
+          });
+          await fastify.prisma.practiceManager.update({
+            where: { id: manager.id },
+            data: { sessionToken: token, userId: manager.userId ?? ensuredUser.id },
+          });
+          const practice = manager.practiceId ? await fastify.prisma.practice.findUnique({ where: { id: manager.practiceId } }) : null;
+
+          return {
+            token,
+            userId: ensuredUser.id,
+            accountType: 'manager',
+            practiceId: manager.practiceId,
+            name: practice?.name ?? null,
+          };
+        }
+      }
+
+      return reply.unauthorized('Benutzer mit dieser E-Mail nicht gefunden.');
+    } catch (error) {
+      request.log.error({ err: error }, 'Login failed');
+      if (isDatabaseUnavailableError(error)) {
+        return reply.status(503).send({
+          statusCode: 503,
+          error: 'Service Unavailable',
+          message: LOGIN_TEMPORARY_UNAVAILABLE_MESSAGE,
+        });
+      }
+      throw error;
+    }
   });
 
   fastify.get('/auth/verify-email', async (request, reply) => {

@@ -307,6 +307,14 @@ const formatMissingProfileFields = (fields = []) =>
 
 const softenErrorMessage = (message = '') => {
   if (typeof message !== 'string') return '';
+  if (
+    /invalid `prisma\./i.test(message)
+    || /can't reach database server/i.test(message)
+    || /postgres\.railway\.internal/i.test(message)
+    || /service unavailable/i.test(message)
+  ) {
+    return 'Server momentan nicht erreichbar. Bitte spaeter erneut versuchen.';
+  }
   return message
     .replace(/Fehler beim Laden/gi, 'Konnte nicht geladen werden – bitte erneut versuchen')
     .replace(/Ungültige E-Mail/gi, 'Bitte eine gültige E-Mail eingeben')
