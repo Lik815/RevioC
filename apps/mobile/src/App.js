@@ -873,6 +873,8 @@ export default function App() {
   const [showInvitePasswordConfirm, setShowInvitePasswordConfirm] = useState(false);
   const [showVisibilityModal, setShowVisibilityModal] = useState(false);
   const [showProfileSavedModal, setShowProfileSavedModal] = useState(false);
+  const [profileSavedModalTitle, setProfileSavedModalTitle] = useState('');
+  const [profileSavedModalBody, setProfileSavedModalBody] = useState('');
   const [visibilityLoading, setVisibilityLoading] = useState(false);
 
   const openSignupFlow = () => {
@@ -880,6 +882,12 @@ export default function App() {
     setShowLogin(false);
     setShowRegister(false);
     setShowSignup(true);
+  };
+
+  const openProfileSavedModal = (title, body) => {
+    setProfileSavedModalTitle(title);
+    setProfileSavedModalBody(body);
+    setShowProfileSavedModal(true);
   };
 
   useEffect(() => {
@@ -1445,11 +1453,20 @@ export default function App() {
 
       if (profileRes.ok && complianceRes.ok) {
         setEditMode(false);
-        setShowProfileSavedModal(true);
+        openProfileSavedModal(
+          t('profileSavedModalTitle'),
+          t('profileSavedModalBody'),
+        );
       } else if (profileRes.ok) {
-        Alert.alert(t('alertHint'), t('profileSavedCompliancePendingBody'));
+        openProfileSavedModal(
+          t('alertHint'),
+          t('profileSavedCompliancePendingBody'),
+        );
       } else if (complianceRes.ok) {
-        Alert.alert(t('alertHint'), profileData.message ?? t('complianceOnlySavedBody'));
+        openProfileSavedModal(
+          t('alertHint'),
+          profileData.message ?? t('complianceOnlySavedBody'),
+        );
       } else {
         Alert.alert(
           t('alertError'),
@@ -4750,11 +4767,11 @@ export default function App() {
                   <Ionicons name="checkmark-circle" size={34} color={c.primary} />
                 </View>
                 <Text style={{ fontSize: 22, fontWeight: '800', color: c.text, textAlign: 'center' }}>
-                  {t('profileSavedModalTitle')}
+                  {profileSavedModalTitle || t('profileSavedModalTitle')}
                 </Text>
               </View>
               <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 21 }}>
-                {t('profileSavedModalBody')}
+                {profileSavedModalBody || t('profileSavedModalBody')}
               </Text>
               <Pressable
                 style={{ backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
