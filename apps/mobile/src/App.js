@@ -2123,14 +2123,54 @@ export default function App() {
     }
   };
 
-  const openTherapistById = (id) => {
+  const therapistHasProfileContent = (therapist) => {
+    if (!therapist) return false;
+    return Boolean(
+      (typeof therapist.bio === 'string' && therapist.bio.trim()) ||
+      (Array.isArray(therapist.specializations) && therapist.specializations.length > 0) ||
+      (Array.isArray(therapist.behandlungsbereiche) && therapist.behandlungsbereiche.length > 0) ||
+      (Array.isArray(therapist.fortbildungen) && therapist.fortbildungen.length > 0) ||
+      (Array.isArray(therapist.practices) && therapist.practices.length > 0) ||
+      (Array.isArray(therapist.languages) && therapist.languages.length > 0)
+    );
+  };
+
+  const openTherapistById = async (id, fallbackTherapist = null) => {
     const th = results.find(x => x.id === id)
+      || allApiTherapists.find(x => x.id === id)
       || favorites.find(x => x.id === id)
-      || selectedPracticeTherapists.find(x => x.id === id);
+      || selectedPracticeTherapists.find(x => x.id === id)
+      || fallbackTherapist;
+
     if (th) {
       setSelectedTherapist(th);
       if (th.bookingMode === 'FIRST_APPOINTMENT_REQUEST') loadAvailableSlots(id);
     }
+
+    if (therapistHasProfileContent(th)) return;
+
+    const queryName = fallbackTherapist?.fullName || th?.fullName;
+    const queryCity = fallbackTherapist?.city || th?.city || city || '';
+    if (!queryName) return;
+
+    try {
+      const response = await fetch(`${getBaseUrl()}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS },
+        body: JSON.stringify({
+          query: queryName,
+          city: queryCity || undefined,
+        }),
+      });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const enriched = (Array.isArray(payload?.therapists) ? payload.therapists : [])
+        .map(mapApiTherapist)
+        .find((candidate) => candidate.id === id);
+      if (!enriched) return;
+      setSelectedTherapist(enriched);
+      if (enriched.bookingMode === 'FIRST_APPOINTMENT_REQUEST') loadAvailableSlots(id);
+    } catch {}
   };
 
   // ── Discover tab ──────────────────────────────────────────────────────────
@@ -3114,7 +3154,8 @@ export default function App() {
               <Pressable
                 onPress={() => {
                   setSelectedAppointment(null);
-                  setSelectedTherapist(therapist);
+                  if (therapist?.id) openTherapistById(therapist.id, therapist);
+                  else setSelectedTherapist(therapist);
                 }}
                 style={[styles.ctaBtn, { backgroundColor: c.primary, marginTop: 0 }]}
               >
@@ -3241,7 +3282,10 @@ export default function App() {
                       key={nextApt.id} c={c} t={t} appointment={nextApt} isNext
                       onCancel={makeOnCancel(nextApt)}
                       onOpenDetail={() => setSelectedAppointment(nextApt)}
-                      onViewTherapist={() => { if (nextApt.therapist) setSelectedTherapist(nextApt.therapist); }}
+                      onViewTherapist={() => {
+                        if (nextApt.therapist?.id) openTherapistById(nextApt.therapist.id, nextApt.therapist);
+                        else if (nextApt.therapist) setSelectedTherapist(nextApt.therapist);
+                      }}
                     />
                   </>
                 )}
@@ -3257,7 +3301,10 @@ export default function App() {
                         key={apt.id} c={c} t={t} appointment={apt}
                         onCancel={makeOnCancel(apt)}
                         onOpenDetail={() => setSelectedAppointment(apt)}
-                        onViewTherapist={() => { if (apt.therapist) setSelectedTherapist(apt.therapist); }}
+                        onViewTherapist={() => {
+                          if (apt.therapist?.id) openTherapistById(apt.therapist.id, apt.therapist);
+                          else if (apt.therapist) setSelectedTherapist(apt.therapist);
+                        }}
                       />
                     ))}
                   </>

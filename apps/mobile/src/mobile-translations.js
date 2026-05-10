@@ -263,7 +263,7 @@ export const translations = {
     reviewNotificationChangesTitle: 'Profil anpassen',
     reviewNotificationRejectedTitle: 'Profil nicht freigegeben',
     reviewNotificationSuspendedTitle: 'Profil pausiert',
-    editProfileBtn: '✏️ Profil bearbeiten',
+    editProfileBtn: 'Profil bearbeiten',
     searchVisibleLabel: 'In Suche sichtbar',
     visibleLabel: 'Sichtbar',
 
@@ -780,7 +780,7 @@ export const translations = {
     reviewNotificationChangesTitle: 'Profile needs changes',
     reviewNotificationRejectedTitle: 'Profile not approved',
     reviewNotificationSuspendedTitle: 'Profile paused',
-    editProfileBtn: '✏️ Edit profile',
+    editProfileBtn: 'Edit profile',
     searchVisibleLabel: 'Visible in search',
     visibleLabel: 'Visible',
 
