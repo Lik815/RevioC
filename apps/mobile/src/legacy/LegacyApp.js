@@ -802,6 +802,7 @@ export default function App() {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [bookingTargetTherapist, setBookingTargetTherapist] = useState(null);
+  const blockTherapistEnrichRef = useRef(false);
   const [showRoleSelect, setShowRoleSelect] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
@@ -2195,6 +2196,7 @@ export default function App() {
   };
 
   const openTherapistById = async (id, fallbackTherapist = null) => {
+    blockTherapistEnrichRef.current = false;
     const th = results.find(x => x.id === id)
       || allApiTherapists.find(x => x.id === id)
       || favorites.find(x => x.id === id)
@@ -2216,6 +2218,7 @@ export default function App() {
       const payload = await response.json();
       const enriched = mapPublicTherapistDetail(payload?.therapist);
       if (!enriched) return;
+      if (blockTherapistEnrichRef.current) return;
       setSelectedTherapist(enriched);
       if (enriched.bookingMode === 'FIRST_APPOINTMENT_REQUEST') loadAvailableSlots(id);
     } catch {}
@@ -4566,6 +4569,7 @@ export default function App() {
               authToken={authToken}
               availableSlots={availableSlots}
               onSuccess={() => {
+                blockTherapistEnrichRef.current = true;
                 setShowBookingForm(false);
                 setBookingTargetTherapist(null);
                 setAvailableSlots([]);
