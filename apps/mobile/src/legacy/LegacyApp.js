@@ -4954,29 +4954,42 @@ export default function App() {
             <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 20 }}>
               {t('deleteAccountConfirmMsg')}
             </Text>
-            {loggedInTherapist && (
-              <View style={{ backgroundColor: c.errorBg, borderRadius: RADIUS.md, padding: 14, borderWidth: 1, borderColor: c.error }}>
-                <Text style={{ fontSize: 13, color: c.error, marginBottom: 10 }}>
-                  {t('enterLastNameConfirm')}
-                </Text>
-                <TextInput
-                  value={deleteNameInput}
-                  onChangeText={setDeleteNameInput}
-                  placeholder={loggedInTherapist?.fullName?.split(' ').slice(-1)[0] ?? t('lastNameFallback')}
-                  placeholderTextColor={c.muted}
-                  autoCapitalize="words"
-                  style={{ backgroundColor: c.background, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.error, color: c.text, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 }}
-                />
-              </View>
-            )}
+            {(() => {
+              const expectedLastName = loggedInTherapist
+                ? (loggedInTherapist.fullName?.split(' ').slice(-1)[0] ?? '')
+                : (loggedInPatient?.lastName ?? '');
+              return expectedLastName ? (
+                <View style={{ backgroundColor: c.errorBg, borderRadius: RADIUS.md, padding: 14, borderWidth: 1, borderColor: c.error }}>
+                  <Text style={{ fontSize: 13, color: c.error, marginBottom: 10 }}>
+                    {t('enterLastNameConfirm')}
+                  </Text>
+                  <TextInput
+                    value={deleteNameInput}
+                    onChangeText={setDeleteNameInput}
+                    placeholder={expectedLastName}
+                    placeholderTextColor={c.muted}
+                    autoCapitalize="words"
+                    style={{ backgroundColor: c.background, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.error, color: c.text, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 }}
+                  />
+                </View>
+              ) : null;
+            })()}
             <Pressable
               onPress={async () => { setShowDeleteAccountModal(false); await deleteAccountConfirmed(); }}
-              disabled={loggedInTherapist
-                ? deleteNameInput.trim().toLowerCase() !== (loggedInTherapist?.fullName?.split(' ').slice(-1)[0] ?? '').toLowerCase()
-                : false}
+              disabled={(() => {
+                const expectedLastName = loggedInTherapist
+                  ? (loggedInTherapist.fullName?.split(' ').slice(-1)[0] ?? '')
+                  : (loggedInPatient?.lastName ?? '');
+                return expectedLastName
+                  ? deleteNameInput.trim().toLowerCase() !== expectedLastName.toLowerCase()
+                  : false;
+              })()}
               style={({ pressed }) => {
-                const enabled = loggedInTherapist
-                  ? deleteNameInput.trim().toLowerCase() === (loggedInTherapist?.fullName?.split(' ').slice(-1)[0] ?? '').toLowerCase()
+                const expectedLastName = loggedInTherapist
+                  ? (loggedInTherapist.fullName?.split(' ').slice(-1)[0] ?? '')
+                  : (loggedInPatient?.lastName ?? '');
+                const enabled = expectedLastName
+                  ? deleteNameInput.trim().toLowerCase() === expectedLastName.toLowerCase()
                   : true;
                 return { backgroundColor: c.error, borderRadius: RADIUS.md, paddingVertical: 14, alignItems: 'center', opacity: enabled ? (pressed ? 0.7 : 1) : 0.35 };
               }}
