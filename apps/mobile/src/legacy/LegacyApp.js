@@ -3454,7 +3454,10 @@ export default function App() {
                     headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
                     body: JSON.stringify(body),
                   });
-                  if (!res.ok) throw new Error('failed');
+                  if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data?.error ?? `Fehler ${res.status}`);
+                  }
                   loadIncomingBookings(authToken);
                   loadMySlots(authToken);
                 }}

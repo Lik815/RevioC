@@ -399,8 +399,8 @@ export function TherapistBookingCard({ c, t, request, onRespond }) {
         ? { action: 'CONFIRM' }
         : { action: 'DECLINE', declinedReason: declinedReason.trim() || undefined };
       await onRespond(request.id, body);
-    } catch {
-      setError('Fehler beim Speichern.');
+    } catch (e) {
+      setError(e?.message && e.message !== 'failed' ? e.message : 'Fehler beim Speichern.');
     } finally {
       setLoading(false);
     }
