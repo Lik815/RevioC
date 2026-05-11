@@ -236,7 +236,7 @@ export function TherapistProfileScreen(props) {
   const therapistAreas = Array.isArray(th?.behandlungsbereiche) ? th.behandlungsbereiche : [];
   const therapistSpecializations = Array.isArray(th?.specializations) ? th.specializations : [];
   const therapistCertifications = Array.isArray(th?.fortbildungen) ? th.fortbildungen : [];
-  const therapistPhone = th?.phone ?? '+4312345678';
+  const therapistPhone = th?.phone || null;
   const displayEmail = th?.email || null;
   const iconHitSlop = { top: 10, bottom: 10, left: 10, right: 10 };
   const canOpenBookingModal = thWithSlots.bookingMode === 'FIRST_APPOINTMENT_REQUEST' && accountType !== 'therapist' && accountType !== 'manager';

@@ -15,17 +15,20 @@ export function PatientDashboardScreen({ c, loggedInPatient, styles, t, authToke
   const firstName = loggedInPatient?.firstName ?? '';
   const lastName = loggedInPatient?.lastName ?? '';
   const email = loggedInPatient?.email ?? '';
+  const phone = loggedInPatient?.phone ?? null;
   const initials = ((firstName[0] ?? '') + (lastName[0] ?? '')).toUpperCase() || '?';
 
   const [editing, setEditing] = useState(false);
   const [editFirst, setEditFirst] = useState('');
   const [editLast, setEditLast] = useState('');
+  const [editPhone, setEditPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
   const openEdit = () => {
     setEditFirst(firstName);
     setEditLast(lastName);
+    setEditPhone(phone ?? '');
     setSaveError('');
     setEditing(true);
   };
@@ -44,11 +47,11 @@ export function PatientDashboardScreen({ c, loggedInPatient, styles, t, authToke
       const res = await fetch(`${getBaseUrl()}/auth/me`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ firstName: editFirst.trim(), lastName: editLast.trim() }),
+        body: JSON.stringify({ firstName: editFirst.trim(), lastName: editLast.trim(), phone: editPhone.trim() || null }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setSaveError(data.message ?? 'Fehler beim Speichern.'); return; }
-      onProfileSaved({ firstName: data.firstName, lastName: data.lastName });
+      onProfileSaved({ firstName: data.firstName, lastName: data.lastName, phone: data.phone ?? null });
       setEditing(false);
     } catch {
       setSaveError('Verbindungsfehler.');
@@ -80,9 +83,11 @@ export function PatientDashboardScreen({ c, loggedInPatient, styles, t, authToke
             <Text style={{ ...TYPE.meta, color: c.text, fontWeight: '600' }} numberOfLines={1}>{email}</Text>
           </View>
           <View style={{ flex: 1, minWidth: '45%', borderWidth: 1, borderColor: c.border, borderRadius: RADIUS.md, padding: SPACE.md, gap: SPACE.xs, backgroundColor: c.card }}>
-            <Ionicons name="person-outline" size={18} color={c.success} />
-            <Text style={{ ...TYPE.label, color: c.textMuted ?? c.muted }}>{t('roleLabel') ?? 'Rolle'}</Text>
-            <Text style={{ ...TYPE.meta, color: c.success, fontWeight: '600' }}>{t('patientRoleLabel')}</Text>
+            <Ionicons name="call-outline" size={18} color={phone ? c.primary : c.muted} />
+            <Text style={{ ...TYPE.label, color: c.textMuted ?? c.muted }}>{t('phoneLabel') ?? 'Telefon'}</Text>
+            <Text style={{ ...TYPE.meta, color: phone ? c.text : c.muted, fontWeight: phone ? '600' : '400' }} numberOfLines={1}>
+              {phone ?? t('phonePlaceholder') ?? '+49 …'}
+            </Text>
           </View>
         </View>
       </View>
@@ -111,6 +116,14 @@ export function PatientDashboardScreen({ c, loggedInPatient, styles, t, authToke
             onChangeText={setEditLast}
             placeholder={t('lastNamePlaceholder') ?? t('lastName')}
             placeholderTextColor={c.muted}
+            style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]}
+          />
+          <TextInput
+            value={editPhone}
+            onChangeText={setEditPhone}
+            placeholder={t('phonePlaceholder') ?? '+49 …'}
+            placeholderTextColor={c.muted}
+            keyboardType="phone-pad"
             style={[styles.regInput, { backgroundColor: c.card, borderColor: c.border, color: c.text }]}
           />
 

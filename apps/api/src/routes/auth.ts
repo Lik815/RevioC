@@ -31,6 +31,7 @@ const updateMeSchema = z.object({
   certifications: z.array(z.string()).optional(),
   photo: z.string().optional(),
   bookingMode: z.enum(['DIRECTORY_ONLY', 'FIRST_APPOINTMENT_REQUEST']).optional(),
+  phone: z.string().max(30).nullable().optional(),
 });
 
 const splitList = (value: string) =>
@@ -309,6 +310,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         role: 'patient',
         firstName: (user as any).firstName ?? '',
         lastName: (user as any).lastName ?? '',
+        phone: (user as any).phone ?? null,
       };
     }
 
@@ -363,6 +365,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       latitude: therapist.latitude ?? null,
       longitude: therapist.longitude ?? null,
       gender: therapist.gender ?? null,
+      phone: (therapist as any).phone ?? null,
       taxRegistrationStatus: therapist.taxRegistrationStatus ?? null,
       healthAuthorityStatus: therapist.healthAuthorityStatus ?? null,
       complianceUpdatedAt: therapist.complianceUpdatedAt ?? null,
@@ -397,6 +400,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const patientSchema = z.object({
         firstName: z.string().min(1).optional(),
         lastName: z.string().min(1).optional(),
+        phone: z.string().max(30).nullable().optional(),
       });
       const parsed = patientSchema.safeParse(request.body);
       if (!parsed.success) return reply.badRequest(parsed.error.flatten().toString());
@@ -405,6 +409,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         data: {
           ...(parsed.data.firstName !== undefined ? { firstName: parsed.data.firstName } : {}),
           ...(parsed.data.lastName !== undefined ? { lastName: parsed.data.lastName } : {}),
+          ...(parsed.data.phone !== undefined ? { phone: parsed.data.phone } : {}),
         },
       });
       return {
@@ -413,6 +418,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         role: 'patient',
         firstName: updated.firstName ?? '',
         lastName: updated.lastName ?? '',
+        phone: (updated as any).phone ?? null,
       };
     }
 
@@ -449,6 +455,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (data.certifications !== undefined) updateData.certifications = data.certifications.join(', ');
     if (data.photo !== undefined) updateData.photo = data.photo;
     if (data.bookingMode !== undefined) updateData.bookingMode = data.bookingMode;
+    if (data.phone !== undefined) updateData.phone = data.phone;
 
     // Wenn city geändert: Stadt geocodieren → homeLat/homeLng setzen
     if (data.city !== undefined) {

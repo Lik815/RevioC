@@ -831,6 +831,7 @@ export default function App() {
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editBio, setEditBio] = useState('');
+  const [editPhone, setEditPhone] = useState('');
   const [editSpecializations, setEditSpecializations] = useState('');
   const [editLanguages, setEditLanguages] = useState([]);
   const [editHomeVisit, setEditHomeVisit] = useState(false);
@@ -1414,6 +1415,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({
           bio: editBio,
+          phone: editPhone.trim() || null,
           specializations: editSpecializations.split(',').map(s => s.trim()).filter(Boolean),
           languages: editLanguages.map(l => l.toLowerCase()),
           homeVisit: editHomeVisit,
@@ -2400,6 +2402,7 @@ export default function App() {
         : normalizeComplianceDraft(th?.compliance);
 
       setEditBio(th.bio ?? '');
+      setEditPhone(th.phone ?? '');
       setEditSpecializations((th.specializations ?? []).join(', '));
       setEditLanguages(normalizeLanguageCodes(th.languages));
       setEditHomeVisit(th.homeVisit ?? false);
@@ -2420,6 +2423,8 @@ export default function App() {
         c={c}
         editAvailability={editAvailability}
         editBio={editBio}
+        editPhone={editPhone}
+        setEditPhone={setEditPhone}
         editHealthAuthorityStatus={editHealthAuthorityStatus}
         editHomeVisit={editHomeVisit}
         editIsVisible={editIsVisible}
@@ -2577,6 +2582,7 @@ export default function App() {
           role: 'patient',
           firstName,
           lastName,
+          phone: null,
         });
         loadFavorites(data.token);
         loadMyAppointments(data.token);

@@ -52,6 +52,7 @@ export function TherapistDashboardScreen(props) {
     documentUploading,
     editAvailability,
     editBio,
+    editPhone,
     editHomeVisit,
     editIsVisible,
     editGender,
@@ -70,6 +71,7 @@ export function TherapistDashboardScreen(props) {
     profileSaving,
     setEditAvailability,
     setEditBio,
+    setEditPhone,
     setEditHomeVisit,
     setEditIsVisible,
     setEditGender,
@@ -150,7 +152,16 @@ export function TherapistDashboardScreen(props) {
 
       {editMode ? (
         <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-          <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('aboutLabel')}</Text>
+          <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('phoneLabel') ?? 'Telefon'}</Text>
+          <TextInput
+            style={[styles.inputField, { color: c.text, borderColor: c.border, backgroundColor: c.mutedBg }]}
+            value={editPhone}
+            onChangeText={setEditPhone}
+            placeholder={t('phonePlaceholder') ?? '+49 …'}
+            placeholderTextColor={c.muted}
+            keyboardType="phone-pad"
+          />
+          <Text style={[styles.filterSectionTitle, { color: c.muted, marginTop: 12 }]}>{t('aboutLabel')}</Text>
           <TextInput
             style={[styles.inputField, { color: c.text, borderColor: c.border, backgroundColor: c.mutedBg, minHeight: 80, textAlignVertical: 'top' }]}
             value={editBio}
@@ -291,6 +302,13 @@ export function TherapistDashboardScreen(props) {
         </View>
       ) : (
         <>
+          <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('phoneLabel') ?? 'Telefon'}</Text>
+            <Text style={[styles.infoBody, { color: th.phone ? c.text : c.muted }]}>
+              {th.phone ?? (t('phonePlaceholder') ?? '+49 …')}
+            </Text>
+          </View>
+
           {th.bio ? (
             <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
               <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('aboutLabel')}</Text>
