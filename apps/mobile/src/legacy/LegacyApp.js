@@ -525,18 +525,32 @@ export default function App() {
     } catch {}
   };
 
-  const handleCancelSlot = async (slotId) => {
+  const handleCancelSlot = (slotId) => {
     if (!authToken) return;
-    setDeletingSlotIds((prev) => (prev.includes(slotId) ? prev : [...prev, slotId]));
-    try {
-      const res = await fetch(`${getBaseUrl()}/therapist/slots/${slotId}`, {
-        method: 'DELETE',
-        headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
-      });
-      if (res.ok) await loadMySlots(authToken, { background: true });
-    } catch {} finally {
-      setDeletingSlotIds((prev) => prev.filter((id) => id !== slotId));
-    }
+    Alert.alert(
+      'Termin absagen',
+      'Möchtest du diesen Termin wirklich absagen?',
+      [
+        { text: 'Nein', style: 'cancel' },
+        {
+          text: 'Absagen', style: 'destructive', onPress: async () => {
+            setDeletingSlotIds((prev) => (prev.includes(slotId) ? prev : [...prev, slotId]));
+            try {
+              const res = await fetch(`${getBaseUrl()}/therapist/slots/${slotId}`, {
+                method: 'PATCH',
+                headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
+              });
+              if (res.ok) await loadMySlots(authToken, { background: true });
+              else Alert.alert('Fehler', 'Slot konnte nicht storniert werden.');
+            } catch {
+              Alert.alert('Fehler', 'Keine Verbindung. Bitte erneut versuchen.');
+            } finally {
+              setDeletingSlotIds((prev) => prev.filter((id) => id !== slotId));
+            }
+          },
+        },
+      ],
+    );
   };
 
   const resetTherapyData = () => {
@@ -3385,6 +3399,7 @@ export default function App() {
   const renderTherapyTabTherapist = () => {
     const slotBookingEnabled = loggedInTherapist?.bookingMode === 'FIRST_APPOINTMENT_REQUEST';
     const pendingIncomingBookings = incomingBookings.filter((request) => request.status === 'PENDING');
+    const confirmedIncomingBookings = incomingBookings.filter((request) => request.status === 'CONFIRMED');
     const freeSlots = mySlots.filter(s => s.status === 'AVAILABLE');
     const bookedSlots = mySlots.filter(s => s.status === 'BOOKED');
 
@@ -3478,6 +3493,46 @@ export default function App() {
                 <Text style={{ fontSize: 13, color: c.muted, textAlign: 'center', marginTop: 4, lineHeight: 18 }}>Neue Buchungsanfragen von Patienten erscheinen hier automatisch.</Text>
               </View>
         }
+
+        {/* ── Bestätigte Termine ────────────────────────────────────── */}
+        {confirmedIncomingBookings.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, { color: c.text }]}>Bestätigte Termine</Text>
+            {confirmedIncomingBookings.map((request) => (
+              <TherapistBookingCard
+                key={request.id}
+                c={c}
+                t={t}
+                request={request}
+                onRespond={async (id, body) => {
+                  const res = await fetch(`${getBaseUrl()}/bookings/${id}/respond`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
+                    body: JSON.stringify(body),
+                  });
+                  if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data?.error ?? `Fehler ${res.status}`);
+                  }
+                  loadIncomingBookings(authToken);
+                  loadMySlots(authToken);
+                }}
+                onCancel={async () => {
+                  const res = await fetch(`${getBaseUrl()}/bookings/${request.id}/therapist-cancel`, {
+                    method: 'PATCH',
+                    headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
+                  });
+                  if (res.ok) {
+                    loadIncomingBookings(authToken);
+                    loadMySlots(authToken);
+                  } else {
+                    Alert.alert('Fehler', 'Stornierung fehlgeschlagen. Bitte erneut versuchen.');
+                  }
+                }}
+              />
+            ))}
+          </>
+        )}
 
         <Text style={[styles.sectionLabel, { color: c.text }]}>{t('favoritesTherapists') ?? 'Therapeut:innen'}</Text>
         {shouldShowSectionLoading(favoritesLoading, favoritesLastLoadedAt)

@@ -372,7 +372,10 @@ export async function bookingRoutes(fastify: FastifyInstance) {
     if (!patient) return reply.status(403).send({ error: 'Only patients can cancel booking requests' });
 
     const { id } = request.params as { id: string };
-    const booking = await fastify.prisma.bookingRequest.findUnique({ where: { id } });
+    const booking = await fastify.prisma.bookingRequest.findUnique({
+      where: { id },
+      include: { therapist: { select: { fullName: true, expoPushToken: true } } },
+    });
     if (!booking) return reply.status(404).send({ error: 'Booking not found' });
     if (booking.patientUserId !== patient.id) return reply.status(403).send({ error: 'Not your booking' });
     if (booking.status !== 'PENDING') return reply.status(400).send({ error: 'Only pending requests can be cancelled' });
@@ -384,6 +387,52 @@ export async function bookingRoutes(fastify: FastifyInstance) {
       }
       return u;
     });
+
+    if (booking.therapist.expoPushToken) {
+      const patientName = booking.patientName ?? 'Ein Patient';
+      sendPushNotification(
+        booking.therapist.expoPushToken,
+        'Terminanfrage storniert',
+        `${patientName} hat die Buchungsanfrage storniert.`,
+        { bookingId: booking.id, screen: 'bookings' },
+      );
+    }
+
+    return reply.send(updated);
+  });
+
+  // PATCH /bookings/:id/therapist-cancel — Therapeut storniert eigene CONFIRMED-Buchung
+  fastify.patch('/bookings/:id/therapist-cancel', async (request, reply) => {
+    const token = request.headers.authorization?.replace('Bearer ', '');
+    if (!token) return reply.status(401).send({ error: 'Unauthorized' });
+    const therapist = await resolveTherapist(fastify, token);
+    if (!therapist) return reply.status(403).send({ error: 'Only therapists can cancel confirmed bookings' });
+
+    const { id } = request.params as { id: string };
+    const booking = await fastify.prisma.bookingRequest.findUnique({ where: { id } });
+    if (!booking) return reply.status(404).send({ error: 'Booking not found' });
+    if (booking.therapistId !== therapist.id) return reply.status(403).send({ error: 'Not your booking' });
+    if (booking.status !== 'CONFIRMED') return reply.status(400).send({ error: 'Only confirmed bookings can be cancelled this way' });
+
+    const updated = await fastify.prisma.$transaction(async (tx) => {
+      const u = await tx.bookingRequest.update({ where: { id }, data: { status: 'CANCELLED', respondedAt: new Date() } });
+      if (booking.slotId) {
+        await tx.therapistSlot.update({ where: { id: booking.slotId }, data: { status: 'AVAILABLE' } });
+      }
+      return u;
+    });
+
+    const patientUser = booking.patientUserId
+      ? await fastify.prisma.user.findUnique({ where: { id: booking.patientUserId } })
+      : null;
+    if ((patientUser as any)?.expoPushToken) {
+      sendPushNotification(
+        (patientUser as any).expoPushToken,
+        'Termin abgesagt',
+        `${therapist.fullName} musste deinen Termin leider absagen.`,
+        { bookingId: booking.id, screen: 'bookings' },
+      );
+    }
 
     return reply.send(updated);
   });

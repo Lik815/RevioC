@@ -314,7 +314,7 @@ export function PatientAppointmentCard({ c, t, appointment, onCancel, onOpenDeta
         {/* Footer */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACE.md, paddingTop: SPACE.sm, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' }}>
           {status === 'PENDING' ? (
-            <Pressable onPress={(e) => { e.stopPropagation?.(); Alert.alert('Anfrage stornieren', 'Möchtest du diese Anfrage wirklich stornieren?', [{ text: 'Nein', style: 'cancel' }, { text: 'Stornieren', style: 'destructive', onPress: onCancel }]); }}>
+            <Pressable onPress={(e) => { e.stopPropagation?.(); Alert.alert('Termin stornieren', 'Möchtest du diese Anfrage wirklich stornieren?', [{ text: 'Nein', style: 'cancel' }, { text: 'Stornieren', style: 'destructive', onPress: onCancel }]); }}>
               <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>Stornieren</Text>
             </Pressable>
           ) : <View />}
@@ -380,7 +380,7 @@ export function PatientAppointmentCard({ c, t, appointment, onCancel, onOpenDeta
 
 // ─── TherapistBookingCard ──────────────────────────────────────────────────────
 
-export function TherapistBookingCard({ c, t, request, onRespond }) {
+export function TherapistBookingCard({ c, t, request, onRespond, onCancel }) {
   const [loading, setLoading] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
   const [declinedReason, setDeclinedReason] = useState('');
@@ -463,6 +463,23 @@ export function TherapistBookingCard({ c, t, request, onRespond }) {
 
       {/* Error */}
       {!!error && <Text style={{ ...TYPE.small, color: c.error, marginTop: 6 }}>{error}</Text>}
+
+      {/* Therapeut storniert bestätigten Termin */}
+      {request.status === 'CONFIRMED' && onCancel && (
+        <Pressable
+          onPress={() => Alert.alert(
+            'Termin absagen',
+            'Möchtest du diesen bestätigten Termin wirklich absagen? Der Patient wird benachrichtigt.',
+            [
+              { text: 'Nein', style: 'cancel' },
+              { text: 'Absagen', style: 'destructive', onPress: onCancel },
+            ],
+          )}
+          style={{ marginTop: SPACE.sm, paddingVertical: 8, alignItems: 'center' }}
+        >
+          <Text style={{ ...TYPE.label, color: c.error, fontSize: 13 }}>Termin absagen</Text>
+        </Pressable>
+      )}
 
       {/* Actions */}
       {isPending && (
