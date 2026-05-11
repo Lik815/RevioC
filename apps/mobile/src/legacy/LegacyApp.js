@@ -1377,17 +1377,6 @@ export default function App() {
       else { Alert.alert(t('alertHint'), msg, [{ text: 'OK' }]); }
       return;
     }
-    if (loggedInPatient) {
-      Alert.alert(
-        t('deleteAccountConfirmTitle'),
-        t('deleteAccountConfirmMsg'),
-        [
-          { text: t('cancelBtn'), style: 'cancel' },
-          { text: t('deleteAccountConfirmBtn'), style: 'destructive', onPress: deleteAccountConfirmed },
-        ],
-      );
-      return;
-    }
     setDeleteNameInput('');
     setShowDeleteAccountModal(true);
   };
@@ -4962,23 +4951,32 @@ export default function App() {
             <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 20 }}>
               {t('deleteAccountConfirmMsg')}
             </Text>
-            <View style={{ backgroundColor: c.errorBg, borderRadius: RADIUS.md, padding: 14, borderWidth: 1, borderColor: c.error }}>
-              <Text style={{ fontSize: 13, color: c.error, marginBottom: 10 }}>
-                {t('enterLastNameConfirm')}
-              </Text>
-              <TextInput
-                value={deleteNameInput}
-                onChangeText={setDeleteNameInput}
-                placeholder={loggedInTherapist?.fullName?.split(' ').slice(-1)[0] ?? t('lastNameFallback')}
-                placeholderTextColor={c.muted}
-                autoCapitalize="words"
-                style={{ backgroundColor: c.background, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.error, color: c.text, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 }}
-              />
-            </View>
+            {loggedInTherapist && (
+              <View style={{ backgroundColor: c.errorBg, borderRadius: RADIUS.md, padding: 14, borderWidth: 1, borderColor: c.error }}>
+                <Text style={{ fontSize: 13, color: c.error, marginBottom: 10 }}>
+                  {t('enterLastNameConfirm')}
+                </Text>
+                <TextInput
+                  value={deleteNameInput}
+                  onChangeText={setDeleteNameInput}
+                  placeholder={loggedInTherapist?.fullName?.split(' ').slice(-1)[0] ?? t('lastNameFallback')}
+                  placeholderTextColor={c.muted}
+                  autoCapitalize="words"
+                  style={{ backgroundColor: c.background, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.error, color: c.text, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 }}
+                />
+              </View>
+            )}
             <Pressable
               onPress={async () => { setShowDeleteAccountModal(false); await deleteAccountConfirmed(); }}
-              disabled={deleteNameInput.trim().toLowerCase() !== (loggedInTherapist?.fullName?.split(' ').slice(-1)[0] ?? '').toLowerCase()}
-              style={({ pressed }) => ({ backgroundColor: c.error, borderRadius: RADIUS.md, paddingVertical: 14, alignItems: 'center', opacity: deleteNameInput.trim().toLowerCase() === (loggedInTherapist?.fullName?.split(' ').slice(-1)[0] ?? '').toLowerCase() ? (pressed ? 0.7 : 1) : 0.35 })}
+              disabled={loggedInTherapist
+                ? deleteNameInput.trim().toLowerCase() !== (loggedInTherapist?.fullName?.split(' ').slice(-1)[0] ?? '').toLowerCase()
+                : false}
+              style={({ pressed }) => {
+                const enabled = loggedInTherapist
+                  ? deleteNameInput.trim().toLowerCase() === (loggedInTherapist?.fullName?.split(' ').slice(-1)[0] ?? '').toLowerCase()
+                  : true;
+                return { backgroundColor: c.error, borderRadius: RADIUS.md, paddingVertical: 14, alignItems: 'center', opacity: enabled ? (pressed ? 0.7 : 1) : 0.35 };
+              }}
             >
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{t('deleteAccountFinal')}</Text>
             </Pressable>
