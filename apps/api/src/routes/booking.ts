@@ -103,6 +103,16 @@ export async function bookingRoutes(fastify: FastifyInstance) {
     const future = parsed.data.slots.filter((s) => new Date(s.startsAt) > now);
     if (future.length === 0) return reply.status(400).send({ error: 'All slots must be in the future' });
 
+    const futureDates = future.map((s) => new Date(s.startsAt));
+    const existing = await fastify.prisma.therapistSlot.findMany({
+      where: { therapistId: therapist.id, startsAt: { in: futureDates } },
+      select: { startsAt: true },
+    });
+    if (existing.length > 0) {
+      const duplicates = existing.map((s) => s.startsAt.toISOString()).join(', ');
+      return reply.status(409).send({ error: `Duplicate slot times: ${duplicates}` });
+    }
+
     const created = await fastify.prisma.$transaction(
       future.map((s) =>
         fastify.prisma.therapistSlot.create({

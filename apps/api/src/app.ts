@@ -45,5 +45,37 @@ export async function buildApp() {
   await app.register(bookingRoutes);
   await app.register(feedbackRoutes);
 
+  // ── Scheduled expiry: release slots from stale PENDING bookings every 5 min
+  app.addHook('onReady', () => {
+    const runExpiry = async () => {
+      try {
+        const stale = await app.prisma.bookingRequest.findMany({
+          where: { status: 'PENDING', responseDueAt: { lt: new Date() } },
+          select: { id: true, slotId: true },
+        });
+        if (stale.length === 0) return;
+        await app.prisma.$transaction([
+          app.prisma.bookingRequest.updateMany({
+            where: { id: { in: stale.map((b) => b.id) } },
+            data: { status: 'EXPIRED' },
+          }),
+          ...stale
+            .filter((b) => b.slotId)
+            .map((b) =>
+              app.prisma.therapistSlot.update({
+                where: { id: b.slotId! },
+                data: { status: 'AVAILABLE' },
+              }),
+            ),
+        ]);
+        app.log.info(`[expiry] Expired ${stale.length} stale booking(s)`);
+      } catch (err) {
+        app.log.error({ err }, '[expiry] Failed to expire stale bookings');
+      }
+    };
+
+    setInterval(runExpiry, 5 * 60 * 1000);
+  });
+
   return app;
 }

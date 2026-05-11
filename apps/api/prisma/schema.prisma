@@ -264,6 +264,7 @@ model TherapistSlot {
   booking     BookingRequest?
   createdAt   DateTime    @default(now())
 
+  @@unique([therapistId, startsAt])
   @@index([therapistId, status, startsAt])
 }
 
