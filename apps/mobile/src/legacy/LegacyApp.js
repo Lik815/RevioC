@@ -881,6 +881,7 @@ export default function App() {
   const [editAvailability, setEditAvailability] = useState('');
   const [editTaxRegistrationStatus, setEditTaxRegistrationStatus] = useState(null);
   const [editHealthAuthorityStatus, setEditHealthAuthorityStatus] = useState(null);
+  const [editCertifications, setEditCertifications] = useState([]);
   const [profileSaving, setProfileSaving] = useState(false);
   const [therapistDocuments, setTherapistDocuments] = useState([]);
   const [documentUploading, setDocumentUploading] = useState(false);
@@ -1455,6 +1456,7 @@ export default function App() {
           phone: editPhone.trim() || null,
           specializations: editSpecializations.split(',').map(s => s.trim()).filter(Boolean),
           languages: editLanguages.map(l => l.toLowerCase()),
+          certifications: editCertifications,
           homeVisit: editHomeVisit,
           serviceRadiusKm: editHomeVisit ? (editServiceRadius ?? null) : null,
           kassenart: editKassenart,
@@ -2455,6 +2457,7 @@ export default function App() {
       setEditAvailability(th.availability ?? '');
       setEditTaxRegistrationStatus(nextCompliance.taxRegistrationStatus);
       setEditHealthAuthorityStatus(nextCompliance.healthAuthorityStatus);
+      setEditCertifications(Array.isArray(th.certifications) ? th.certifications : []);
       setEditMode(true);
     };
 
@@ -2502,6 +2505,9 @@ export default function App() {
         onAddSlot={handleAddSlot}
         editBookingMode={editBookingMode}
         setEditBookingMode={setEditBookingMode}
+        editCertifications={editCertifications}
+        setEditCertifications={setEditCertifications}
+        certificationOptions={certificationOptions}
       />
     );
   };

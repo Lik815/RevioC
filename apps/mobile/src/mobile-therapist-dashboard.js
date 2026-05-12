@@ -87,6 +87,9 @@ export function TherapistDashboardScreen(props) {
     therapistDocuments,
     editBookingMode,
     setEditBookingMode,
+    editCertifications,
+    setEditCertifications,
+    certificationOptions,
     onOpenTherapyTab,
     onAddSlot,
   } = props;
@@ -291,6 +294,36 @@ export function TherapistDashboardScreen(props) {
               taxRegistrationStatus={editTaxRegistrationStatus}
             />
           </View>
+          {Array.isArray(certificationOptions) && certificationOptions.length > 0 && (
+            <View style={{ marginTop: 14 }}>
+              <Text style={[styles.detailInfoLabel, { color: c.muted, marginBottom: 8 }]}>{t('certificationsLabel') ?? 'Fortbildungen'}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {certificationOptions.map((opt) => {
+                  const active = (editCertifications ?? []).includes(opt.key);
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      onPress={() => setEditCertifications(prev =>
+                        prev.includes(opt.key) ? prev.filter(k => k !== opt.key) : [...prev, opt.key]
+                      )}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 6,
+                        paddingVertical: 7, paddingHorizontal: 12,
+                        borderRadius: 20, borderWidth: 1.5,
+                        borderColor: active ? c.primary : c.border,
+                        backgroundColor: active ? c.primaryBg : c.mutedBg,
+                      }}
+                    >
+                      {active && <Ionicons name="checkmark" size={13} color={c.primary} />}
+                      <Text style={{ fontSize: 13, color: active ? c.primary : c.muted, fontWeight: active ? '600' : '400' }}>
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
             <Pressable style={[styles.registerBtn, { flex: 1, backgroundColor: c.border, marginTop: 0 }]} onPress={() => setEditMode(false)}>
               <Text style={{ ...TYPE.heading, color: c.text }}>{t('cancelBtn')}</Text>
@@ -337,6 +370,19 @@ export function TherapistDashboardScreen(props) {
               ))}
             </View>
           </View>
+
+          {Array.isArray(th.certifications) && th.certifications.length > 0 && (
+            <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
+              <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('certificationsLabel') ?? 'Fortbildungen'}</Text>
+              <View style={[styles.tagRow, { marginTop: 8 }]}>
+                {th.certifications.map((cert) => (
+                  <View key={cert} style={[styles.tag, { backgroundColor: c.successBg, borderWidth: 1, borderColor: c.success }]}>
+                    <Text style={[styles.tagText, { color: c.success }]}>{cert}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
 
           <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
             <View style={[styles.detailInfoRow, { marginBottom: 8 }]}>

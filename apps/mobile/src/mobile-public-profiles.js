@@ -237,7 +237,7 @@ export function TherapistProfileScreen(props) {
   const therapistLanguages = Array.isArray(th?.languages) ? th.languages : [];
   const therapistAreas = Array.isArray(th?.behandlungsbereiche) ? th.behandlungsbereiche : [];
   const therapistSpecializations = Array.isArray(th?.specializations) ? th.specializations : [];
-  const therapistCertifications = Array.isArray(th?.fortbildungen) ? th.fortbildungen : [];
+  const therapistCertifications = Array.isArray(th?.certifications) ? th.certifications : [];
   const therapistPhone = th?.phone || null;
   const displayEmail = th?.email || null;
   const iconHitSlop = { top: 10, bottom: 10, left: 10, right: 10 };
@@ -362,20 +362,30 @@ export function TherapistProfileScreen(props) {
           </View>
         </View>
 
-        {/* Info-Rows: Distanz · E-Mail · Telefon */}
+        {/* Info-Rows: Distanz · Telefon · E-Mail */}
         {(th.distKm != null || displayEmail || therapistPhone) ? (
           <View style={{ marginTop: 16, borderWidth: 1, borderColor: c.border, borderRadius: 12, overflow: 'hidden' }}>
             {th.distKm != null ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: (displayEmail || therapistPhone) ? 1 : 0, borderBottomColor: c.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: (therapistPhone || displayEmail) ? 1 : 0, borderBottomColor: c.border }}>
                 <Ionicons name="navigate-outline" size={18} color={c.primary} />
                 <Text style={{ color: c.text, fontSize: 15, flex: 1 }}>{formatDist(th.distKm)} entfernt</Text>
                 <Ionicons name="chevron-forward" size={14} color={c.muted} />
               </View>
             ) : null}
+            {therapistPhone ? (
+              <Pressable
+                onPress={() => Linking.openURL(`tel:${therapistPhone}`)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: displayEmail ? 1 : 0, borderBottomColor: c.border }}
+              >
+                <Ionicons name="call-outline" size={18} color={c.primary} />
+                <Text style={{ color: c.text, fontSize: 15, flex: 1 }}>{therapistPhone}</Text>
+                <Ionicons name="chevron-forward" size={14} color={c.muted} />
+              </Pressable>
+            ) : null}
             {displayEmail ? (
               <Pressable
                 onPress={openEmailComposer}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: therapistPhone ? 1 : 0, borderBottomColor: c.border }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 16 }}
               >
                 <Ionicons name="mail-outline" size={18} color={c.primary} />
                 <Text style={{ color: c.text, fontSize: 15, flex: 1 }} numberOfLines={1}>{displayEmail}</Text>
@@ -389,16 +399,6 @@ export function TherapistProfileScreen(props) {
                 >
                   <Ionicons name="copy-outline" size={16} color={c.muted} />
                 </Pressable>
-              </Pressable>
-            ) : null}
-            {therapistPhone ? (
-              <Pressable
-                onPress={() => Linking.openURL(`tel:${therapistPhone}`)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, paddingHorizontal: 16 }}
-              >
-                <Ionicons name="call-outline" size={18} color={c.primary} />
-                <Text style={{ color: c.text, fontSize: 15, flex: 1 }}>{therapistPhone}</Text>
-                <Ionicons name="chevron-forward" size={14} color={c.muted} />
               </Pressable>
             ) : null}
           </View>
@@ -463,15 +463,6 @@ export function TherapistProfileScreen(props) {
               </View>
             ))}
           </View>
-          {th.distKm != null ? (
-            <View style={{ borderTopWidth: 1, borderTopColor: c.border, paddingHorizontal: 18, paddingVertical: 18 }}>
-              <Text style={[styles.filterSectionTitle, { color: c.muted, marginBottom: 12 }]}>DISTANZ</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="navigate-outline" size={18} color={c.text} />
-                <Text style={{ color: c.text, fontSize: 14 }}>{formatDist(th.distKm)} entfernt</Text>
-              </View>
-            </View>
-          ) : null}
         </View>
       </View>
 
