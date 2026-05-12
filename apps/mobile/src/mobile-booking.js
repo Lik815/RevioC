@@ -296,59 +296,89 @@ export const STATUS_COLORS = {
   EXPIRED:   { bg: '#F3F4F6', text: '#6B7280', label: 'Abgelaufen' },
 };
 
+// ─── NextAppointmentHero ──────────────────────────────────────────────────────
+
+export function NextAppointmentHero({ c, appointment, onOpenDetail, onViewTherapist }) {
+  const { status, therapist, slot, confirmedSlotAt } = appointment;
+  const badge = STATUS_COLORS[status] ?? STATUS_COLORS.EXPIRED;
+  const slotDate = slot?.startsAt ?? confirmedSlotAt ?? null;
+  const durationMin = slot?.durationMin ?? 20;
+  const photo = resolveMediaUrl(therapist?.photo);
+  const initials = (therapist?.fullName ?? '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  if (!slotDate) return null;
+
+  const d = new Date(slotDate);
+  const dayNum = d.toLocaleDateString('de-DE', { day: 'numeric' });
+  const monthStr = d.toLocaleDateString('de-DE', { month: 'long' });
+  const weekday = d.toLocaleDateString('de-DE', { weekday: 'long' });
+  const timeStr = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <View style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, overflow: 'hidden', marginBottom: SPACE.md, ...SHADOW.card, borderWidth: 1, borderColor: c.border }}>
+      {/* Farbiger Akzentstreifen */}
+      <View style={{ height: 4, backgroundColor: c.primary }} />
+
+      <View style={{ padding: SPACE.lg }}>
+        {/* Header: Status + Foto */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 }}>
+          <View style={{ flex: 1 }}>
+            <View style={{ backgroundColor: badge.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 8 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: badge.text }}>{badge.label}</Text>
+            </View>
+            <Text style={{ fontSize: 28, fontWeight: '800', color: c.text, lineHeight: 32 }}>{dayNum}. {monthStr}</Text>
+            <Text style={{ fontSize: 14, color: c.muted, marginTop: 3 }}>{weekday} · {timeStr} Uhr · {durationMin} Min</Text>
+          </View>
+          {photo ? (
+            <Image source={{ uri: photo }} style={{ width: 60, height: 60, borderRadius: 30, marginLeft: 12 }} />
+          ) : (
+            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: c.primaryBg, alignItems: 'center', justifyContent: 'center', marginLeft: 12 }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: c.primary }}>{initials}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Therapeut:in */}
+        <View style={{ height: 1, backgroundColor: c.border, marginBottom: 12 }} />
+        <Text style={{ fontSize: 13, fontWeight: '600', color: c.text }}>{therapist?.fullName ?? '—'}</Text>
+        {therapist?.professionalTitle ? (
+          <Text style={{ fontSize: 12, color: c.muted, marginTop: 1 }}>{therapist.professionalTitle}</Text>
+        ) : null}
+
+        {/* CTAs */}
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+          <Pressable
+            onPress={onOpenDetail}
+            style={{ flex: 1, backgroundColor: c.primary, borderRadius: 10, paddingVertical: 11, alignItems: 'center' }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>Termin öffnen</Text>
+          </Pressable>
+          <Pressable
+            onPress={onViewTherapist}
+            style={{ paddingVertical: 11, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: c.border, alignItems: 'center' }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: '600', color: c.text }}>Profil</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 // ─── PatientAppointmentCard ────────────────────────────────────────────────────
 
-export function PatientAppointmentCard({ c, t, appointment, onCancel, onOpenDetail, onViewTherapist, isNext = false }) {
+export function PatientAppointmentCard({ c, appointment, onOpenDetail, onViewTherapist }) {
   const { status, therapist, slot, confirmedSlotAt } = appointment;
   const badge = STATUS_COLORS[status] ?? STATUS_COLORS.EXPIRED;
   const slotDate = slot?.startsAt ?? confirmedSlotAt ?? null;
   const durationMin = slot?.durationMin ?? 20;
   const isActive = status === 'CONFIRMED' || status === 'PENDING';
-
-  if (isNext && slotDate) {
-    // ── Hero-Karte für den nächsten Termin ─────────────────────────
-    const d = new Date(slotDate);
-    const dayNum = d.toLocaleDateString('de-DE', { day: 'numeric' });
-    const monthStr = d.toLocaleDateString('de-DE', { month: 'long' });
-    const yearStr = d.toLocaleDateString('de-DE', { year: 'numeric' });
-    const weekday = d.toLocaleDateString('de-DE', { weekday: 'long' });
-    const timeStr = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-
-    return (
-      <Pressable onPress={onOpenDetail} style={{ backgroundColor: c.primary, borderRadius: RADIUS.lg, padding: SPACE.lg, marginBottom: SPACE.sm, ...SHADOW.card }}>
-        {/* Status + Therapeut */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACE.md }}>
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TherapistAvatar therapist={therapist} size={28} c={{ ...c, primaryBg: 'rgba(255,255,255,0.2)', primary: '#fff' }} />
-            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '500' }}>{therapist?.fullName ?? '—'}</Text>
-          </View>
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{badge.label}</Text>
-          </View>
-        </View>
-
-        {/* Datum groß */}
-        <Text style={{ fontSize: 34, fontWeight: '800', color: '#fff', lineHeight: 38 }}>{dayNum}. {monthStr}</Text>
-        <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>{weekday} · {timeStr} Uhr · {durationMin} Min</Text>
-
-        {/* Footer */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACE.md, paddingTop: SPACE.sm, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' }}>
-          <View />
-          <Pressable onPress={(e) => { e.stopPropagation?.(); onViewTherapist?.(); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>Profil ansehen</Text>
-            <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.5)" />
-          </Pressable>
-        </View>
-      </Pressable>
-    );
-  }
-
-  // ── Kompakte Karte für weitere Termine ────────────────────────────
   const isInactive = !isActive;
+
   return (
     <Pressable
       onPress={onOpenDetail}
-      style={{ backgroundColor: c.card, borderRadius: RADIUS.md, paddingHorizontal: SPACE.md, paddingVertical: 12, marginBottom: 6, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: isInactive ? 0.7 : 1, ...SHADOW.card }}
+      style={{ backgroundColor: c.card, borderRadius: RADIUS.md, paddingHorizontal: SPACE.md, paddingVertical: 12, marginBottom: 6, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: isInactive ? 0.65 : 1, ...SHADOW.card }}
     >
       {/* Datum-Block */}
       {slotDate ? (
