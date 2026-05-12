@@ -661,7 +661,7 @@ export function TherapistProfileScreen(props) {
               </Text>
             </View>
             <Pressable
-              onPress={() => { setShowLoginHint(false); onBookingRequest(null); }}
+              onPress={() => { setShowLoginHint(false); onBookingRequest({ ...th, selectedSlotId }); }}
               style={{ backgroundColor: c.primary, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginBottom: 10 }}
             >
               <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Jetzt anmelden</Text>

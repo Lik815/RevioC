@@ -620,7 +620,10 @@ export default function App() {
     }
   };
 
+  const [availableSlotsLoading, setAvailableSlotsLoading] = useState(false);
+
   const loadAvailableSlots = async (therapistId) => {
+    setAvailableSlotsLoading(true);
     try {
       setAvailableSlotsTherapistId(therapistId);
       const res = await fetch(`${getBaseUrl()}/therapists/${therapistId}/slots`, {
@@ -634,6 +637,8 @@ export default function App() {
       }
     } catch {
       setAvailableSlots([]);
+    } finally {
+      setAvailableSlotsLoading(false);
     }
   };
 
@@ -1292,8 +1297,7 @@ export default function App() {
           setLoginPassword('');
           // Nach Login direkt zum Booking wenn ein Therapeut vorgemerkt war
           if (bookingTargetTherapist) {
-            loadAvailableSlots(bookingTargetTherapist.id);
-            setShowBookingForm(true);
+            loadAvailableSlots(bookingTargetTherapist.id).then(() => setShowBookingForm(true));
           }
           return;
         }
@@ -2229,6 +2233,7 @@ export default function App() {
 
     if (th) {
       setSelectedTherapist(th);
+      // Load slots now — only once; if enrichment reveals a different bookingMode we reload below
       if (th.bookingMode === 'FIRST_APPOINTMENT_REQUEST') loadAvailableSlots(id);
     }
 
@@ -2244,7 +2249,10 @@ export default function App() {
       if (!enriched) return;
       if (blockTherapistEnrichRef.current) return;
       setSelectedTherapist(enriched);
-      if (enriched.bookingMode === 'FIRST_APPOINTMENT_REQUEST') loadAvailableSlots(id);
+      // Only (re)load slots if we didn't already load them for this therapist
+      if (enriched.bookingMode === 'FIRST_APPOINTMENT_REQUEST' && availableSlotsTherapistId !== id) {
+        loadAvailableSlots(id);
+      }
     } catch {}
   };
 
@@ -3216,6 +3224,20 @@ export default function App() {
             </>
           ) : null}
 
+          {appointment?.status === 'DECLINED' && appointment?.declinedReason ? (
+            <>
+              <View style={{ height: 1, backgroundColor: c.border }} />
+              <View style={{ gap: 8, backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.4, color: '#DC2626', textTransform: 'uppercase' }}>
+                  Grund der Absage
+                </Text>
+                <Text style={{ fontSize: 14, lineHeight: 20, color: '#7F1D1D' }}>
+                  {appointment.declinedReason}
+                </Text>
+              </View>
+            </>
+          ) : null}
+
           <View style={{ height: 1, backgroundColor: c.border }} />
 
           <View style={{ gap: 12 }}>
@@ -3299,15 +3321,17 @@ export default function App() {
   );
 
   const renderTherapyTabPatient = () => {
-    // Nächsten aktiven Termin hervorheben
     const activeStatuses = ['CONFIRMED', 'PENDING'];
+    const archivedStatuses = ['CANCELLED', 'DECLINED', 'EXPIRED'];
     const sortedApts = [...myAppointments].sort((a, b) => {
       const da = new Date(a.slot?.startsAt ?? a.confirmedSlotAt ?? 0);
       const db = new Date(b.slot?.startsAt ?? b.confirmedSlotAt ?? 0);
       return da - db;
     });
-    const nextApt = sortedApts.find(a => activeStatuses.includes(a.status) && new Date(a.slot?.startsAt ?? a.confirmedSlotAt ?? 0) > new Date());
-    const otherApts = sortedApts.filter(a => a !== nextApt);
+    const now = new Date();
+    const nextApt = sortedApts.find(a => activeStatuses.includes(a.status) && new Date(a.slot?.startsAt ?? a.confirmedSlotAt ?? 0) > now);
+    const activeApts = sortedApts.filter(a => a !== nextApt && activeStatuses.includes(a.status));
+    const archivedApts = sortedApts.filter(a => archivedStatuses.includes(a.status)).reverse();
 
     const makeOnCancel = (apt) => async () => {
       try {
@@ -3356,16 +3380,33 @@ export default function App() {
                   </>
                 )}
 
-                {/* Weitere Termine — kompakt */}
-                {otherApts.length > 0 && (
+                {/* Weitere aktive Termine */}
+                {activeApts.length > 0 && (
                   <>
                     <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: c.muted, textTransform: 'uppercase', marginTop: nextApt ? 12 : 0, marginBottom: 6 }}>
-                      {nextApt ? 'Weitere Termine' : 'Alle Termine'}
+                      {nextApt ? 'Weitere Termine' : 'Aktive Termine'}
                     </Text>
-                    {otherApts.map(apt => (
+                    {activeApts.map(apt => (
                       <PatientAppointmentCard
                         key={apt.id} c={c} t={t} appointment={apt}
                         onCancel={makeOnCancel(apt)}
+                        onOpenDetail={() => setSelectedAppointment(apt)}
+                        onViewTherapist={() => {
+                          if (apt.therapist?.id) openTherapistById(apt.therapist.id, apt.therapist);
+                          else if (apt.therapist) setSelectedTherapist(apt.therapist);
+                        }}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {/* Vergangene / stornierte Termine */}
+                {archivedApts.length > 0 && (
+                  <>
+                    <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: c.muted, textTransform: 'uppercase', marginTop: 16, marginBottom: 6 }}>Vergangene Termine</Text>
+                    {archivedApts.map(apt => (
+                      <PatientAppointmentCard
+                        key={apt.id} c={c} t={t} appointment={apt}
                         onOpenDetail={() => setSelectedAppointment(apt)}
                         onViewTherapist={() => {
                           if (apt.therapist?.id) openTherapistById(apt.therapist.id, apt.therapist);
@@ -4626,7 +4667,8 @@ export default function App() {
               t={t}
               therapist={bookingTargetTherapist}
               authToken={authToken}
-              availableSlots={availableSlots}
+              availableSlots={availableSlotsTherapistId === bookingTargetTherapist?.id ? availableSlots : []}
+              slotsLoading={availableSlotsLoading}
               onSuccess={() => {
                 blockTherapistEnrichRef.current = true;
                 setShowBookingForm(false);

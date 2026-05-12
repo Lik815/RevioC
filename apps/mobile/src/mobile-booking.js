@@ -45,7 +45,7 @@ function formatSlot(startsAt, durationMin) {
 
 // ─── BookingRequestForm ────────────────────────────────────────────────────────
 
-export function BookingRequestForm({ c, t, therapist, authToken, availableSlots, onSuccess, onClose }) {
+export function BookingRequestForm({ c, t, therapist, authToken, availableSlots, slotsLoading, onSuccess, onClose }) {
   const [selectedSlotId, setSelectedSlotId] = useState(therapist?.selectedSlotId ?? null);
   const [message, setMessage] = useState('');
   const [consent, setConsent] = useState(false);
@@ -103,7 +103,11 @@ export function BookingRequestForm({ c, t, therapist, authToken, availableSlots,
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? 'Buchung fehlgeschlagen. Bitte erneut versuchen.');
+        if (res.status === 409) {
+          setError('Dieser Termin wurde gerade von jemand anderem gebucht. Bitte wähle einen anderen Slot.');
+        } else {
+          setError(data.error ?? 'Buchung fehlgeschlagen. Bitte erneut versuchen.');
+        }
       } else {
         setSuccess(true);
       }
@@ -115,12 +119,23 @@ export function BookingRequestForm({ c, t, therapist, authToken, availableSlots,
   }
 
   if (success) {
+    const bookedSlot = slots.find((s) => s.id === selectedSlotId);
     return (
       <View style={{ flex: 1, padding: SPACE.lg, alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name="checkmark-circle" size={64} color={c.success ?? '#1A7A40'} />
         <Text style={{ ...TYPE.h2, color: c.text, marginTop: SPACE.md, textAlign: 'center' }}>Anfrage gesendet</Text>
+        {therapist?.fullName ? (
+          <Text style={{ ...TYPE.body, color: c.text, marginTop: SPACE.sm, textAlign: 'center', fontWeight: '600' }}>
+            {therapist.fullName}
+          </Text>
+        ) : null}
+        {bookedSlot ? (
+          <Text style={{ ...TYPE.body, color: c.primary, marginTop: 4, textAlign: 'center' }}>
+            {formatSlot(bookedSlot.startsAt, bookedSlot.durationMin)}
+          </Text>
+        ) : null}
         <Text style={{ ...TYPE.body, color: c.muted, marginTop: SPACE.sm, textAlign: 'center' }}>
-          Der Therapeut hat Zeit zum Antworten. Du siehst den Status unter Favoriten.
+          Der Therapeut wird deine Anfrage bestätigen. Du siehst den Status unter deinen Terminen.
         </Text>
         <Pressable
           onPress={onSuccess}
@@ -149,7 +164,12 @@ export function BookingRequestForm({ c, t, therapist, authToken, availableSlots,
       {/* Slot — pre-selected (from bottom sheet) or full picker */}
       <Text style={{ ...TYPE.label, color: c.text, marginBottom: SPACE.sm }}>Gewählter Termin</Text>
 
-      {therapist?.selectedSlotId ? (
+      {slotsLoading ? (
+        <View style={{ alignItems: 'center', paddingVertical: SPACE.lg }}>
+          <ActivityIndicator color={c.primary} />
+          <Text style={{ ...TYPE.caption, color: c.muted, marginTop: 8 }}>Termine werden geladen…</Text>
+        </View>
+      ) : therapist?.selectedSlotId ? (
         (() => {
           const preSelected = slots.find((s) => s.id === therapist.selectedSlotId);
           if (!preSelected) return null;

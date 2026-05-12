@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { sendPushNotification } from '../utils/push.js';
+import { expireStaleBookings } from '../utils/booking-expiry.js';
 
 async function resolvePatient(fastify: FastifyInstance, token: string) {
   const user = await fastify.prisma.user.findUnique({ where: { sessionToken: token } });
@@ -23,29 +24,6 @@ function serializeSlot(slot: { id: string; startsAt: Date; durationMin: number; 
   return { id: slot.id, startsAt: slot.startsAt.toISOString(), durationMin: slot.durationMin, status: slot.status };
 }
 
-// Marks expired PENDING bookings as EXPIRED and releases their slots back to AVAILABLE.
-// Returns the count of expired bookings.
-async function expireStaleBookings(fastify: FastifyInstance, where: Record<string, unknown>) {
-  const stale = await fastify.prisma.bookingRequest.findMany({
-    where: { ...where, status: 'PENDING', responseDueAt: { lt: new Date() } },
-    select: { id: true, slotId: true },
-  });
-  if (stale.length === 0) return;
-  await fastify.prisma.$transaction([
-    fastify.prisma.bookingRequest.updateMany({
-      where: { id: { in: stale.map((b) => b.id) } },
-      data: { status: 'EXPIRED' },
-    }),
-    ...stale
-      .filter((b) => b.slotId)
-      .map((b) =>
-        fastify.prisma.therapistSlot.update({
-          where: { id: b.slotId! },
-          data: { status: 'AVAILABLE' },
-        }),
-      ),
-  ]);
-}
 
 export async function bookingRoutes(fastify: FastifyInstance) {
 

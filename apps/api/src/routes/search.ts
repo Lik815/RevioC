@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { SearchInput, SearchTherapist, SearchPractice } from '@revio/shared';
 import { normalizeText, scoreMatch, levenshtein } from '../utils/search-utils.js';
 import { getTherapistPublicationState, getTherapistRequestabilityState } from '../utils/profile-completeness.js';
+import { expireStaleBookings } from '../utils/booking-expiry.js';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -419,6 +420,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/therapists/:id/slots', async (request, reply) => {
     const { id } = request.params as { id: string };
+    await expireStaleBookings(fastify, { therapistId: id });
     const now = new Date();
     const slots = await fastify.prisma.therapistSlot.findMany({
       where: { therapistId: id, status: 'AVAILABLE', startsAt: { gt: now } },
