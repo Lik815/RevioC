@@ -404,6 +404,7 @@ export const searchRoutes: FastifyPluginAsync = async (fastify) => {
         kassenart: (t as any).kassenart ?? '',
         availability: (t as any).availability ?? '',
         email: t.email,
+        phone: (t as any).phone ?? null,
         homeVisit: t.homeVisit, city: t.city, bio: t.bio ?? undefined,
         ...((t as any).serviceRadiusKm != null ? { serviceRadiusKm: (t as any).serviceRadiusKm } : {}),
         photo: t.photo ?? undefined, practices,

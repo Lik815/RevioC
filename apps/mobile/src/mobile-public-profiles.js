@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
+  Clipboard,
   Image,
   Linking,
   Modal,
@@ -10,6 +11,7 @@ import {
   ScrollView,
   Share,
   Text,
+  ToastAndroid,
   View,
 } from 'react-native';
 import {
@@ -473,24 +475,46 @@ export function TherapistProfileScreen(props) {
         </View>
       )}
 
-      {displayEmail ? (
+      {(displayEmail || therapistPhone) ? (
         <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
           <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('contactTitle')}</Text>
           <Text style={{ color: c.muted, fontSize: 13, marginTop: 4 }}>
             {t('contactBody')}{th.city ? ` (${th.city})` : ''}
           </Text>
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-            <Pressable style={[styles.ctaBtn, { backgroundColor: c.primary, flex: 1 }]} onPress={openEmailComposer}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                <Ionicons name="mail-outline" size={20} color="#fff" />
-                <Text style={styles.ctaBtnText}>{t('writeEmail')}</Text>
-              </View>
+
+          {displayEmail ? (
+            <View style={{ marginTop: 14, gap: 10 }}>
+              <Pressable style={[styles.ctaBtn, { backgroundColor: c.primary }]} onPress={openEmailComposer}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <Ionicons name="mail-outline" size={20} color="#fff" />
+                  <Text style={styles.ctaBtnText}>{t('writeEmail')}</Text>
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  Clipboard.setString(displayEmail);
+                  if (Platform.OS === 'android') {
+                    ToastAndroid.show('E-Mail kopiert', ToastAndroid.SHORT);
+                  }
+                }}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 14, backgroundColor: c.mutedBg, borderRadius: 10 }}
+              >
+                <Text style={{ color: c.text, fontSize: 14 }}>{displayEmail}</Text>
+                <Ionicons name="copy-outline" size={16} color={c.muted} />
+              </Pressable>
+            </View>
+          ) : null}
+
+          {therapistPhone ? (
+            <Pressable
+              onPress={() => Linking.openURL(`tel:${therapistPhone}`)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: displayEmail ? 10 : 14, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: c.mutedBg, borderRadius: 10 }}
+            >
+              <Ionicons name="call-outline" size={18} color={c.primary} />
+              <Text style={{ color: c.text, fontSize: 14, flex: 1 }}>{therapistPhone}</Text>
+              <Ionicons name="chevron-forward" size={14} color={c.muted} />
             </Pressable>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
-            <Text style={{ color: c.primary, fontSize: 14 }}>{displayEmail}</Text>
-            <Ionicons name="copy-outline" size={18} color={c.muted} />
-          </View>
+          ) : null}
         </View>
       ) : null}
 
