@@ -362,6 +362,8 @@ export default function App() {
   const [selectedTherapist, setSelectedTherapist] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showCancelAppointmentModal, setShowCancelAppointmentModal] = useState(false);
+  const [showTherapistCancelModal, setShowTherapistCancelModal] = useState(false);
+  const [therapistCancelBookingId, setTherapistCancelBookingId] = useState(null);
 
   const handleCancelSelectedAppointment = async () => {
     if (!selectedAppointment) return;
@@ -3458,18 +3460,9 @@ export default function App() {
       loadMySlots(authToken);
     };
 
-    const handleTherapistCancel = async (bookingId) => {
-      Alert.alert('Termin absagen', 'Möchtest du diesen Termin wirklich absagen? Der Patient wird benachrichtigt.', [
-        { text: 'Abbrechen', style: 'cancel' },
-        { text: 'Absagen', style: 'destructive', onPress: async () => {
-          const res = await fetch(`${getBaseUrl()}/bookings/${bookingId}/therapist-cancel`, {
-            method: 'PATCH',
-            headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
-          });
-          if (res.ok) { loadIncomingBookings(authToken); loadMySlots(authToken); }
-          else Alert.alert('Fehler', 'Stornierung fehlgeschlagen.');
-        }},
-      ]);
+    const handleTherapistCancel = (bookingId) => {
+      setTherapistCancelBookingId(bookingId);
+      setShowTherapistCancelModal(true);
     };
 
     const FILTERS = [
@@ -4924,6 +4917,51 @@ export default function App() {
                 <Pressable
                   style={{ backgroundColor: c.mutedBg, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
                   onPress={() => setShowCancelAppointmentModal(false)}
+                >
+                  <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>Abbrechen</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── Therapist Cancel Modal ────────────────────────────────────────── */}
+      <Modal visible={showTherapistCancelModal} transparent animationType="fade" onRequestClose={() => setShowTherapistCancelModal(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 24 }} onPress={() => setShowTherapistCancelModal(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View style={{ backgroundColor: c.card, borderRadius: 20, padding: 24, gap: 20 }}>
+              <View style={{ alignItems: 'center', gap: 12 }}>
+                <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="calendar-clear-outline" size={30} color="#DC2626" />
+                </View>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: c.text, textAlign: 'center' }}>
+                  Termin absagen
+                </Text>
+              </View>
+              <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 21 }}>
+                Möchtest du diesen bestätigten Termin wirklich absagen? Der Patient wird benachrichtigt.
+              </Text>
+              <View style={{ gap: 10 }}>
+                <Pressable
+                  style={{ backgroundColor: '#DC2626', borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
+                  onPress={async () => {
+                    setShowTherapistCancelModal(false);
+                    if (!therapistCancelBookingId) return;
+                    const res = await fetch(`${getBaseUrl()}/bookings/${therapistCancelBookingId}/therapist-cancel`, {
+                      method: 'PATCH',
+                      headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
+                    });
+                    if (res.ok) { loadIncomingBookings(authToken); loadMySlots(authToken); }
+                    else Alert.alert('Fehler', 'Stornierung fehlgeschlagen. Bitte erneut versuchen.');
+                    setTherapistCancelBookingId(null);
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Absagen</Text>
+                </Pressable>
+                <Pressable
+                  style={{ backgroundColor: c.mutedBg, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
+                  onPress={() => { setShowTherapistCancelModal(false); setTherapistCancelBookingId(null); }}
                 >
                   <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>Abbrechen</Text>
                 </Pressable>
