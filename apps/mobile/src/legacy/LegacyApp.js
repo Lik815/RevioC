@@ -1383,6 +1383,7 @@ export default function App() {
     resetTherapyData();
     setShowBookingForm(false);
     setBookingTargetTherapist(null);
+    setShowLogin(true);
   };
 
   const deleteAccountConfirmed = async () => {
