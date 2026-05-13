@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Image,
+  Linking,
   Modal,
   ScrollView,
   Pressable,
@@ -24,6 +25,16 @@ import {
   ComplianceStatusStep,
   getComplianceStatusLabel,
 } from './mobile-compliance-step';
+
+const LANG_FLAGS = {
+  DE: '🇩🇪', EN: '🇬🇧', FR: '🇫🇷', ES: '🇪🇸', IT: '🇮🇹',
+  TR: '🇹🇷', AR: '🇸🇦', PL: '🇵🇱', RU: '🇷🇺', SR: '🇷🇸',
+  PT: '🇵🇹', NL: '🇳🇱', UK: '🇺🇦', HR: '🇭🇷', BS: '🇧🇦',
+  CS: '🇨🇿', SK: '🇸🇰', HU: '🇭🇺', RO: '🇷🇴', BG: '🇧🇬',
+  EL: '🇬🇷', SQ: '🇦🇱', FA: '🇮🇷', UR: '🇵🇰', HI: '🇮🇳',
+  ZH: '🇨🇳', JA: '🇯🇵', KO: '🇰🇷', VI: '🇻🇳', DA: '🇩🇰',
+  SV: '🇸🇪', FI: '🇫🇮',
+};
 
 function StatusMiniCard({ icon, label, value, color, c }) {
   return (
@@ -96,60 +107,64 @@ export function TherapistDashboardScreen(props) {
 
   const [photoError, setPhotoError] = useState(false);
   const [showSlotModal, setShowSlotModal] = useState(false);
+  const [adminExpanded, setAdminExpanded] = useState(false);
 
   const th = loggedInTherapist;
   if (!th) return null;
   const fullName = typeof th.fullName === 'string' && th.fullName.trim() ? th.fullName.trim() : 'Profil';
   const initials = fullName.split(/\s+/).map((name) => name[0]).join('').slice(0, 2).toUpperCase();
-  const reviewStatusLabel = th.reviewStatus === 'APPROVED' ? t('statusApproved') : th.reviewStatus === 'CHANGES_REQUESTED' ? t('statusChangesRequested') : t('statusInReview');
-  const reviewStatusColor = th.reviewStatus === 'APPROVED' ? c.success : th.reviewStatus === 'CHANGES_REQUESTED' ? c.warning : c.muted;
-  const hasDocuments = (therapistDocuments ?? []).length > 0;
+  const isApproved = th.reviewStatus === 'APPROVED';
+  const docCount = (therapistDocuments ?? []).length;
+  const docTotal = 2;
+
+  const statusChips = [
+    { icon: 'shield-checkmark-outline', label: isApproved ? t('statusApproved') : t('statusInReview'), color: isApproved ? c.success : c.muted },
+    { icon: 'eye-outline', label: `Sichtbar: ${th.isVisible ? 'Ja' : 'Nein'}`, color: th.isVisible ? c.success : c.muted },
+    ...(th.homeVisit ? [{ icon: 'home-outline', label: t('homeVisitLabel'), color: c.success }] : []),
+    { icon: 'document-outline', label: docCount > 0 ? t('existsLabel') : t('missingLabel'), color: docCount > 0 ? c.success : c.warning ?? '#d97706' },
+  ];
+
   return (
-    <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}>
-      <View style={[styles.practiceHeader, { backgroundColor: c.card, borderColor: c.border, alignItems: 'center' }]}>
-        <Pressable onPress={handlePickPhoto} style={{ position: 'relative' }}>
-          {th.photo && !photoError ? (
-            <Image source={{ uri: th.photo }} style={[styles.therapistAvatarLarge, { borderRadius: 48 }]} onError={() => setPhotoError(true)} />
-          ) : (
-            <View style={[styles.therapistAvatarLarge, { borderRadius: 48, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }]}>
-              <Text style={{ color: '#fff', fontSize: 28, fontWeight: '700' }}>{initials}</Text>
+    <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 }]}>
+
+      {/* ── Header ───────────────────────────────────────────────────── */}
+      <View style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, padding: SPACE.lg, marginBottom: SPACE.md }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.md }}>
+          <Pressable onPress={handlePickPhoto} style={{ position: 'relative' }}>
+            {th.photo && !photoError ? (
+              <Image source={{ uri: th.photo }} style={{ width: 72, height: 72, borderRadius: 36 }} onError={() => setPhotoError(true)} />
+            ) : (
+              <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>{initials}</Text>
+              </View>
+            )}
+            <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: c.accent ?? c.primary, borderRadius: 10, padding: 3 }}>
+              <Ionicons name="camera-outline" size={12} color="#fff" />
             </View>
-          )}
-          <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: c.accent, borderRadius: 12, padding: 4 }}>
-            <Text style={{ color: '#fff', fontSize: 12 }}>📷</Text>
+          </Pressable>
+
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: c.text }}>{fullName}</Text>
+            <Text style={{ fontSize: 13, color: c.muted, marginTop: 2 }}>{th.professionalTitle ?? ''}</Text>
           </View>
-        </Pressable>
-        <Text style={[styles.practiceHeaderName, { color: c.text, marginTop: 10 }]}>{fullName}</Text>
-        <Text style={[styles.practiceHeaderCity, { color: c.textMuted ?? c.muted }]}>{th.professionalTitle ?? ''}</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm, marginTop: SPACE.sm, width: '100%' }}>
-          <StatusMiniCard
-            icon="shield-checkmark-outline"
-            label={t('reviewStatusLabel')}
-            value={reviewStatusLabel}
-            color={reviewStatusColor}
-            c={c}
-          />
-          <StatusMiniCard
-            icon="eye-outline"
-            label={t('visibleLabel')}
-            value={th.isVisible ? t('yesLabel') : t('hiddenLabel')}
-            color={th.isVisible ? c.success : c.muted}
-            c={c}
-          />
-          <StatusMiniCard
-            icon="home-outline"
-            label={t('homeVisitLabel')}
-            value={th.homeVisit ? t('yesLabel') : t('noLabel')}
-            color={th.homeVisit ? c.success : c.muted}
-            c={c}
-          />
-          <StatusMiniCard
-            icon="document-outline"
-            label={t('documentsTitle')}
-            value={hasDocuments ? t('existsLabel') : t('missingLabel')}
-            color={hasDocuments ? c.success : c.warning}
-            c={c}
-          />
+
+          <Pressable
+            onPress={onEnterEdit}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: c.border, borderRadius: RADIUS.md, paddingVertical: 8, paddingHorizontal: 12 }}
+          >
+            <Ionicons name="pencil-outline" size={14} color={c.text} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: c.text }}>{t('editProfileBtn')}</Text>
+          </Pressable>
+        </View>
+
+        {/* Status chips */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: SPACE.md }}>
+          {statusChips.map((chip) => (
+            <View key={chip.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: chip.color + '55', borderRadius: 20, paddingVertical: 5, paddingHorizontal: 10, backgroundColor: chip.color + '15' }}>
+              <Ionicons name={chip.icon} size={12} color={chip.color} />
+              <Text style={{ fontSize: 12, fontWeight: '500', color: chip.color }}>{chip.label}</Text>
+            </View>
+          ))}
         </View>
       </View>
 
@@ -335,147 +350,167 @@ export function TherapistDashboardScreen(props) {
         </View>
       ) : (
         <>
-          <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('phoneLabel') ?? 'Telefon'}</Text>
-            <Text style={[styles.infoBody, { color: th.phone ? c.text : c.muted }]}>
-              {th.phone ?? (t('phonePlaceholder') ?? '+49 …')}
-            </Text>
-          </View>
+          {/* ── Kontakt ──────────────────────────────────────────────── */}
+          <View style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, padding: SPACE.lg, marginBottom: SPACE.md }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: c.text, marginBottom: SPACE.md }}>Kontakt</Text>
 
-          {th.bio ? (
-            <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-              <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('aboutLabel')}</Text>
-              <Text style={[styles.infoBody, { color: c.text }]}>{th.bio}</Text>
+            {/* Telefon */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.md }}>
+              <Ionicons name="call-outline" size={18} color={c.muted} />
+              <Text style={{ flex: 1, fontSize: 15, color: th.phone ? c.text : c.muted }}>
+                {th.phone ?? (t('phonePlaceholder') ?? '+49 …')}
+              </Text>
+              {th.phone ? (
+                <Pressable onPress={() => Linking.openURL(`tel:${th.phone}`)} hitSlop={8}>
+                  <Ionicons name="call" size={20} color={c.success ?? '#22c55e'} />
+                </Pressable>
+              ) : null}
             </View>
-          ) : null}
 
-          <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('specsLabel')}</Text>
-            <View style={styles.tagRow}>
-              {(th.specializations ?? []).map((specialization) => (
-                <View key={specialization} style={[styles.tag, { backgroundColor: c.mutedBg }]}>
-                  <Text style={[styles.tagText, { color: c.text }]}>{specialization}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
+            <View style={{ height: 1, backgroundColor: c.border, marginVertical: SPACE.md }} />
 
-          <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('languagesLabel')}</Text>
-            <View style={styles.tagRow}>
-              {(th.languages ?? []).map((language) => (
-                <View key={language} style={[styles.tag, { backgroundColor: c.mutedBg }]}>
-                  <Text style={[styles.tagText, { color: c.muted }]}>{getLangLabel(language)}</Text>
-                </View>
-              ))}
+            {/* E-Mail */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.md }}>
+              <Ionicons name="mail-outline" size={18} color={c.muted} />
+              <Text style={{ flex: 1, fontSize: 15, color: c.text }}>{th.email}</Text>
+              <Pressable onPress={() => Linking.openURL(`mailto:${th.email}`)} hitSlop={8}>
+                <Ionicons name="mail" size={20} color={c.success ?? '#22c55e'} />
+              </Pressable>
             </View>
           </View>
 
-          {Array.isArray(th.certifications) && th.certifications.length > 0 && (
-            <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-              <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('certificationsLabel') ?? 'Fortbildungen'}</Text>
-              <View style={[styles.tagRow, { marginTop: 8 }]}>
-                {th.certifications.map((cert) => (
-                  <View key={cert} style={[styles.tag, { backgroundColor: c.successBg, borderWidth: 1, borderColor: c.success }]}>
-                    <Text style={[styles.tagText, { color: c.success }]}>{cert}</Text>
+          {/* ── Spezialisierungen ────────────────────────────────────── */}
+          {(th.specializations ?? []).length > 0 && (
+            <View style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, padding: SPACE.lg, marginBottom: SPACE.md }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: c.text, marginBottom: SPACE.md }}>{t('specsLabel')}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {(th.specializations ?? []).map((s) => (
+                  <View key={s} style={{ borderWidth: 1, borderColor: c.primary + '80', borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12 }}>
+                    <Text style={{ fontSize: 13, color: c.primary, fontWeight: '500' }}>{s}</Text>
                   </View>
                 ))}
               </View>
             </View>
           )}
 
-          <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-            <View style={[styles.detailInfoRow, { marginBottom: 8 }]}>
-              <Text style={[styles.detailInfoLabel, { color: c.muted, flex: 1 }]}>{t('homeVisitLabel')}</Text>
-              <Text style={[styles.detailInfoValue, { color: c.text }]}>{th.homeVisit ? t('yesLabel') : t('noLabel')}</Text>
-            </View>
-            {th.homeVisit && th.serviceRadiusKm ? (
-              <View style={[styles.detailInfoRow, { marginTop: 8 }]}>
-                <Text style={[styles.detailInfoLabel, { color: c.muted, flex: 1 }]}>{t('serviceAreaLabel')}</Text>
-                <Text style={[styles.detailInfoValue, { color: c.text }]}>{t('serviceAreaValue').replace('{radius}', th.serviceRadiusKm)}</Text>
-              </View>
-            ) : null}
-            {th.availability ? (
-              <View style={[styles.detailInfoRow, { marginTop: 8 }]}>
-                <Text style={[styles.detailInfoLabel, { color: c.muted, flex: 1 }]}>{t('availabilityLabel')}</Text>
-                <Text style={[styles.detailInfoValue, { color: c.text }]}>{th.availability}</Text>
-              </View>
-            ) : null}
-            <View style={[styles.detailInfoRow, { marginTop: 8 }]}>
-              <Text style={[styles.detailInfoLabel, { color: c.muted, flex: 1 }]}>E-Mail</Text>
-              <Text style={[styles.detailInfoValue, { color: c.text }]}>{th.email}</Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('complianceSectionTitle')}</Text>
-            <Text style={{ color: c.muted, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
-              {t('complianceSectionBody')}
-            </Text>
-            <View style={[styles.detailInfoRow, { marginBottom: 8 }]}>
-              <Text style={[styles.detailInfoLabel, { color: c.muted, flex: 1 }]}>{t('taxRegistrationLabel')}</Text>
-              <Text style={[styles.detailInfoValue, { color: c.text }]}>
-                {getComplianceStatusLabel(th.compliance?.taxRegistrationStatus, t)}
+          {/* ── Sprachen ─────────────────────────────────────────────── */}
+          {(th.languages ?? []).length > 0 && (
+            <View style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, padding: SPACE.lg, marginBottom: SPACE.md }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: c.text, marginBottom: SPACE.sm }}>{t('languagesLabel')}</Text>
+              <Text style={{ fontSize: 14, color: c.text, lineHeight: 22 }}>
+                {(th.languages ?? []).map((code) => {
+                  const upper = code.toUpperCase();
+                  const flag = LANG_FLAGS[upper] ?? '';
+                  return `${getLangLabel(code)} ${flag}`;
+                }).join('  ·  ')}
               </Text>
             </View>
-            <View style={[styles.detailInfoRow, { marginTop: 8 }]}>
-              <Text style={[styles.detailInfoLabel, { color: c.muted, flex: 1 }]}>{t('healthAuthorityLabel')}</Text>
-              <Text style={[styles.detailInfoValue, { color: c.text }]}>
-                {getComplianceStatusLabel(th.compliance?.healthAuthorityStatus, t)}
-              </Text>
-            </View>
-            <Text style={{ color: c.muted, fontSize: 12, lineHeight: 18, marginTop: 12 }}>
-              {t('complianceDisclaimer')}
-            </Text>
-          </View>
+          )}
 
+          {/* ── Fortbildungen ────────────────────────────────────────── */}
+          {Array.isArray(th.certifications) && th.certifications.length > 0 && (
+            <View style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, padding: SPACE.lg, marginBottom: SPACE.md }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: c.text, marginBottom: SPACE.md }}>{t('certificationsLabel') ?? 'Fortbildungen'}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {th.certifications.map((cert) => (
+                  <View key={cert} style={{ borderWidth: 1, borderColor: c.success, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12, backgroundColor: (c.successBg ?? '#f0fdf4') }}>
+                    <Text style={{ fontSize: 13, color: c.success, fontWeight: '500' }}>{cert}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ── Hausbesuche ──────────────────────────────────────────── */}
+          {th.homeVisit && (
+            <View style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, padding: SPACE.lg, marginBottom: SPACE.md, flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: c.text }}>{t('homeVisitLabel')}</Text>
+              {th.serviceRadiusKm ? (
+                <Text style={{ fontSize: 14, fontWeight: '600', color: c.success ?? '#22c55e' }}>Bis {th.serviceRadiusKm} km</Text>
+              ) : (
+                <Text style={{ fontSize: 14, color: c.success ?? '#22c55e' }}>{t('yesLabel')}</Text>
+              )}
+            </View>
+          )}
+
+          {/* ── Administrative Angaben (collapsible) ─────────────────── */}
           <Pressable
-            style={[styles.registerBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }]}
-            onPress={onEnterEdit}
+            onPress={() => setAdminExpanded((v) => !v)}
+            style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, padding: SPACE.lg, marginBottom: SPACE.md, flexDirection: 'row', alignItems: 'center' }}
           >
-            <Ionicons name="pencil" size={15} color={c.text} />
-            <Text style={[styles.registerBtnText, { color: c.text }]}>{t('editProfileBtn')}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: c.text }}>{t('complianceSectionTitle') ?? 'Administrative Angaben'}</Text>
+              <Text style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>Finanzamt, Gesundheitsamt & weitere</Text>
+            </View>
+            <Ionicons name={adminExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={c.muted} />
           </Pressable>
+          {adminExpanded && (
+            <View style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, padding: SPACE.lg, marginBottom: SPACE.md, marginTop: -SPACE.md }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                <Text style={{ fontSize: 13, color: c.muted, flex: 1 }}>{t('taxRegistrationLabel')}</Text>
+                <Text style={{ fontSize: 13, color: c.text, fontWeight: '500' }}>{getComplianceStatusLabel(th.compliance?.taxRegistrationStatus, t)}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 13, color: c.muted, flex: 1 }}>{t('healthAuthorityLabel')}</Text>
+                <Text style={{ fontSize: 13, color: c.text, fontWeight: '500' }}>{getComplianceStatusLabel(th.compliance?.healthAuthorityStatus, t)}</Text>
+              </View>
+              {th.availability ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+                  <Text style={{ fontSize: 13, color: c.muted, flex: 1 }}>{t('availabilityLabel')}</Text>
+                  <Text style={{ fontSize: 13, color: c.text, fontWeight: '500' }}>{th.availability}</Text>
+                </View>
+              ) : null}
+              <Text style={{ fontSize: 12, color: c.muted, marginTop: 12, lineHeight: 18 }}>{t('complianceDisclaimer')}</Text>
+            </View>
+          )}
 
-          <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('documentsTitle')}</Text>
+          {/* ── Nachweise & Dokumente ────────────────────────────────── */}
+          <View style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, padding: SPACE.lg, marginBottom: SPACE.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm, marginBottom: SPACE.sm }}>
+              <Ionicons name="document-text-outline" size={20} color={c.muted} style={{ marginTop: 1 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: c.text }}>{t('documentsTitle')}</Text>
+                <Text style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>
+                  {docCount} von {docTotal} Dokumenten hochgeladen
+                </Text>
+              </View>
+            </View>
+
             {(therapistDocuments ?? []).length > 0 && (
-              <View style={{ marginBottom: 12 }}>
+              <View style={{ marginBottom: SPACE.sm }}>
                 {(therapistDocuments ?? []).map((doc) => (
-                  <View
-                    key={doc.id}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border }}
-                  >
-                    <Text style={{ fontSize: 16 }}>{doc.mimetype === 'application/pdf' ? '📄' : '🖼️'}</Text>
+                  <View key={doc.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: c.border }}>
+                    <Text style={{ fontSize: 15 }}>{doc.mimetype === 'application/pdf' ? '📄' : '🖼️'}</Text>
                     <Text style={{ flex: 1, fontSize: 13, color: c.text }} numberOfLines={1}>{doc.originalName}</Text>
                   </View>
                 ))}
               </View>
             )}
-            <Pressable
-              onPress={handlePickDocument}
-              disabled={documentUploading}
-              style={{
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                gap: 8, paddingVertical: 10, paddingHorizontal: 14,
-                borderRadius: RADIUS.sm, borderWidth: 1,
-                borderColor: documentUploading ? c.border : c.primary,
-                borderStyle: 'dashed',
-              }}
-            >
-              {documentUploading ? (
-                <Text style={{ color: c.muted, fontSize: 13 }}>{t('uploadingDoc')}</Text>
-              ) : (
-                <>
-                  <Ionicons name="attach-outline" size={18} color={c.primary} />
-                  <Text style={{ color: c.primary, fontWeight: '600', fontSize: 13 }}>{t('uploadDocBtn')}</Text>
-                </>
-              )}
-            </Pressable>
-            <Text style={{ color: c.muted, fontSize: 12, marginTop: 8 }}>
-              {t('documentsHint')}
-            </Text>
+
+            {docCount < docTotal && (
+              <View style={{ backgroundColor: c.mutedBg ?? '#f9fafb', borderRadius: RADIUS.sm, padding: SPACE.md, marginTop: SPACE.xs }}>
+                <Text style={{ fontSize: 13, color: c.muted, lineHeight: 19 }}>
+                  Lade deine Nachweise hoch, um dein Profil zu verifizieren.
+                </Text>
+                <Pressable onPress={handlePickDocument} disabled={documentUploading} style={{ marginTop: 6 }}>
+                  <Text style={{ fontSize: 13, color: c.primary, fontWeight: '600' }}>
+                    {documentUploading ? t('uploadingDoc') : `${t('uploadDocBtn') ?? 'Jetzt hochladen'} ›`}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
           </View>
+
+          {/* ── Über mich ────────────────────────────────────────────── */}
+          {th.bio ? (
+            <View style={{ backgroundColor: c.card, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: c.border, padding: SPACE.lg, marginBottom: SPACE.md, flexDirection: 'row', alignItems: 'flex-start' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: c.text, marginBottom: SPACE.sm }}>{t('aboutLabel')}</Text>
+                <Text style={{ fontSize: 14, color: c.text, lineHeight: 21 }}>{th.bio}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={c.muted} style={{ marginTop: 2 }} />
+            </View>
+          ) : null}
         </>
       )}
     </ScrollView>
