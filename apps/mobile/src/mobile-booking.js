@@ -45,7 +45,7 @@ function formatSlot(startsAt, durationMin) {
 
 // ─── BookingRequestForm ────────────────────────────────────────────────────────
 
-export function BookingRequestForm({ c, t, therapist, authToken, availableSlots, slotsLoading, onSuccess, onClose }) {
+export function BookingRequestForm({ c, t, therapist, authToken, availableSlots, slotsLoading, onSuccess, onClose, onReloadSlots }) {
   const [selectedSlotId, setSelectedSlotId] = useState(therapist?.selectedSlotId ?? null);
   const [message, setMessage] = useState('');
   const [consent, setConsent] = useState(false);
@@ -105,6 +105,8 @@ export function BookingRequestForm({ c, t, therapist, authToken, availableSlots,
       if (!res.ok) {
         if (res.status === 409) {
           setError('Dieser Termin wurde gerade von jemand anderem gebucht. Bitte wähle einen anderen Slot.');
+          setSelectedSlotId(null);
+          if (onReloadSlots) onReloadSlots();
         } else {
           setError(data.error ?? 'Buchung fehlgeschlagen. Bitte erneut versuchen.');
         }
@@ -148,14 +150,15 @@ export function BookingRequestForm({ c, t, therapist, authToken, availableSlots,
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: SPACE.lg, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACE.lg }}>
-        <Pressable onPress={onClose} style={{ marginRight: 12 }}>
+    <View style={{ flex: 1 }}>
+      {/* Header — fixed outside ScrollView so close button is always reachable */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: SPACE.lg, paddingBottom: SPACE.sm, borderBottomWidth: 1, borderBottomColor: c.border }}>
+        <Pressable onPress={onClose} style={{ marginRight: 12, padding: 4 }} hitSlop={12}>
           <Ionicons name="close" size={24} color={c.muted} />
         </Pressable>
         <Text style={{ ...TYPE.h2, color: c.text, flex: 1 }}>Termin buchen</Text>
       </View>
+    <ScrollView contentContainerStyle={{ padding: SPACE.lg, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
 
       <Text style={{ ...TYPE.caption, color: c.muted, marginBottom: SPACE.md }}>
         {therapist.fullName} · {therapist.professionalTitle}
@@ -283,6 +286,7 @@ export function BookingRequestForm({ c, t, therapist, authToken, availableSlots,
         </Pressable>
       )}
     </ScrollView>
+    </View>
   );
 }
 

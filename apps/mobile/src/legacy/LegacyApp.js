@@ -4773,6 +4773,9 @@ export default function App() {
                 setBookingTargetTherapist(null);
                 setAvailableSlots([]);
               }}
+              onReloadSlots={() => {
+                if (bookingTargetTherapist?.id) loadAvailableSlots(bookingTargetTherapist.id);
+              }}
             />
           )}
         </View>
