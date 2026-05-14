@@ -3487,14 +3487,14 @@ export default function App() {
                           <Pressable
                             key={fav.id}
                             onPress={() => openTherapist(fav)}
-                            style={{ width: 72, paddingVertical: 8, paddingHorizontal: 4 }}
+                            style={{ width: 86, paddingVertical: 8, paddingHorizontal: 4 }}
                           >
                             <View style={{ alignSelf: 'center', marginBottom: 6 }}>
                               {fav.photo ? (
-                                <Image source={{ uri: fav.photo }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                                <Image source={{ uri: fav.photo }} style={{ width: 53, height: 53, borderRadius: 27 }} />
                               ) : (
-                                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primaryBg, alignItems: 'center', justifyContent: 'center' }}>
-                                  <Text style={{ fontSize: 13, fontWeight: '700', color: c.primary }}>{initials}</Text>
+                                <View style={{ width: 53, height: 53, borderRadius: 27, backgroundColor: c.primaryBg, alignItems: 'center', justifyContent: 'center' }}>
+                                  <Text style={{ fontSize: 15, fontWeight: '700', color: c.primary }}>{initials}</Text>
                                 </View>
                               )}
                               <Pressable
