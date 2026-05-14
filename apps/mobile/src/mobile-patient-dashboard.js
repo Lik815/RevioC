@@ -11,8 +11,6 @@ import {
 } from 'react-native';
 import { getBaseUrl, RADIUS, SHADOW, SPACE, TUNNEL_HEADERS, TYPE } from './mobile-utils';
 
-const PRIVACY_NOTICE = 'Deine Daten sind sicher und nur für dich sichtbar. Du kannst sie jederzeit bearbeiten.';
-
 export function PatientDashboardScreen({ c, loggedInPatient, styles, t, authToken, onProfileSaved }) {
   const firstName = loggedInPatient?.firstName ?? '';
   const lastName = loggedInPatient?.lastName ?? '';
@@ -64,74 +62,45 @@ export function PatientDashboardScreen({ c, loggedInPatient, styles, t, authToke
 
   return (
     <ScrollView
-      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48, paddingTop: 8 }}
+      contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 16, paddingBottom: 40, paddingTop: 60 }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Profilkopf ─────────────────────────────────────────────── */}
-      <View style={{ position: 'relative', alignItems: 'center', paddingTop: 28, paddingBottom: 24 }}>
-        {/* Runder Edit-Shortcut oben rechts */}
-        {!editing && (
-          <Pressable
-            onPress={openEdit}
-            style={{ position: 'absolute', top: 16, right: 0, width: 38, height: 38, borderRadius: 19, backgroundColor: c.mutedBg, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Ionicons name="pencil-outline" size={17} color={c.text} />
-          </Pressable>
-        )}
-
-        {/* Avatar */}
-        <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 14, ...SHADOW.card }}>
-          <Text style={{ color: '#fff', fontSize: 30, fontWeight: '800' }}>{initials}</Text>
+      {/* ── Hero-Karte ──────────────────────────────────────────────── */}
+      <View style={[styles.practiceHeader, { backgroundColor: c.card, borderColor: c.border, alignItems: 'center' }]}>
+        <View style={[styles.therapistAvatarLarge, { borderRadius: 48, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }]}>
+          <Text style={{ color: '#fff', fontSize: 28, fontWeight: '700' }}>{initials}</Text>
         </View>
-
-        {/* Name + Rolle */}
-        <Text style={{ fontSize: 22, fontWeight: '800', color: c.text, textAlign: 'center' }}>
+        <Text style={[styles.practiceHeaderName, { color: c.text, marginTop: 10 }]}>
           {firstName} {lastName}
         </Text>
-        <Text style={{ fontSize: 14, color: c.muted, marginTop: 4, textAlign: 'center' }}>
+        <Text style={[styles.practiceHeaderCity, { color: c.textMuted ?? c.muted }]}>
           {t('patientRoleLabel')}
         </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm, marginTop: SPACE.sm, width: '100%' }}>
+          <View style={{ flex: 1, minWidth: '45%', borderWidth: 1, borderColor: c.border, borderRadius: RADIUS.md, padding: SPACE.md, gap: SPACE.xs, backgroundColor: c.card }}>
+            <Ionicons name="mail-outline" size={18} color={c.muted} />
+            <Text style={{ ...TYPE.label, color: c.textMuted ?? c.muted }}>{t('emailLabel')}</Text>
+            <Text style={{ ...TYPE.meta, color: c.text, fontWeight: '600' }} numberOfLines={1}>{email}</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: '45%', borderWidth: 1, borderColor: c.border, borderRadius: RADIUS.md, padding: SPACE.md, gap: SPACE.xs, backgroundColor: c.card }}>
+            <Ionicons name="call-outline" size={18} color={phone ? c.primary : c.muted} />
+            <Text style={{ ...TYPE.label, color: c.textMuted ?? c.muted }}>{t('phoneLabel') ?? 'Telefon'}</Text>
+            <Text style={{ ...TYPE.meta, color: phone ? c.text : c.muted, fontWeight: phone ? '600' : '400' }} numberOfLines={1}>
+              {phone ?? t('phonePlaceholder') ?? '+49 …'}
+            </Text>
+          </View>
+        </View>
       </View>
 
-      {/* ── Info-Card ──────────────────────────────────────────────── */}
-      {!editing && (
-        <>
-          <View style={{ backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, overflow: 'hidden', marginBottom: 12 }}>
-            {/* E-Mail Row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 14 }}>
-              <Ionicons name="mail-outline" size={18} color={c.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.4 }}>{t('emailLabel')}</Text>
-                <Text style={{ fontSize: 14, color: c.text, fontWeight: '500', marginTop: 2 }} numberOfLines={1}>{email}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={14} color={c.muted} />
-            </View>
-
-            {/* Trennlinie */}
-            <View style={{ height: 1, backgroundColor: c.border, marginHorizontal: 16 }} />
-
-            {/* Telefon Row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 14 }}>
-              <Ionicons name="call-outline" size={18} color={phone ? c.primary : c.muted} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.4 }}>{t('phoneLabel') ?? 'Telefon'}</Text>
-                <Text style={{ fontSize: 14, color: phone ? c.text : c.muted, fontWeight: phone ? '500' : '400', marginTop: 2 }} numberOfLines={1}>
-                  {phone ?? (t('phonePlaceholder') ?? '+49 …')}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={14} color={c.muted} />
-            </View>
-          </View>
-
-          {/* Datenschutzhinweis */}
-          <Text style={{ fontSize: 12, color: c.muted, textAlign: 'center', lineHeight: 18, paddingHorizontal: 8, marginBottom: 4 }}>
-            {PRIVACY_NOTICE}
-          </Text>
-        </>
-      )}
-
-      {/* ── Edit-Modus ─────────────────────────────────────────────── */}
-      {editing && (
+      {/* ── Profil bearbeiten ──────────────────────────────────────── */}
+      {!editing ? (
+        <Pressable
+          onPress={openEdit}
+          style={[styles.registerBtn, { backgroundColor: c.card, borderWidth: 1, borderColor: c.border, marginTop: 12 }]}
+        >
+          <Text style={{ fontSize: 15, fontWeight: '600', color: c.text }}>{t('editProfileBtn')}</Text>
+        </Pressable>
+      ) : (
         <View style={{ gap: 10 }}>
           <Text style={{ fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 4 }}>{t('editProfileAction')}</Text>
 
@@ -163,7 +132,7 @@ export function PatientDashboardScreen({ c, loggedInPatient, styles, t, authToke
           <Pressable
             onPress={saveEdit}
             disabled={saving}
-            style={[styles.registerBtn, { backgroundColor: saving ? c.border : c.primary, opacity: saving ? 0.7 : 1, marginTop: 4 }]}
+            style={[styles.registerBtn, { backgroundColor: saving ? c.border : c.primary, opacity: saving ? 0.7 : 1 }]}
           >
             {saving
               ? <ActivityIndicator color="#fff" size="small" />
