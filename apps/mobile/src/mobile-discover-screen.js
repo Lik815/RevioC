@@ -126,7 +126,10 @@ export function DiscoverScreen(props) {
     setSearchRadius,
     requestableOnly,
     setRequestableOnly,
+    dismissedNotifIds,
   } = props;
+
+  const visibleNotifCount = notifications.filter((n) => !dismissedNotifIds?.has(n.id)).length;
 
   const safeResults = Array.isArray(results) ? results : [];
   const safeMapTherapists = Array.isArray(mapTherapists) ? mapTherapists : [];
@@ -419,7 +422,7 @@ export function DiscoverScreen(props) {
                   style={{ width: 40, height: 40, borderRadius: RADIUS.full, backgroundColor: c.card, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}
                 >
                   <Ionicons name="notifications-outline" size={18} color={mutedText} />
-                  {notifications.length > 0 && <View style={{ position: 'absolute', top: 3, right: 3, width: 8, height: 8, borderRadius: RADIUS.full, backgroundColor: c.error }} />}
+                  {visibleNotifCount > 0 && <View style={{ position: 'absolute', top: 3, right: 3, width: 8, height: 8, borderRadius: RADIUS.full, backgroundColor: c.error }} />}
                 </Pressable>
               )}
             </View>
@@ -574,7 +577,7 @@ export function DiscoverScreen(props) {
               style={{ width: 40, height: 40, borderRadius: RADIUS.full, backgroundColor: c.card, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}
             >
               <Ionicons name="notifications-outline" size={18} color={mutedText} />
-              {notifications.length > 0 && (
+              {visibleNotifCount > 0 && (
                 <View style={{ position: 'absolute', top: 3, right: 3, width: 8, height: 8, borderRadius: RADIUS.full, backgroundColor: c.error }} />
               )}
             </Pressable>

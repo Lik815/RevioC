@@ -2344,6 +2344,7 @@ export default function App() {
       mapTherapists={mapTherapists}
       mapScrollEnabled={mapScrollEnabled}
       notifications={notifications}
+      dismissedNotifIds={dismissedNotifIds}
       openTherapistById={openTherapistById}
       query={query}
       results={results}
@@ -3389,10 +3390,10 @@ export default function App() {
             <Text style={{ fontSize: 22, fontWeight: '800', color: c.text }}>{greeting}</Text>
             <Text style={{ fontSize: 13, color: c.muted, marginTop: 1 }}>Deine Termine im Überblick</Text>
           </View>
-          <Pressable onPress={() => setShowNotifications(true)} style={{ padding: 8, position: 'relative' }}>
-            <Ionicons name="notifications-outline" size={22} color={c.text} />
+          <Pressable onPress={() => setShowNotifications(true)} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.card, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="notifications-outline" size={18} color={c.text} />
             {notifications.filter((n) => !dismissedNotifIds.has(n.id)).length > 0 && (
-              <View style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: c.error }} />
+              <View style={{ position: 'absolute', top: 3, right: 3, width: 8, height: 8, borderRadius: 4, backgroundColor: c.error }} />
             )}
           </Pressable>
         </View>
