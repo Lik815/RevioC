@@ -150,10 +150,10 @@ export function TherapistDashboardScreen(props) {
 
           <Pressable
             onPress={onEnterEdit}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: c.border, borderRadius: RADIUS.md, paddingVertical: 8, paddingHorizontal: 12 }}
+            style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}
+            hitSlop={8}
           >
-            <Ionicons name="pencil-outline" size={14} color={c.text} />
-            <Text style={{ fontSize: 13, fontWeight: '600', color: c.text }}>{t('editProfileBtn')}</Text>
+            <Ionicons name="pencil-outline" size={16} color={c.text} />
           </Pressable>
         </View>
 
