@@ -52,8 +52,10 @@ export function BookingRequestForm({ c, t, therapist, authToken, availableSlots,
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [rejectedSlotId, setRejectedSlotId] = useState(null);
+  const [forceFullPicker, setForceFullPicker] = useState(false);
 
-  const slots = (Array.isArray(availableSlots) ? availableSlots : []).reduce((acc, slot) => {
+  const slots = (Array.isArray(availableSlots) ? availableSlots : []).filter(s => s?.id !== rejectedSlotId).reduce((acc, slot) => {
     const slotKey = `${slot?.startsAt ?? 'unknown'}-${slot?.durationMin ?? 20}`;
     const existingIndex = acc.findIndex((candidate) => `${candidate?.startsAt ?? 'unknown'}-${candidate?.durationMin ?? 20}` === slotKey);
 
@@ -105,7 +107,9 @@ export function BookingRequestForm({ c, t, therapist, authToken, availableSlots,
       if (!res.ok) {
         if (res.status === 409) {
           setError('Dieser Termin wurde gerade von jemand anderem gebucht. Bitte wähle einen anderen Slot.');
+          setRejectedSlotId(selectedSlotId);
           setSelectedSlotId(null);
+          setForceFullPicker(true);
           if (onReloadSlots) onReloadSlots();
         } else {
           setError(data.error ?? 'Buchung fehlgeschlagen. Bitte erneut versuchen.');
@@ -172,7 +176,7 @@ export function BookingRequestForm({ c, t, therapist, authToken, availableSlots,
           <ActivityIndicator color={c.primary} />
           <Text style={{ ...TYPE.caption, color: c.muted, marginTop: 8 }}>Termine werden geladen…</Text>
         </View>
-      ) : therapist?.selectedSlotId ? (
+      ) : !forceFullPicker && therapist?.selectedSlotId ? (
         (() => {
           const preSelected = slots.find((s) => s.id === therapist.selectedSlotId);
           if (!preSelected) return null;
