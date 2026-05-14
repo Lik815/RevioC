@@ -3475,18 +3475,17 @@ export default function App() {
                   {/* Add-Karte */}
                   <Pressable
                     onPress={() => setActiveTab('therapist')}
-                    style={{ width: 140, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 10 }}
+                    style={{ width: 72, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingVertical: 8 }}
                   >
-                    <View style={{ width: 80, height: 80, borderRadius: 40, borderWidth: 1.5, borderColor: c.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
-                      <Ionicons name="add" size={28} color={c.primary} />
+                    <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: c.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                      <Ionicons name="add" size={20} color={c.primary} />
                     </View>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: c.text, textAlign: 'center' }}>Hinzufügen</Text>
-                    <Text style={{ fontSize: 12, color: c.muted, marginTop: 3, textAlign: 'center' }}>Therapeut:in</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: c.text, textAlign: 'center' }}>Hinzufügen</Text>
                   </Pressable>
 
                   {favorites.length > 0 ? (
                     <>
-                      <View style={{ width: 1, backgroundColor: c.border, marginVertical: 4, marginHorizontal: 6 }} />
+                      <View style={{ width: 1, backgroundColor: c.border, marginVertical: 4, marginHorizontal: 4 }} />
                       {favorites.map((fav) => {
                         const initials = (fav.fullName ?? '?')
                           .split(/\s+/)
@@ -3500,29 +3499,26 @@ export default function App() {
                           <Pressable
                             key={fav.id}
                             onPress={() => openTherapist(fav)}
-                            style={{ width: 140, paddingVertical: 10, paddingHorizontal: 6 }}
+                            style={{ width: 72, paddingVertical: 8, paddingHorizontal: 4 }}
                           >
-                            <View style={{ alignSelf: 'center', marginBottom: 10 }}>
+                            <View style={{ alignSelf: 'center', marginBottom: 6 }}>
                               {fav.photo ? (
-                                <Image source={{ uri: fav.photo }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+                                <Image source={{ uri: fav.photo }} style={{ width: 44, height: 44, borderRadius: 22 }} />
                               ) : (
-                                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: c.primaryBg, alignItems: 'center', justifyContent: 'center' }}>
-                                  <Text style={{ fontSize: 22, fontWeight: '700', color: c.primary }}>{initials}</Text>
+                                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primaryBg, alignItems: 'center', justifyContent: 'center' }}>
+                                  <Text style={{ fontSize: 13, fontWeight: '700', color: c.primary }}>{initials}</Text>
                                 </View>
                               )}
                               <Pressable
                                 onPress={(e) => { e.stopPropagation?.(); toggleFavorite(fav); }}
                                 hitSlop={ICON_HIT_SLOP}
-                                style={{ position: 'absolute', right: -2, top: -2, width: 26, height: 26, borderRadius: 13, backgroundColor: c.card, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}
+                                style={{ position: 'absolute', right: -3, top: -3, width: 20, height: 20, borderRadius: 10, backgroundColor: c.card, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}
                               >
-                                <Ionicons name="heart" size={12} color={c.error ?? '#ef4444'} />
+                                <Ionicons name="heart" size={9} color={c.error ?? '#ef4444'} />
                               </Pressable>
                             </View>
-                            <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', color: c.text, textAlign: 'center' }}>
+                            <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '600', color: c.text, textAlign: 'center' }}>
                               {fav.fullName}
-                            </Text>
-                            <Text numberOfLines={1} style={{ fontSize: 12, color: c.muted, marginTop: 3, textAlign: 'center' }}>
-                              {fav.professionalTitle ?? 'Physiotherapeut:in'}
                             </Text>
                           </Pressable>
                         );
