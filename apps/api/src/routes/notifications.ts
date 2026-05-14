@@ -2,11 +2,11 @@ import { FastifyPluginAsync } from 'fastify';
 import { getToken } from './auth-utils.js';
 
 async function getAdminPractice(fastify: any, therapistId: string) {
-  const link = await fastify.prisma.therapistPracticeLink.findFirst({
-    where: { therapistId, status: 'CONFIRMED', isAdmin: true },
+  const assignment = await fastify.prisma.managerPracticeAssignment.findFirst({
+    where: { manager: { therapistId } },
     include: { practice: true },
   });
-  return link?.practice ?? null;
+  return assignment?.practice ?? null;
 }
 
 export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
