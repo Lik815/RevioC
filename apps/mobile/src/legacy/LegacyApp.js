@@ -5317,33 +5317,33 @@ export default function App() {
 
       <View style={styles.appFrame}>
         {renderTab()}
+        {/* ── Globale Notification-Glocke ─────────────────────────────────── */}
+        {authToken && (
+          <Pressable
+            onPress={() => setShowNotifications(true)}
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 16,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: c.card,
+              borderWidth: 1,
+              borderColor: c.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              elevation: 10,
+            }}
+          >
+            <Ionicons name="notifications-outline" size={18} color={c.text} />
+            {notifications.filter((n) => !dismissedNotifIds.has(n.id)).length > 0 && (
+              <View style={{ position: 'absolute', top: 3, right: 3, width: 8, height: 8, borderRadius: 4, backgroundColor: c.error }} />
+            )}
+          </Pressable>
+        )}
       </View>
-
-      {/* ── Globale Notification-Glocke ─────────────────────────────────────── */}
-      {authToken && (
-        <Pressable
-          onPress={() => setShowNotifications(true)}
-          style={{
-            position: 'absolute',
-            top: 12,
-            right: 16,
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: c.card,
-            borderWidth: 1,
-            borderColor: c.border,
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <Ionicons name="notifications-outline" size={18} color={c.text} />
-          {notifications.filter((n) => !dismissedNotifIds.has(n.id)).length > 0 && (
-            <View style={{ position: 'absolute', top: 3, right: 3, width: 8, height: 8, borderRadius: 4, backgroundColor: c.error }} />
-          )}
-        </Pressable>
-      )}
 
       {/* Bottom nav */}
       <View style={[styles.navbar, { backgroundColor: c.nav, borderColor: c.border }]}>
