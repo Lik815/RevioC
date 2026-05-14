@@ -3472,20 +3472,8 @@ export default function App() {
             <View style={{ backgroundColor: c.card, borderRadius: 20, borderWidth: 1, borderColor: c.border, paddingVertical: 16, paddingHorizontal: 14, ...SHADOW.card }}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 4 }}>
-                  {/* Add-Karte */}
-                  <Pressable
-                    onPress={() => setActiveTab('therapist')}
-                    style={{ width: 72, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingVertical: 8 }}
-                  >
-                    <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: c.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-                      <Ionicons name="add" size={20} color={c.primary} />
-                    </View>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: c.text, textAlign: 'center' }}>Hinzufügen</Text>
-                  </Pressable>
-
                   {favorites.length > 0 ? (
                     <>
-                      <View style={{ width: 1, backgroundColor: c.border, marginVertical: 4, marginHorizontal: 4 }} />
                       {favorites.map((fav) => {
                         const initials = (fav.fullName ?? '?')
                           .split(/\s+/)
