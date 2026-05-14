@@ -5344,7 +5344,7 @@ export default function App() {
       <View style={styles.appFrame}>
         {renderTab()}
         {/* ── Globale Notification-Glocke ─────────────────────────────────── */}
-        {authToken && (
+        {authToken && !selectedTherapist && !showBookingForm && (
           <Pressable
             onPress={() => setShowNotifications(true)}
             style={{
