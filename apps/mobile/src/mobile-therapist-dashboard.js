@@ -438,6 +438,31 @@ export function TherapistDashboardScreen(props) {
               <Ionicons name="mail-outline" size={18} color={c.muted} />
               <Text style={{ flex: 1, fontSize: 15, color: c.text }}>{th.email}</Text>
             </View>
+
+            {/* Adresse */}
+            {(th.street || th.city) && (
+              <>
+                <View style={{ height: 1, backgroundColor: c.border, marginVertical: SPACE.md }} />
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.md }}>
+                  <Ionicons name="location-outline" size={18} color={c.muted} style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1 }}>
+                    {th.street && (
+                      <Text style={{ fontSize: 15, color: c.text }}>
+                        {[th.street, th.houseNumber].filter(Boolean).join(' ')}
+                      </Text>
+                    )}
+                    {th.city && (
+                      <Text style={{ fontSize: 15, color: th.street ? c.muted : c.text }}>
+                        {[th.postalCode, th.city].filter(Boolean).join(' ')}
+                      </Text>
+                    )}
+                    <Text style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>
+                      {th.locationPrecision === 'exact' ? 'Exakte Adresse' : 'Ungefähre Umgebung'}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            )}
           </View>
 
           {/* ── Spezialisierungen ────────────────────────────────────── */}
