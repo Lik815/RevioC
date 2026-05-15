@@ -470,13 +470,22 @@ export function DiscoverScreen(props) {
             onTouchCancel={() => setMapScrollEnabled(true)}
           >
             {userCoords && (
-              <Circle
-                center={{ latitude: userCoords.lat, longitude: userCoords.lng }}
-                radius={searchRadius * 1000}
-                strokeColor="rgba(52,199,89,0.7)"
-                fillColor="rgba(52,199,89,0.1)"
-                strokeWidth={1.5}
-              />
+              <>
+                <Circle
+                  center={{ latitude: userCoords.lat, longitude: userCoords.lng }}
+                  radius={searchRadius * 1000}
+                  strokeColor="rgba(255,255,255,0.72)"
+                  fillColor="rgba(52,199,89,0.12)"
+                  strokeWidth={5}
+                />
+                <Circle
+                  center={{ latitude: userCoords.lat, longitude: userCoords.lng }}
+                  radius={searchRadius * 1000}
+                  strokeColor="rgba(34,197,94,0.95)"
+                  fillColor="rgba(52,199,89,0.16)"
+                  strokeWidth={2.5}
+                />
+              </>
             )}
             {userCoords && (
               <Marker coordinate={{ latitude: userCoords.lat, longitude: userCoords.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
@@ -488,9 +497,9 @@ export function DiscoverScreen(props) {
                 <Circle
                   center={{ latitude: th.homeLat, longitude: th.homeLng }}
                   radius={th.serviceRadiusKm * 1000}
-                  strokeColor="rgba(52,199,89,0.5)"
-                  fillColor="rgba(52,199,89,0.07)"
-                  strokeWidth={1.5}
+                  strokeColor="rgba(34,197,94,0.85)"
+                  fillColor="rgba(52,199,89,0.11)"
+                  strokeWidth={2}
                 />
                 <Marker coordinate={{ latitude: th.homeLat, longitude: th.homeLng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false} onPress={() => openTherapistById(th.id)}>
                   <View style={{ backgroundColor: c.success, borderRadius: 16, paddingHorizontal: 9, paddingVertical: 4, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 3 }}>
@@ -724,11 +733,6 @@ export function DiscoverScreen(props) {
               {city ? `In ${city}` : t('locationPlaceholder')}
               {activeFilterCount > 0 ? ` · ${activeFilterCount} Filter` : ''}
             </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={[styles.approvedPill, { backgroundColor: c.successBg }]}>
-              <Text style={[styles.approvedPillText, { color: c.success }]}>{t('verifiedOnly')}</Text>
-            </View>
           </View>
         </View>
       ) : null}
