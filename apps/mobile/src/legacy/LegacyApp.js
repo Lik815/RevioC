@@ -3454,7 +3454,7 @@ export default function App() {
         <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, backgroundColor: c.background }}>
           <View style={[styles.header, { marginBottom: 0 }]}>
             <Image source={require('../../assets/icon.png')} style={styles.logoMark} />
-            <Text style={[styles.headerTitle, { color: c.text }]}>Meine Termine</Text>
+            <Text style={[styles.headerTitle, { color: c.text, flex: 1 }]}>Meine Termine</Text>
             <Pressable onPress={() => setShowNotifications(true)} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.card, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="notifications-outline" size={18} color={c.text} />
               {notifications.filter(n => !dismissedNotifIds.has(n.id)).length > 0 && (
@@ -3655,7 +3655,7 @@ export default function App() {
         <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, backgroundColor: c.background }}>
           <View style={[styles.header, { marginBottom: 0 }]}>
             <Image source={require('../../assets/icon.png')} style={styles.logoMark} />
-            <Text style={[styles.headerTitle, { color: c.text }]}>{therapyTabTitle}</Text>
+            <Text style={[styles.headerTitle, { color: c.text, flex: 1 }]}>{therapyTabTitle}</Text>
             <Pressable onPress={() => setShowNotifications(true)} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.card, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="notifications-outline" size={18} color={c.text} />
               {notifications.filter(n => !dismissedNotifIds.has(n.id)).length > 0 && (
