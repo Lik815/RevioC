@@ -398,34 +398,20 @@ export function PatientAppointmentCard({ c, appointment, onOpenDetail, onViewThe
   const slotDate = slot?.startsAt ?? confirmedSlotAt ?? null;
   const durationMin = slot?.durationMin ?? 20;
   const isActive = status === 'CONFIRMED' || status === 'PENDING';
-  const isInactive = !isActive;
+  const dotColor = isActive ? (c.success ?? '#22c55e') : c.muted;
 
   return (
     <Pressable
       onPress={onOpenDetail}
-      style={{ backgroundColor: c.card, borderRadius: RADIUS.md, paddingHorizontal: SPACE.md, paddingVertical: 12, marginBottom: 6, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: isInactive ? 0.65 : 1, ...SHADOW.card }}
+      style={{ backgroundColor: c.card, borderRadius: RADIUS.md, paddingHorizontal: SPACE.md, paddingVertical: 12, marginBottom: 6, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: c.border }}
     >
-      {/* Datum-Block */}
-      {slotDate ? (
-        <View style={{ width: 44, alignItems: 'center', gap: 1 }}>
-          <Text style={{ fontSize: 18, fontWeight: '800', color: isInactive ? c.muted : c.text, lineHeight: 20 }}>
-            {new Date(slotDate).toLocaleDateString('de-DE', { day: 'numeric' })}
-          </Text>
-          <Text style={{ fontSize: 10, fontWeight: '600', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.3 }}>
-            {new Date(slotDate).toLocaleDateString('de-DE', { month: 'short' })}
-          </Text>
-        </View>
-      ) : (
-        <View style={{ width: 44 }} />
-      )}
-
-      {/* Vertikale Linie */}
-      <View style={{ width: 1, height: 36, backgroundColor: c.border }} />
+      {/* Dot */}
+      <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: dotColor, marginTop: 1 }} />
 
       {/* Info */}
       <View style={{ flex: 1 }}>
         {slotDate && (
-          <Text style={{ fontSize: 14, fontWeight: '600', color: isInactive ? c.muted : c.text }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: isActive ? c.text : c.muted }}>
             {new Date(slotDate).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr · {durationMin} Min
           </Text>
         )}

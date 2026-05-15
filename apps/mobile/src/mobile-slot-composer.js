@@ -11,6 +11,7 @@ import {
 
 import {
   RADIUS,
+  formatDayHeader,
 } from './mobile-utils';
 
 const SLOT_DURATIONS = [20, 30, 40, 50, 60];
@@ -368,8 +369,7 @@ export function TherapistSlotManagerCard({ c, deletingSlotIds = [], mySlots, onA
 // Chronologische Timeline: freie Slots + gebuchte Termine + Anfragen nach Tag
 
 function getDayKey(isoString) {
-  const d = new Date(isoString);
-  return d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  return formatDayHeader(isoString);
 }
 
 function FreeSlotCard({ c, slot, onCancelSlot, deletingSlotIds }) {
@@ -379,8 +379,8 @@ function FreeSlotCard({ c, slot, onCancelSlot, deletingSlotIds }) {
   return (
     <View style={{
       flexDirection: 'row', alignItems: 'center',
-      borderWidth: 1.5, borderColor: c.border, borderRadius: 10,
-      borderStyle: 'dashed', backgroundColor: c.background,
+      borderWidth: 1, borderColor: c.border, borderRadius: 10,
+      backgroundColor: c.background,
       paddingVertical: 10, paddingHorizontal: 14, marginBottom: 6,
     }}>
       <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.success ?? '#5A9E8E', marginRight: 10 }} />
@@ -392,14 +392,14 @@ function FreeSlotCard({ c, slot, onCancelSlot, deletingSlotIds }) {
         <ActivityIndicator size="small" color={c.muted} />
       ) : (
         <Pressable onPress={() => onCancelSlot(slot.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="trash-outline" size={16} color={c.muted} />
+          <Ionicons name="close-outline" size={16} color={c.muted} />
         </Pressable>
       )}
     </View>
   );
 }
 
-function BookedSlotCard({ c, slot, booking, onRespond, onTherapistCancel }) {
+function BookedSlotCard({ c, slot, booking, onRespond, onTherapistCancel, onOpenDetail }) {
   const [loading, setLoading] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
   const [declinedReason, setDeclinedReason] = useState('');
@@ -408,6 +408,19 @@ function BookedSlotCard({ c, slot, booking, onRespond, onTherapistCancel }) {
   const timeStr = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   const isPending = booking?.status === 'PENDING';
   const isConfirmed = booking?.status === 'CONFIRMED';
+
+  // Defensiver Fallback: Slot ist BOOKED aber kein Booking-Objekt vorhanden
+  if (!booking) {
+    return (
+      <View style={{ backgroundColor: c.card, borderRadius: 10, borderWidth: 1, borderColor: c.border, marginBottom: 6, paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.muted, marginRight: 10 }} />
+        <Text style={{ fontSize: 14, fontWeight: '600', color: c.muted, flex: 1 }}>{timeStr} Uhr · {slot.durationMin} Min</Text>
+        <View style={{ backgroundColor: c.mutedBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: c.muted }}>GEBUCHT</Text>
+        </View>
+      </View>
+    );
+  }
 
   const handleRespond = async (action) => {
     if (!onRespond || !booking) return;
@@ -424,6 +437,32 @@ function BookedSlotCard({ c, slot, booking, onRespond, onTherapistCancel }) {
 
   const accentColor = isPending ? (c.warning ?? '#8A6000') : (c.primary);
   const accentBg = isPending ? (c.warningBg ?? '#FEF5DC') : (c.primaryBg);
+
+  // CONFIRMED → kompakte tappable Zeile
+  if (isConfirmed) {
+    return (
+      <Pressable
+        onPress={() => onOpenDetail?.(booking)}
+        style={{ backgroundColor: c.card, borderRadius: 10, borderWidth: 1, borderColor: c.primary, marginBottom: 6, overflow: 'hidden' }}
+      >
+        <View style={{ height: 3, backgroundColor: c.primary }} />
+        <View style={{ padding: 12, flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.success ?? '#22c55e', marginRight: 10 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: c.text }}>{timeStr} Uhr · {slot.durationMin} Min</Text>
+            {booking.patientName ? <Text style={{ fontSize: 13, color: c.text, marginTop: 2 }}>{booking.patientName}</Text> : null}
+            {booking.patientPhone ? <Text style={{ fontSize: 12, color: c.muted, marginTop: 1 }}>{booking.patientPhone}</Text> : null}
+          </View>
+          <View style={{ alignItems: 'flex-end', gap: 4 }}>
+            <View style={{ backgroundColor: c.primaryBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: c.primary }}>GEBUCHT</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={c.muted} />
+          </View>
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
     <View style={{
@@ -491,7 +530,7 @@ function BookedSlotCard({ c, slot, booking, onRespond, onTherapistCancel }) {
   );
 }
 
-export function TherapistTimeline({ c, mySlots, incomingBookings, activeFilter, deletingSlotIds, onCancelSlot, onRespond, onTherapistCancel, slotsLoading, incomingLoading }) {
+export function TherapistTimeline({ c, mySlots, incomingBookings, activeFilter, deletingSlotIds, onCancelSlot, onRespond, onTherapistCancel, slotsLoading, incomingLoading, onOpenDetail }) {
   const items = useMemo(() => {
     if (!Array.isArray(mySlots)) return {};
     const bookingBySlotId = {};
@@ -548,7 +587,7 @@ export function TherapistTimeline({ c, mySlots, incomingBookings, activeFilter, 
           {items[day].map(({ slot, booking }) => (
             slot.status === 'AVAILABLE'
               ? <FreeSlotCard key={slot.id} c={c} slot={slot} onCancelSlot={onCancelSlot} deletingSlotIds={deletingSlotIds} />
-              : <BookedSlotCard key={slot.id} c={c} slot={slot} booking={booking} onRespond={onRespond} onTherapistCancel={onTherapistCancel} />
+              : <BookedSlotCard key={slot.id} c={c} slot={slot} booking={booking} onRespond={onRespond} onTherapistCancel={onTherapistCancel} onOpenDetail={onOpenDetail} />
           ))}
         </View>
       ))}

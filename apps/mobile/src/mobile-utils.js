@@ -416,4 +416,17 @@ export {
   softenErrorMessage,
   tabs,
   GERMAN_CITIES,
+  formatDayHeader,
+  formatKpiDate,
 };
+
+function formatDayHeader(isoString, locale = 'de-DE') {
+  return new Date(isoString)
+    .toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'long' })
+    .toUpperCase();
+}
+
+function formatKpiDate(isoString, locale = 'de-DE') {
+  return new Date(isoString)
+    .toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+}

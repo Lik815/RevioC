@@ -52,6 +52,8 @@ import {
   resolveMediaUrl,
   softenErrorMessage,
   tabs,
+  formatDayHeader,
+  formatKpiDate,
 } from '../mobile-utils';
 import { DiscoverScreen } from '../mobile-discover-screen';
 import {
@@ -364,6 +366,7 @@ export default function App() {
   const [showCancelAppointmentModal, setShowCancelAppointmentModal] = useState(false);
   const [showTherapistCancelModal, setShowTherapistCancelModal] = useState(false);
   const [therapistCancelBookingId, setTherapistCancelBookingId] = useState(null);
+  const [therapistDetailBooking, setTherapistDetailBooking] = useState(null);
 
   const handleCancelSelectedAppointment = async () => {
     if (!selectedAppointment) return;
@@ -886,6 +889,7 @@ export default function App() {
   const [editHealthAuthorityStatus, setEditHealthAuthorityStatus] = useState(null);
   const [editCertifications, setEditCertifications] = useState([]);
   const [activeFilterTherapist, setActiveFilterTherapist] = useState('all');
+  const [activeFilterPatient, setActiveFilterPatient] = useState('all');
   const [showArchivedApts, setShowArchivedApts] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [therapistDocuments, setTherapistDocuments] = useState([]);
@@ -3361,36 +3365,48 @@ export default function App() {
   );
 
   const renderTherapyTabPatient = () => {
-    const activeStatuses = ['CONFIRMED', 'PENDING'];
-    const archivedStatuses = ['CANCELLED', 'DECLINED', 'EXPIRED'];
-    const sortedApts = [...myAppointments].sort((a, b) => {
-      const da = new Date(a.slot?.startsAt ?? a.confirmedSlotAt ?? 0);
-      const db = new Date(b.slot?.startsAt ?? b.confirmedSlotAt ?? 0);
-      return da - db;
-    });
+    const getDate = (a) => new Date(a.slot?.startsAt ?? a.confirmedSlotAt ?? 0);
     const now = new Date();
-    const nextApt = sortedApts.find(a => activeStatuses.includes(a.status) && new Date(a.slot?.startsAt ?? a.confirmedSlotAt ?? 0) > now);
-    const activeApts = sortedApts.filter(a => a !== nextApt && activeStatuses.includes(a.status));
-    const archivedApts = sortedApts.filter(a => archivedStatuses.includes(a.status)).reverse();
 
-    const firstName = loggedInPatient?.firstName ?? null;
-    const greeting = firstName ? `Hallo ${firstName}` : 'Hallo';
+    const kommend = [...myAppointments]
+      .filter(a => ['CONFIRMED', 'PENDING'].includes(a.status) && getDate(a) >= now)
+      .sort((a, b) => getDate(a) - getDate(b));
+
+    const vergangen = [...myAppointments]
+      .filter(a =>
+        ['CANCELLED', 'DECLINED', 'EXPIRED'].includes(a.status) ||
+        (a.status === 'CONFIRMED' && getDate(a) < now)
+      )
+      .sort((a, b) => getDate(b) - getDate(a));
+
+    const nextApt = kommend[0] ?? null;
 
     const openTherapist = (th) => {
       if (th?.id) openTherapistById(th.id, th);
       else if (th) setSelectedTherapist(th);
     };
 
+    const groupByDay = (appointments) => {
+      const groups = {};
+      appointments.forEach(apt => {
+        const key = formatDayHeader(getDate(apt).toISOString());
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(apt);
+      });
+      return groups;
+    };
+
+    const filteredKommend = activeFilterPatient === 'vergangen' ? [] : kommend;
+    const filteredVergangen = activeFilterPatient === 'kommend' ? [] : vergangen;
+
     return (
       <View style={{ flex: 1 }}>
-        {/* ── Personalisierter Header ────────────────────────────────── */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10, backgroundColor: c.background, flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 22, fontWeight: '800', color: c.text }}>{greeting}</Text>
-            <Text style={{ fontSize: 13, color: c.muted, marginTop: 1 }}>Deine Termine im Überblick</Text>
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10, backgroundColor: c.background }}>
+          <View style={[styles.header, { marginBottom: 0 }]}>
+            <Image source={require('../../assets/icon.png')} style={styles.logoMark} />
+            <Text style={[styles.headerTitle, { color: c.text }]}>Meine Termine</Text>
           </View>
-          {/* Notification bell moved to global overlay */}
-          <View style={{ width: 40 }} />
         </View>
 
         <ScrollView
@@ -3398,6 +3414,55 @@ export default function App() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={therapyRefreshing} onRefresh={handleTherapyRefresh} tintColor={c.primary} />}
         >
+          {/* ── KPI-Karten ──────────────────────────────────────────── */}
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+            {/* KPI 1: Nächster Termin */}
+            <View style={{ flex: 1, backgroundColor: c.successBg ?? '#EAF4F1', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center' }}>
+              <Text style={{ fontSize: nextApt ? 12 : 22, fontWeight: '800', color: c.success ?? '#5A9E8E', textAlign: 'center' }} numberOfLines={2}>
+                {nextApt ? formatKpiDate(getDate(nextApt).toISOString()) : '—'}
+              </Text>
+              <Text style={{ fontSize: 10, color: c.success ?? '#5A9E8E', fontWeight: '600', marginTop: 2, textAlign: 'center' }}>Nächster Termin</Text>
+              <Ionicons name="calendar-outline" size={14} color={c.success ?? '#5A9E8E'} style={{ marginTop: 3, opacity: 0.7 }} />
+            </View>
+            {/* KPI 2: Kommende */}
+            <Pressable
+              onPress={() => setActiveFilterPatient(activeFilterPatient === 'kommend' ? 'all' : 'kommend')}
+              style={{ flex: 1, backgroundColor: c.primaryBg, borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: activeFilterPatient === 'kommend' ? 2 : 0, borderColor: c.primary }}
+            >
+              <Text style={{ fontSize: 22, fontWeight: '800', color: c.primary }}>{kommend.length}</Text>
+              <Text style={{ fontSize: 10, color: c.primary, fontWeight: '600', marginTop: 2, textAlign: 'center' }}>Kommende Termine</Text>
+              <Ionicons name="checkmark-circle-outline" size={14} color={c.primary} style={{ marginTop: 3, opacity: 0.7 }} />
+            </Pressable>
+            {/* KPI 3: Vergangene */}
+            <Pressable
+              onPress={() => setActiveFilterPatient(activeFilterPatient === 'vergangen' ? 'all' : 'vergangen')}
+              style={{ flex: 1, backgroundColor: c.warningBg ?? '#FEF5DC', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: activeFilterPatient === 'vergangen' ? 2 : 0, borderColor: c.warning ?? '#8A6000' }}
+            >
+              <Text style={{ fontSize: 22, fontWeight: '800', color: c.warning ?? '#8A6000' }}>{vergangen.length}</Text>
+              <Text style={{ fontSize: 10, color: c.warning ?? '#8A6000', fontWeight: '600', marginTop: 2, textAlign: 'center' }}>Vergangene</Text>
+              <Ionicons name="time-outline" size={14} color={c.warning ?? '#8A6000'} style={{ marginTop: 3, opacity: 0.7 }} />
+            </Pressable>
+          </View>
+
+          {/* ── Filter-Tabs ─────────────────────────────────────────── */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {[{ key: 'all', label: 'Alle' }, { key: 'kommend', label: 'Kommend' }, { key: 'vergangen', label: 'Vergangen' }].map(({ key, label }) => {
+                const active = activeFilterPatient === key;
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setActiveFilterPatient(key)}
+                    style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: active ? c.primary : c.card, borderWidth: 1, borderColor: active ? c.primary : c.border }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: active ? '700' : '500', color: active ? '#fff' : c.text }}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          {/* ── Timeline ────────────────────────────────────────────── */}
           {shouldShowSectionLoading(myAppointmentsLoading, appointmentsLastLoadedAt) ? (
             renderTherapySectionLoading()
           ) : myAppointments.length === 0 ? (
@@ -3410,26 +3475,11 @@ export default function App() {
             </View>
           ) : (
             <>
-              {/* ── Nächster Termin — Hero ──────────────────────────── */}
-              {nextApt ? (
-                <>
-                  <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: c.muted, textTransform: 'uppercase', marginBottom: 8 }}>Nächster Termin</Text>
-                  <NextAppointmentHero
-                    c={c}
-                    appointment={nextApt}
-                    onOpenDetail={() => setSelectedAppointment(nextApt)}
-                    onViewTherapist={() => openTherapist(nextApt.therapist)}
-                  />
-                </>
-              ) : null}
-
-              {/* ── Weitere aktive Termine — Timeline ──────────────── */}
-              {activeApts.length > 0 && (
-                <>
-                  <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: c.muted, textTransform: 'uppercase', marginTop: nextApt ? 4 : 0, marginBottom: 8 }}>
-                    {nextApt ? 'Weitere Termine' : 'Deine Termine'}
-                  </Text>
-                  {activeApts.map(apt => (
+              {/* Kommende Termine */}
+              {Object.entries(groupByDay(filteredKommend)).map(([day, apts]) => (
+                <View key={day} style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: c.muted, textTransform: 'uppercase', marginBottom: 8 }}>{day}</Text>
+                  {apts.map(apt => (
                     <PatientAppointmentCard
                       key={apt.id}
                       c={c}
@@ -3438,22 +3488,21 @@ export default function App() {
                       onViewTherapist={() => openTherapist(apt.therapist)}
                     />
                   ))}
-                </>
+                </View>
+              ))}
+
+              {/* Section-Label Vergangene */}
+              {filteredVergangen.length > 0 && (
+                <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: c.muted, textTransform: 'uppercase', marginBottom: 8, marginTop: filteredKommend.length > 0 ? 8 : 0 }}>
+                  Vergangene Termine
+                </Text>
               )}
 
-              {/* ── Vergangene Termine — eingeklappt ───────────────── */}
-              {archivedApts.length > 0 && (
-                <View style={{ marginTop: 16 }}>
-                  <Pressable
-                    onPress={() => setShowArchivedApts(v => !v)}
-                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 14, backgroundColor: c.mutedBg, borderRadius: 10, marginBottom: showArchivedApts ? 8 : 0 }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: c.muted }}>
-                      Vergangene Termine ({archivedApts.length})
-                    </Text>
-                    <Ionicons name={showArchivedApts ? 'chevron-up' : 'chevron-down'} size={16} color={c.muted} />
-                  </Pressable>
-                  {showArchivedApts && archivedApts.map(apt => (
+              {/* Vergangene Termine */}
+              {Object.entries(groupByDay(filteredVergangen)).map(([day, apts]) => (
+                <View key={day} style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: c.muted, textTransform: 'uppercase', marginBottom: 8 }}>{day}</Text>
+                  {apts.map(apt => (
                     <PatientAppointmentCard
                       key={apt.id}
                       c={c}
@@ -3462,6 +3511,13 @@ export default function App() {
                       onViewTherapist={() => openTherapist(apt.therapist)}
                     />
                   ))}
+                </View>
+              ))}
+
+              {filteredKommend.length === 0 && filteredVergangen.length === 0 && (
+                <View style={{ backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, paddingVertical: 28, paddingHorizontal: 20, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: c.text, textAlign: 'center' }}>Keine Termine</Text>
+                  <Text style={{ fontSize: 13, color: c.muted, textAlign: 'center', marginTop: 4 }}>Für diesen Filter gibt es keine Einträge.</Text>
                 </View>
               )}
             </>
@@ -3485,7 +3541,6 @@ export default function App() {
                           .join('')
                           .slice(0, 2)
                           .toUpperCase();
-
                         return (
                           <Pressable
                             key={fav.id}
@@ -3555,6 +3610,12 @@ export default function App() {
       setShowTherapistCancelModal(true);
     };
 
+    const handleOpenDetail = (booking) => {
+      setTherapistDetailBooking(booking);
+      setTherapistCancelBookingId(booking.id);
+      setShowTherapistCancelModal(true);
+    };
+
     const FILTERS = [
       { key: 'all', label: 'Alle' },
       { key: 'pending', label: `Anfragen${pendingIncomingBookings.length > 0 ? ` (${pendingIncomingBookings.length})` : ''}` },
@@ -3582,9 +3643,9 @@ export default function App() {
               {/* ── KPI-Karten ──────────────────────────────────────── */}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                 {[
-                  { key: 'free', label: 'Frei', value: freeSlots.length, color: c.success ?? '#5A9E8E', bg: c.successBg ?? '#EAF4F1' },
-                  { key: 'booked', label: 'Gebucht', value: bookedSlots.length, color: c.primary, bg: c.primaryBg },
-                  { key: 'pending', label: 'Anfragen', value: pendingIncomingBookings.length, color: c.warning ?? '#8A6000', bg: c.warningBg ?? '#FEF5DC' },
+                  { key: 'free', label: 'Frei', value: freeSlots.length, color: c.success ?? '#5A9E8E', bg: c.successBg ?? '#EAF4F1', icon: 'calendar-outline' },
+                  { key: 'booked', label: 'Gebucht', value: bookedSlots.length, color: c.primary, bg: c.primaryBg, icon: 'checkmark-circle-outline' },
+                  { key: 'pending', label: 'Angefragt', value: pendingIncomingBookings.length, color: c.warning ?? '#8A6000', bg: c.warningBg ?? '#FEF5DC', icon: 'person-outline' },
                 ].map(({ key, label, value, color, bg }) => (
                   <Pressable
                     key={key}
@@ -3593,6 +3654,7 @@ export default function App() {
                   >
                     <Text style={{ fontSize: 22, fontWeight: '800', color }}>{value}</Text>
                     <Text style={{ fontSize: 11, color, fontWeight: '600', marginTop: 1 }}>{label}</Text>
+                    <Ionicons name={icon} size={16} color={color} style={{ marginTop: 4, opacity: 0.7 }} />
                   </Pressable>
                 ))}
               </View>
@@ -3625,6 +3687,7 @@ export default function App() {
                 onCancelSlot={handleCancelSlot}
                 onRespond={handleRespond}
                 onTherapistCancel={handleTherapistCancel}
+                onOpenDetail={handleOpenDetail}
                 slotsLoading={shouldShowSectionLoading(slotsLoading, slotsLastLoadedAt)}
                 incomingLoading={shouldShowSectionLoading(incomingBookingsLoading, incomingBookingsLastLoadedAt)}
               />
@@ -5104,6 +5167,16 @@ export default function App() {
                   Termin absagen
                 </Text>
               </View>
+              {therapistDetailBooking && (
+                <View style={{ backgroundColor: c.mutedBg, borderRadius: 12, padding: 14, gap: 4 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: c.text }}>
+                    {therapistDetailBooking.patientName ?? 'Patient:in'}
+                  </Text>
+                  {therapistDetailBooking.patientPhone ? (
+                    <Text style={{ fontSize: 13, color: c.muted }}>{therapistDetailBooking.patientPhone}</Text>
+                  ) : null}
+                </View>
+              )}
               <Text style={{ fontSize: 14, color: c.muted, textAlign: 'center', lineHeight: 21 }}>
                 Möchtest du diesen bestätigten Termin wirklich absagen? Der Patient wird benachrichtigt.
               </Text>
@@ -5120,13 +5193,14 @@ export default function App() {
                     if (res.ok) { loadIncomingBookings(authToken); loadMySlots(authToken); }
                     else Alert.alert('Fehler', 'Stornierung fehlgeschlagen. Bitte erneut versuchen.');
                     setTherapistCancelBookingId(null);
+                    setTherapistDetailBooking(null);
                   }}
                 >
                   <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Absagen</Text>
                 </Pressable>
                 <Pressable
                   style={{ backgroundColor: c.mutedBg, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
-                  onPress={() => { setShowTherapistCancelModal(false); setTherapistCancelBookingId(null); }}
+                  onPress={() => { setShowTherapistCancelModal(false); setTherapistCancelBookingId(null); setTherapistDetailBooking(null); }}
                 >
                   <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>Abbrechen</Text>
                 </Pressable>
