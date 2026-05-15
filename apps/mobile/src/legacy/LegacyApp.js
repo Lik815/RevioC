@@ -2228,6 +2228,7 @@ export default function App() {
     return {
       id: therapist.id,
       email: therapist.email || null,
+      phone: therapist.phone ?? null,
       fullName: therapist.fullName,
       professionalTitle: therapist.professionalTitle,
       specializations: Array.isArray(therapist.specializations) ? therapist.specializations : [],
@@ -2295,7 +2296,18 @@ export default function App() {
   // ── Discover tab ──────────────────────────────────────────────────────────
 
   const mapTherapists = React.useMemo(
-    () => results.filter((th) => th.homeVisit && th.homeLat && th.homeLng && th.serviceRadiusKm),
+    () => results
+      .map((th) => {
+        if (th.homeVisit && th.homeLat && th.homeLng && th.serviceRadiusKm) {
+          return { ...th, _mapLat: th.homeLat, _mapLng: th.homeLng, _mapType: 'home' };
+        }
+        const p = (th.practices ?? []).find((pr) => pr.lat && pr.lat !== 0 && pr.lng && pr.lng !== 0);
+        if (p) {
+          return { ...th, _mapLat: p.lat, _mapLng: p.lng, _mapType: 'practice' };
+        }
+        return null;
+      })
+      .filter(Boolean),
     [results],
   );
 
@@ -2313,10 +2325,10 @@ export default function App() {
     // No origin: fit to therapist service areas or fall back to Germany
     if (mapTherapists.length === 0)
       return { latitude: 51.1657, longitude: 10.4515, latitudeDelta: 5.0, longitudeDelta: 5.0 };
-    const avgLat = mapTherapists.reduce((s, th) => s + th.homeLat, 0) / mapTherapists.length;
-    const avgLng = mapTherapists.reduce((s, th) => s + th.homeLng, 0) / mapTherapists.length;
-    const latSpan = Math.max(...mapTherapists.map((th) => Math.abs(th.homeLat - avgLat))) * 2.2 || 0.08;
-    const lngSpan = Math.max(...mapTherapists.map((th) => Math.abs(th.homeLng - avgLng))) * 2.2 || 0.08;
+    const avgLat = mapTherapists.reduce((s, th) => s + th._mapLat, 0) / mapTherapists.length;
+    const avgLng = mapTherapists.reduce((s, th) => s + th._mapLng, 0) / mapTherapists.length;
+    const latSpan = Math.max(...mapTherapists.map((th) => Math.abs(th._mapLat - avgLat))) * 2.2 || 0.08;
+    const lngSpan = Math.max(...mapTherapists.map((th) => Math.abs(th._mapLng - avgLng))) * 2.2 || 0.08;
     return {
       latitude: avgLat, longitude: avgLng,
       latitudeDelta: Math.max(latSpan, 0.05),
