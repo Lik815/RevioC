@@ -5186,7 +5186,8 @@ export default function App() {
                   style={{ backgroundColor: '#DC2626', borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
                   onPress={async () => {
                     setShowTherapistCancelModal(false);
-                    if (!therapistCancelBookingId) return;
+                    setTherapistDetailBooking(null);
+                    if (!therapistCancelBookingId) { setTherapistCancelBookingId(null); return; }
                     const res = await fetch(`${getBaseUrl()}/bookings/${therapistCancelBookingId}/therapist-cancel`, {
                       method: 'PATCH',
                       headers: { ...TUNNEL_HEADERS, Authorization: `Bearer ${authToken}` },
@@ -5194,7 +5195,6 @@ export default function App() {
                     if (res.ok) { loadIncomingBookings(authToken); loadMySlots(authToken); }
                     else Alert.alert('Fehler', 'Stornierung fehlgeschlagen. Bitte erneut versuchen.');
                     setTherapistCancelBookingId(null);
-                    setTherapistDetailBooking(null);
                   }}
                 >
                   <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Absagen</Text>
