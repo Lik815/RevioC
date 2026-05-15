@@ -78,7 +78,7 @@ import {
 } from '../mobile-compliance-step';
 import { translations } from '../mobile-translations';
 import { PatientDashboardScreen } from '../mobile-patient-dashboard';
-import { BookingRequestForm, NextAppointmentHero, PatientAppointmentCard, STATUS_COLORS, TherapistBookingCard } from '../mobile-booking';
+import { BookingRequestForm, PatientAppointmentCard, STATUS_COLORS, TherapistBookingCard } from '../mobile-booking';
 
 const formatProfileOverviewName = (fullName = '') => {
   const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
@@ -3507,6 +3507,7 @@ export default function App() {
                       key={apt.id}
                       c={c}
                       appointment={apt}
+                      isPast
                       onOpenDetail={() => setSelectedAppointment(apt)}
                       onViewTherapist={() => openTherapist(apt.therapist)}
                     />
@@ -3646,7 +3647,7 @@ export default function App() {
                   { key: 'free', label: 'Frei', value: freeSlots.length, color: c.success ?? '#5A9E8E', bg: c.successBg ?? '#EAF4F1', icon: 'calendar-outline' },
                   { key: 'booked', label: 'Gebucht', value: bookedSlots.length, color: c.primary, bg: c.primaryBg, icon: 'checkmark-circle-outline' },
                   { key: 'pending', label: 'Angefragt', value: pendingIncomingBookings.length, color: c.warning ?? '#8A6000', bg: c.warningBg ?? '#FEF5DC', icon: 'person-outline' },
-                ].map(({ key, label, value, color, bg }) => (
+                ].map(({ key, label, value, color, bg, icon }) => (
                   <Pressable
                     key={key}
                     onPress={() => setActiveFilterTherapist(activeFilterTherapist === key ? 'all' : key)}
@@ -5155,8 +5156,8 @@ export default function App() {
       </Modal>
 
       {/* ── Therapist Cancel Modal ────────────────────────────────────────── */}
-      <Modal visible={showTherapistCancelModal} transparent animationType="fade" onRequestClose={() => setShowTherapistCancelModal(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 24 }} onPress={() => setShowTherapistCancelModal(false)}>
+      <Modal visible={showTherapistCancelModal} transparent animationType="fade" onRequestClose={() => { setShowTherapistCancelModal(false); setTherapistDetailBooking(null); setTherapistCancelBookingId(null); }}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 24 }} onPress={() => { setShowTherapistCancelModal(false); setTherapistDetailBooking(null); setTherapistCancelBookingId(null); }}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={{ backgroundColor: c.card, borderRadius: 20, padding: 24, gap: 20 }}>
               <View style={{ alignItems: 'center', gap: 12 }}>

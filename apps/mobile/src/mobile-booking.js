@@ -392,12 +392,12 @@ export function NextAppointmentHero({ c, appointment, onOpenDetail, onViewTherap
 
 // ─── PatientAppointmentCard ────────────────────────────────────────────────────
 
-export function PatientAppointmentCard({ c, appointment, onOpenDetail, onViewTherapist }) {
+export function PatientAppointmentCard({ c, appointment, onOpenDetail, onViewTherapist, isPast = false }) {
   const { status, therapist, slot, confirmedSlotAt } = appointment;
   const badge = STATUS_COLORS[status] ?? STATUS_COLORS.EXPIRED;
   const slotDate = slot?.startsAt ?? confirmedSlotAt ?? null;
   const durationMin = slot?.durationMin ?? 20;
-  const isActive = status === 'CONFIRMED' || status === 'PENDING';
+  const isActive = (status === 'CONFIRMED' || status === 'PENDING') && !isPast;
   const dotColor = isActive ? (c.success ?? '#22c55e') : c.muted;
 
   return (
