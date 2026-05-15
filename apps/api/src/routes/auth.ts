@@ -488,14 +488,16 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       if (effectivePrecision === 'exact' && exactCoords) {
         updateData.homeLat = exactCoords.lat;
         updateData.homeLng = exactCoords.lng;
-      } else {
+      } else if (exactCoords) {
+        // Already have a geocoded point — use it for approximate too (avoids second Nominatim request)
+        updateData.homeLat = exactCoords.lat;
+        updateData.homeLng = exactCoords.lng;
+      } else if (cityPart || effectiveCity) {
+        // No street → geocode city only (single request)
         const approxCoords = await geocodeAddress('', cityPart || effectiveCity);
         if (approxCoords) {
           updateData.homeLat = approxCoords.lat;
           updateData.homeLng = approxCoords.lng;
-        } else if (exactCoords) {
-          updateData.homeLat = exactCoords.lat;
-          updateData.homeLng = exactCoords.lng;
         }
       }
     }

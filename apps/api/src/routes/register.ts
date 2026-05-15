@@ -232,11 +232,13 @@ export const registerRoutes: FastifyPluginAsync = async (fastify) => {
     const exactCoords = (data.street && data.city)
       ? await geocodeAddress(streetPart, cityPart)
       : null;
+    // Only geocode city if no exact coords — avoids double Nominatim request
     const approxCoords = exactCoords ? null : await geocodeAddress('', cityPart || data.city || '');
     const coords = exactCoords;
     const precision = data.locationPrecision ?? 'approximate';
-    const publicLat = precision === 'exact' && exactCoords ? exactCoords.lat : (approxCoords?.lat ?? exactCoords?.lat ?? null);
-    const publicLng = precision === 'exact' && exactCoords ? exactCoords.lng : (approxCoords?.lng ?? exactCoords?.lng ?? null);
+    // For approximate mode, exact coords still work as a map point (just not pinpoint-precise)
+    const publicLat = (precision === 'exact' && exactCoords) ? exactCoords.lat : (exactCoords?.lat ?? approxCoords?.lat ?? null);
+    const publicLng = (precision === 'exact' && exactCoords) ? exactCoords.lng : (exactCoords?.lng ?? approxCoords?.lng ?? null);
 
     const sessionToken = randomBytes(32).toString('hex');
 
