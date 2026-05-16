@@ -1486,28 +1486,29 @@ export default function App() {
     try {
       await AsyncStorage.setItem(complianceDraftKey, JSON.stringify(compliancePayload));
 
+      const patchBody = {
+        bio: editBio,
+        phone: editPhone.trim() || null,
+        specializations: editSpecializations.split(',').map(s => s.trim()).filter(Boolean),
+        languages: editLanguages.map(l => l.toLowerCase()),
+        certifications: editCertifications,
+        homeVisit: editHomeVisit,
+        serviceRadiusKm: editHomeVisit ? (editServiceRadius ?? null) : null,
+        kassenart: editKassenart,
+        gender: editGender,
+        isVisible: editIsVisible,
+        availability: editAvailability,
+        bookingMode: editBookingMode,
+        city: editCity.trim() || undefined,
+        postalCode: editPostalCode.trim() || null,
+        street: editStreet.trim() || null,
+        houseNumber: editHouseNumber.trim() || null,
+        locationPrecision: editLocationPrecision,
+      };
       const profileRes = await fetch(`${getBaseUrl()}/auth/me`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({
-          bio: editBio,
-          phone: editPhone.trim() || null,
-          specializations: editSpecializations.split(',').map(s => s.trim()).filter(Boolean),
-          languages: editLanguages.map(l => l.toLowerCase()),
-          certifications: editCertifications,
-          homeVisit: editHomeVisit,
-          serviceRadiusKm: editHomeVisit ? (editServiceRadius ?? null) : null,
-          kassenart: editKassenart,
-          gender: editGender,
-          isVisible: editIsVisible,
-          availability: editAvailability,
-          bookingMode: editBookingMode,
-          city: editCity.trim() || undefined,
-          postalCode: editPostalCode.trim() || null,
-          street: editStreet.trim() || null,
-          houseNumber: editHouseNumber.trim() || null,
-          locationPrecision: editLocationPrecision,
-        }),
+        body: JSON.stringify(patchBody),
       });
 
       const profileData = await profileRes.json().catch(() => ({}));
@@ -3766,21 +3767,37 @@ export default function App() {
               {/* ── KPI-Karten ──────────────────────────────────────── */}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                 {[
-                  { key: 'booked', label: 'Gebuchte Termine', value: bookedSlots.length, color: c.primary, bg: c.primaryBg, icon: 'calendar-outline' },
-                  { key: 'pending', label: 'Anfragen', value: pendingIncomingBookings.length, color: c.warning ?? '#8A6000', bg: c.warningBg ?? '#FEF5DC', icon: 'person-outline' },
-                  { key: 'favoriten', label: 'Favoriten', value: favorites.length, color: c.error ?? '#ef4444', bg: '#FEF2F2', icon: 'heart-outline' },
-                ].map(({ key, label, value, color, bg, icon }) => (
-                  <Pressable
-                    key={key}
-                    onPress={() => setActiveFilterTherapist(activeFilterTherapist === key ? 'all' : key)}
-                    style={{ flex: 1, backgroundColor: bg, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 4, alignItems: 'center', borderWidth: activeFilterTherapist === key ? 2 : 0, borderColor: color }}
-                  >
-                    <Text style={{ fontSize: 20, fontWeight: '800', color }}>{value}</Text>
-                    <Text style={{ fontSize: 10, color, fontWeight: '600', marginTop: 1, textAlign: 'center' }}>{label}</Text>
-                    <Ionicons name={icon} size={14} color={color} style={{ marginTop: 3, opacity: 0.7 }} />
-                    <Ionicons name="chevron-forward" size={10} color={color} style={{ position: 'absolute', top: 8, right: 6, opacity: 0.5 }} />
-                  </Pressable>
-                ))}
+                  { key: 'booked', label: 'Gebuchte Termine', value: bookedSlots.length, color: c.primary, icon: 'calendar-outline' },
+                  { key: 'pending', label: 'Anfragen', value: pendingIncomingBookings.length, color: c.warning ?? '#B7791F', icon: 'person-outline' },
+                  { key: 'favoriten', label: 'Favoriten', value: favorites.length, color: c.error ?? '#ef4444', icon: 'heart-outline' },
+                ].map(({ key, label, value, color, icon }) => {
+                  const active = activeFilterTherapist === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => setActiveFilterTherapist(active ? 'all' : key)}
+                      style={{
+                        flex: 1,
+                        backgroundColor: c.card,
+                        borderRadius: 14,
+                        paddingVertical: 16,
+                        paddingHorizontal: 4,
+                        alignItems: 'center',
+                        borderWidth: active ? 1.6 : 1.25,
+                        borderColor: color,
+                        shadowColor: color,
+                        shadowOpacity: active ? 0.10 : 0.04,
+                        shadowRadius: active ? 8 : 4,
+                        shadowOffset: { width: 0, height: 2 },
+                        elevation: active ? 2 : 1,
+                      }}
+                    >
+                      <Text style={{ fontSize: 20, fontWeight: '800', color }}>{value}</Text>
+                      <Text style={{ fontSize: 10, color, fontWeight: '600', marginTop: 2, textAlign: 'center' }}>{label}</Text>
+                      <Ionicons name={icon} size={15} color={color} style={{ marginTop: 8 }} />
+                    </Pressable>
+                  );
+                })}
               </View>
 
               {/* ── Segment-Filterleiste ────────────────────────────── */}

@@ -12,7 +12,7 @@ COPY apps/api/package.json ./apps/api/
 # Install all dependencies (admin package.json not needed for API build)
 RUN pnpm install --frozen-lockfile --filter @revio/api...
 
-# Copy source
+# Copy source (cache-bust: 2026-05-16)
 COPY apps/api/ ./apps/api/
 
 # Generate Prisma client for PostgreSQL
