@@ -2292,7 +2292,7 @@ export default function App() {
   const mapTherapists = React.useMemo(
     () => results
       .map((th) => {
-        if (th.homeVisit && th.homeLat && th.homeLng && th.serviceRadiusKm) {
+        if (th.homeVisit && th.homeLat && th.homeLng) {
           return { ...th, _mapLat: th.homeLat, _mapLng: th.homeLng, _mapType: 'home' };
         }
         const p = (th.practices ?? []).find((pr) => pr.lat && pr.lat !== 0 && pr.lng && pr.lng !== 0);

@@ -348,7 +348,7 @@ export const translations = {
     nSelected: '{n} gewählt',
     searchMultiSelect: 'Suche + Mehrfachauswahl',
     noCertsFound: 'Keine passende Fortbildung gefunden.',
-    noNearbyPractices: 'Keine Therapeut:innen mit Hausbesuchsgebiet im Umkreis von {n} km',
+    noNearbyPractices: 'Keine Therapeut:innen im Umkreis von {n} km',
     tryAnotherLocation: 'Versuche einen anderen Ort oder einen größeren Radius.',
     noGeoData: 'Keine Therapeut:innen mit Standortdaten',
     noGeoDataBody: 'Für diese Ergebnisse liegen noch keine Koordinaten für Hausbesuche vor.',
@@ -868,7 +868,7 @@ export const translations = {
 
     searchMultiSelect: 'Search + multi-select',
     noCertsFound: 'No matching qualification found.',
-    noNearbyPractices: 'No therapists with home-visit coverage within {n} km',
+    noNearbyPractices: 'No therapists within {n} km',
     tryAnotherLocation: 'Try a different location or a larger radius.',
     noGeoData: 'No therapists with location data',
     noGeoDataBody: 'No home-visit coordinates are available for these results yet.',
