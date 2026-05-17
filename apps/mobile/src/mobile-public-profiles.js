@@ -240,7 +240,9 @@ export function TherapistProfileScreen(props) {
   const normalizeList = (items) => items.map((i) => String(i).trim().toLowerCase()).filter(Boolean).sort();
   const listsEqual = (a, b) => { const la = normalizeList(a); const lb = normalizeList(b); return la.length === lb.length && la.every((v, i) => v === lb[i]); };
   const therapistAreas = listsEqual(therapistAreasRaw, therapistSpecializations) ? [] : therapistAreasRaw;
-  const therapistCertifications = Array.isArray(th?.certifications) ? th.certifications : [];
+  const therapistCertifications = Array.isArray(th?.fortbildungen) && th.fortbildungen.length > 0
+    ? th.fortbildungen
+    : Array.isArray(th?.certifications) ? th.certifications : [];
   const therapistPhone = th?.phone || null;
   const displayEmail = th?.email || null;
   const iconHitSlop = { top: 10, bottom: 10, left: 10, right: 10 };
