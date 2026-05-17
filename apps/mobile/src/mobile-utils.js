@@ -19,12 +19,12 @@ const quickChips = [
 
 const COLORS = {
   light: {
-    background: '#F5F7F8',
+    background: '#FBFBF9',
     bgElevated: '#FFFFFF',
-    text: '#1C2B33',
+    text: '#121212',
     textMuted: '#6B838E',
-    primary: '#3E6271',
-    primaryBg: '#EBF2F5',
+    primary: '#1B3D2F',
+    primaryBg: '#D1E8E2',
     accent: '#5A9E8E',
     accentBg: '#EAF4F1',
     card: '#FFFFFF',
@@ -74,9 +74,9 @@ const SPACE = {
 };
 
 const RADIUS = {
-  sm: 10,
-  md: 16,
-  lg: 20,
+  sm: 12,
+  md: 20,
+  lg: 24,
   full: 999,
 };
 
@@ -239,6 +239,9 @@ const mapApiTherapist = (t) => ({
   specializations: parseStringOrArray(t.specializations),
   languages: normalizeLanguageCodes(t.languages),
   homeVisit: t.homeVisit ?? false,
+  homeLat: typeof t.homeLat === 'number' ? t.homeLat : null,
+  homeLng: typeof t.homeLng === 'number' ? t.homeLng : null,
+  serviceRadiusKm: typeof t.serviceRadiusKm === 'number' ? t.serviceRadiusKm : null,
   isVisible: t.isVisible ?? true,
   availability: t.availability ?? '',
   city: t.city ?? '',
