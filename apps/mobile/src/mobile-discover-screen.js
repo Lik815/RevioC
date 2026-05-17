@@ -510,15 +510,6 @@ export function DiscoverScreen(props) {
             )}
             {safeMapTherapists.map((th) => (
               <React.Fragment key={`marker-${th.id}`}>
-                {th._mapType === 'home' && (
-                  <Circle
-                    center={{ latitude: th._mapLat, longitude: th._mapLng }}
-                    radius={th.serviceRadiusKm * 1000}
-                    strokeColor="rgba(34,197,94,0.85)"
-                    fillColor="rgba(52,199,89,0.11)"
-                    strokeWidth={2}
-                  />
-                )}
                 <Marker coordinate={{ latitude: th._mapLat, longitude: th._mapLng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false} onPress={() => openTherapistById(th.id)}>
                   <View style={{ backgroundColor: th._mapType === 'home' ? c.success : c.primary, borderRadius: 16, paddingHorizontal: 9, paddingVertical: 4, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 3 }}>
                     <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{th._mapType === 'home' ? '🏠 ' : ''}{(typeof th?.fullName === 'string' && th.fullName.trim() ? th.fullName.trim().split(/\s+/)[0] : 'Profil')}</Text>
