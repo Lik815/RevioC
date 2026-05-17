@@ -21,6 +21,10 @@ export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
       createdAt: Date;
       reviewStatus?: string;
       therapistId?: string;
+      bookingId?: string;
+      linkId?: string;
+      practiceId?: string;
+      actionLabel?: string;
     }[] = [];
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -97,6 +101,8 @@ export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
           type: 'NEW_BOOKING_REQUEST',
           message: `Neue Buchungsanfrage von ${name} (${date}).`,
           createdAt: b.createdAt,
+          bookingId: b.id,
+          actionLabel: 'Anfrage öffnen',
         });
       }
 
@@ -114,6 +120,9 @@ export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
             type: 'JOIN_REQUEST',
             message: `${link.therapist.fullName} möchte deiner Praxis beitreten.`,
             createdAt: link.createdAt,
+            linkId: link.id,
+            practiceId: adminPractice.id,
+            actionLabel: 'Anfrage öffnen',
           });
         }
       }
@@ -130,6 +139,9 @@ export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
           type: 'INVITE',
           message: `${link.practice.name} hat dich eingeladen, der Praxis beizutreten.`,
           createdAt: link.createdAt,
+          linkId: link.id,
+          practiceId: link.practice.id,
+          actionLabel: 'Einladung öffnen',
         });
       }
 
@@ -156,6 +168,8 @@ export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
             type: 'BOOKING_CONFIRMED',
             message: `Dein Termin am ${slotDate} wurde bestätigt. 🎉`,
             createdAt: respondedDate,
+            bookingId: b.id,
+            actionLabel: 'Termin öffnen',
           });
         } else if (b.status === 'DECLINED') {
           notifications.push({
@@ -163,6 +177,8 @@ export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
             type: 'BOOKING_DECLINED',
             message: `Deine Terminanfrage konnte leider nicht bestätigt werden.`,
             createdAt: respondedDate,
+            bookingId: b.id,
+            actionLabel: 'Details öffnen',
           });
         } else if (b.status === 'CANCELLED') {
           notifications.push({
@@ -170,6 +186,8 @@ export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
             type: 'BOOKING_CANCELLED',
             message: `Ein Termin wurde storniert.`,
             createdAt: respondedDate,
+            bookingId: b.id,
+            actionLabel: 'Details öffnen',
           });
         }
       }
@@ -199,6 +217,9 @@ export const notificationRoutes: FastifyPluginAsync = async (fastify) => {
             type: 'JOIN_REQUEST',
             message: `${(link as any).therapist.fullName} möchte ${(link as any).practice.name} beitreten.`,
             createdAt: link.createdAt,
+            linkId: link.id,
+            practiceId: (link as any).practice.id,
+            actionLabel: 'Anfrage öffnen',
           });
         }
       }

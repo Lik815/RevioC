@@ -1384,6 +1384,51 @@ export default function App() {
     }
   };
 
+  const handleNotificationPress = async (notification) => {
+    setShowNotifications(false);
+    const type = notification?.type;
+    const bookingId = notification?.bookingId;
+
+    switch (type) {
+      case 'NEW_BOOKING_REQUEST':
+        setActiveTab('favorites');
+        setActiveFilterTherapist('pending');
+        await loadIncomingBookings(authToken, { background: true });
+        break;
+
+      case 'BOOKING_CONFIRMED':
+      case 'BOOKING_DECLINED':
+      case 'BOOKING_CANCELLED':
+        setActiveTab('favorites');
+        if (authToken) {
+          await loadMyAppointments(authToken, { background: true });
+          if (bookingId) {
+            setMyAppointments((prev) => {
+              const found = prev.find((a) => a.id === bookingId);
+              if (found) setTimeout(() => setSelectedAppointment(found), 100);
+              return prev;
+            });
+          }
+        }
+        break;
+
+      case 'PROFILE_APPROVED':
+      case 'PROFILE_CHANGES_REQUESTED':
+      case 'PROFILE_REJECTED':
+      case 'PROFILE_SUSPENDED':
+        setActiveTab('therapist');
+        break;
+
+      case 'JOIN_REQUEST':
+      case 'INVITE':
+        setActiveTab('options');
+        break;
+
+      default:
+        break;
+    }
+  };
+
   const dismissNotification = async (id) => {
     const next = new Set(dismissedNotifIds);
     next.add(id);
@@ -2137,6 +2182,21 @@ export default function App() {
     }
     setLocationLoading(false);
   };
+
+  // Push notification tap listener (foreground + background tap → route to correct screen)
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data ?? {};
+      handleNotificationPress({ type: data.type, bookingId: data.bookingId, actionLabel: data.actionLabel });
+    });
+    // Cold-start: app launched via push tap
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const data = response.notification.request.content.data ?? {};
+      handleNotificationPress({ type: data.type, bookingId: data.bookingId, actionLabel: data.actionLabel });
+    }).catch(() => {});
+    return () => sub.remove();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load saved city + label + language from AsyncStorage on mount
   useEffect(() => {
@@ -5153,20 +5213,25 @@ export default function App() {
                   visible.map((n) => {
                     const icon = iconMap[n.type] ?? { name: 'notifications-outline', color: c.primary };
                     return (
-                      <View key={n.id} style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                      <Pressable key={n.id} onPress={() => handleNotificationPress(n)} style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
                         <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c.card, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
                           <Ionicons name={icon.name} size={16} color={icon.color} />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={{ color: c.text, fontSize: 14, lineHeight: 20 }}>{n.message}</Text>
-                          <Text style={{ color: c.muted, fontSize: 11, marginTop: 3 }}>
-                            {new Date(n.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 }}>
+                            <Text style={{ color: c.muted, fontSize: 11 }}>
+                              {new Date(n.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </Text>
+                            {n.actionLabel && (
+                              <Text style={{ color: c.primary, fontSize: 11, fontWeight: '600' }}>{n.actionLabel} ›</Text>
+                            )}
+                          </View>
                         </View>
-                        <Pressable onPress={() => dismissNotification(n.id)} hitSlop={10} style={{ paddingTop: 2 }}>
+                        <Pressable onPress={(e) => { e.stopPropagation?.(); dismissNotification(n.id); }} hitSlop={10} style={{ paddingTop: 2 }}>
                           <Ionicons name="close-outline" size={20} color={c.muted} />
                         </Pressable>
-                      </View>
+                      </Pressable>
                     );
                   })
                 )}
