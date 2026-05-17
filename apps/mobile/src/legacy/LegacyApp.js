@@ -3196,10 +3196,10 @@ export default function App() {
 
   const therapyTabTitle = 'Meine Termine';
 
-  const renderFavoritesVertical = (onOpenProfile) => {
+  const renderFavoritesVertical = (onOpenProfile, { showAll = false, onShowAll } = {}) => {
     if (shouldShowSectionLoading(favoritesLoading, favoritesLastLoadedAt)) return renderTherapySectionLoading();
     if (favorites.length === 0) return renderTherapySectionEmpty('Du hast noch keine Therapeut:innen gespeichert.', t('favoritesEmptyBody'));
-    const shown = favorites.slice(0, 2);
+    const shown = showAll ? favorites : favorites.slice(0, 2);
     return (
       <View>
         {shown.map((fav) => {
@@ -3229,8 +3229,8 @@ export default function App() {
             </Pressable>
           );
         })}
-        {favorites.length > 2 && (
-          <Pressable onPress={() => setActiveTab('discover')} style={{ paddingTop: 12, alignItems: 'center' }}>
+        {!showAll && favorites.length > 2 && (
+          <Pressable onPress={onShowAll} style={{ paddingTop: 12, alignItems: 'center' }}>
             <Text style={{ fontSize: 13, color: c.primary, fontWeight: '600' }}>Alle Favoriten anzeigen ›</Text>
           </Pressable>
         )}
@@ -3606,7 +3606,7 @@ export default function App() {
           {/* ── Favoriten-Filter ────────────────────────────────────── */}
           {activeFilterPatient === 'favoriten' ? (
             <View style={{ backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, paddingHorizontal: 16, paddingBottom: 4 }}>
-              {renderFavoritesVertical((fav) => openTherapist(fav))}
+              {renderFavoritesVertical((fav) => openTherapist(fav), { showAll: true })}
             </View>
           ) : (
             <>
@@ -3656,7 +3656,7 @@ export default function App() {
               {/* ── Gespeicherte Therapeuten ────────────────────────── */}
               <Text style={[styles.sectionLabel, { color: c.text, marginTop: 16, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }]}>Gespeicherte Therapeuten</Text>
               <View style={{ backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, paddingHorizontal: 16, paddingBottom: 4 }}>
-                {renderFavoritesVertical((fav) => openTherapist(fav))}
+                {renderFavoritesVertical((fav) => openTherapist(fav), { onShowAll: () => setActiveFilterPatient('favoriten') })}
               </View>
             </>
           )}
@@ -3804,7 +3804,7 @@ export default function App() {
               {/* ── Timeline oder Favoriten ──────────────────────────── */}
               {activeFilterTherapist === 'favoriten' ? (
                 <View style={{ backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, paddingHorizontal: 16, paddingBottom: 4 }}>
-                  {renderFavoritesVertical((fav) => openTherapistById(fav.id))}
+                  {renderFavoritesVertical((fav) => openTherapistById(fav.id), { showAll: true })}
                 </View>
               ) : (
                 <TherapistTimeline
@@ -3833,7 +3833,7 @@ export default function App() {
             <>
               <Text style={[styles.sectionLabel, { color: c.text, marginTop: 16, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }]}>Gespeicherte Therapeuten</Text>
               <View style={{ backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, paddingHorizontal: 16, paddingBottom: 4 }}>
-                {renderFavoritesVertical((fav) => openTherapistById(fav.id))}
+                {renderFavoritesVertical((fav) => openTherapistById(fav.id), { onShowAll: () => setActiveFilterTherapist('favoriten') })}
               </View>
             </>
           )}
