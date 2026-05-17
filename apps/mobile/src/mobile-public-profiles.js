@@ -452,8 +452,22 @@ export function TherapistProfileScreen(props) {
           </View>
         )}
 
-        {/* 3. Summary-Leiste: Kassenart · Sprachen · Distanz */}
-        <View style={{ borderTopWidth: (therapistSpecializations.length > 0 || therapistAreas.length > 0) ? 1 : 0, borderTopColor: c.border }}>
+        {/* 3. Fortbildungen */}
+        {therapistCertifications.length > 0 && (
+          <View style={{ borderTopWidth: (therapistSpecializations.length > 0 || therapistAreas.length > 0) ? 1 : 0, borderTopColor: c.border, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 18 }}>
+            <Text style={[styles.filterSectionTitle, { color: c.muted, marginBottom: 14 }]}>{t('certsLabel')}</Text>
+            <View style={styles.tagRow}>
+              {therapistCertifications.map((cert) => (
+                <View key={cert} style={[styles.tag, { backgroundColor: c.successBg, borderWidth: 1, borderColor: c.success, paddingHorizontal: 18, paddingVertical: 10 }]}>
+                  <Text style={[styles.tagText, { color: c.success, fontSize: 13 }]}>{cert}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 4. Summary-Leiste: Kassenart · Sprachen */}
+        <View style={{ borderTopWidth: (therapistSpecializations.length > 0 || therapistAreas.length > 0 || therapistCertifications.length > 0) ? 1 : 0, borderTopColor: c.border }}>
           <View style={{ flexDirection: 'row' }}>
             {[
               { label: 'KASSENART', icon: 'card-outline', value: th.kassenart || 'Alle' },
@@ -471,19 +485,6 @@ export function TherapistProfileScreen(props) {
         </View>
       </View>
 
-      {/* Zertifikate */}
-      {therapistCertifications.length > 0 && (
-        <View style={[styles.infoSection, { backgroundColor: c.card, borderColor: c.border }]}>
-          <Text style={[styles.filterSectionTitle, { color: c.muted }]}>{t('certsLabel')}</Text>
-          <View style={styles.tagRow}>
-            {therapistCertifications.map((qualification) => (
-              <View key={qualification} style={[styles.tag, { backgroundColor: c.successBg, borderWidth: 1, borderColor: c.success }]}>
-                <Text style={[styles.tagText, { color: c.success }]}>{qualification}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
 
       {/* 4. CTA: Freie Termine ansehen */}
       {canOpenBookingModal ? (
