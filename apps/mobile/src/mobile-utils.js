@@ -19,12 +19,12 @@ const quickChips = [
 
 const COLORS = {
   light: {
-    background: '#FBFBF9',
+    background: '#F5F7F8',
     bgElevated: '#FFFFFF',
-    text: '#121212',
+    text: '#1C2B33',
     textMuted: '#6B838E',
-    primary: '#1B3D2F',
-    primaryBg: '#D1E8E2',
+    primary: '#3E6271',
+    primaryBg: '#EBF2F5',
     accent: '#5A9E8E',
     accentBg: '#EAF4F1',
     card: '#FFFFFF',
@@ -74,9 +74,9 @@ const SPACE = {
 };
 
 const RADIUS = {
-  sm: 12,
-  md: 20,
-  lg: 24,
+  sm: 10,
+  md: 16,
+  lg: 20,
   full: 999,
 };
 
